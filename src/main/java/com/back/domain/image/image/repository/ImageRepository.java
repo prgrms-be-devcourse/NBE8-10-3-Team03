@@ -1,6 +1,6 @@
-package com.back.domain.image.repository;
+package com.back.domain.image.image.repository;
 
-import com.back.domain.image.entity.Image;
+import com.back.domain.image.image.entity.Image;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

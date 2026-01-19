@@ -1,4 +1,4 @@
-package com.back.domain.auction.dto.request;
+package com.back.domain.auction.auction.dto.request;
 
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;

@@ -1,13 +1,12 @@
-package com.back.domain.auction.controller;
+package com.back.domain.auction.auction.controller;
 
-import com.back.domain.auction.dto.request.AuctionCreateRequest;
-import com.back.domain.auction.dto.response.AuctionIdResponse;
-import com.back.domain.auction.service.AuctionService;
+import com.back.domain.auction.auction.dto.request.AuctionCreateRequest;
+import com.back.domain.auction.auction.dto.response.AuctionIdResponse;
+import com.back.domain.auction.auction.service.AuctionService;
+import com.back.global.rsData.RsData;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -18,12 +17,11 @@ public class AuctionController {
     private final AuctionService auctionService;
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<AuctionIdResponse> createAuction(
+    public RsData<AuctionIdResponse> createAuction(
             @Valid @ModelAttribute AuctionCreateRequest request,
             @RequestParam(defaultValue = "1") Integer sellerId // TODO: JWT에서 사용자 ID 추출로 변경 예정
     ) {
-        AuctionIdResponse response = auctionService.createAuction(request, sellerId);
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        return auctionService.createAuction(request, sellerId);
     }
 }
 

@@ -1,6 +1,6 @@
-package com.back.domain.auction.entity;
+package com.back.domain.auction.auction.entity;
 
-import com.back.domain.image.entity.Image;
+import com.back.domain.image.image.entity.Image;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;

@@ -1,4 +1,4 @@
-package com.back.domain.image.entity;
+package com.back.domain.image.image.entity;
 
 import jakarta.persistence.*;
 import lombok.AccessLevel;

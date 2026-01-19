@@ -1,6 +1,6 @@
-package com.back.domain.auction.repository;
+package com.back.domain.auction.auction.repository;
 
-import com.back.domain.auction.entity.Auction;
+import com.back.domain.auction.auction.entity.Auction;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

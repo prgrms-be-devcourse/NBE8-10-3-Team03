@@ -1,6 +1,6 @@
-package com.back.domain.auction.entity;
+package com.back.domain.auction.auction.entity;
 
-import com.back.domain.category.entity.Category;
+import com.back.domain.category.category.entity.Category;
 import com.back.domain.member.member.entity.Member;
 import com.back.global.jpa.entity.BaseEntity;
 import jakarta.persistence.*;

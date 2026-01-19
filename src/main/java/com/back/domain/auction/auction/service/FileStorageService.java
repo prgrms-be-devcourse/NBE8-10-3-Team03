@@ -1,5 +1,6 @@
-package com.back.domain.auction.service;
+package com.back.domain.auction.auction.service;
 
+import com.back.global.exception.ServiceException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -21,7 +22,7 @@ public class FileStorageService {
         try {
             Files.createDirectories(this.fileStorageLocation);
         } catch (IOException e) {
-            throw new RuntimeException("파일 저장 디렉토리를 생성할 수 없습니다.", e);
+            throw new ServiceException("500-2", "파일 저장 디렉토리를 생성할 수 없습니다.");
         }
     }
 
@@ -29,7 +30,7 @@ public class FileStorageService {
         // 원본 파일명
         String originalFileName = file.getOriginalFilename();
         if (originalFileName == null || originalFileName.isEmpty()) {
-            throw new IllegalArgumentException("파일 이름이 유효하지 않습니다.");
+            throw new ServiceException("400-3", "파일 이름이 유효하지 않습니다.");
         }
 
         // 고유한 파일명 생성 (UUID 사용)
@@ -38,7 +39,7 @@ public class FileStorageService {
         if (dotIndex > 0) {
             fileExtension = originalFileName.substring(dotIndex);
         }
-        String storedFileName = UUID.randomUUID().toString() + fileExtension;
+        String storedFileName = UUID.randomUUID() + fileExtension;
 
         try {
             Path targetLocation = this.fileStorageLocation.resolve(storedFileName);
@@ -47,7 +48,7 @@ public class FileStorageService {
             // 저장된 파일의 URL 반환 (상대 경로)
             return "/uploads/" + storedFileName;
         } catch (IOException e) {
-            throw new RuntimeException("파일 저장에 실패했습니다: " + storedFileName, e);
+            throw new ServiceException("500-3", "파일 저장에 실패했습니다: " + storedFileName);
         }
     }
 }

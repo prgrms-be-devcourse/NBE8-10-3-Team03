@@ -1,7 +1,7 @@
 package com.back.global.config;
 
-import com.back.domain.category.entity.Category;
-import com.back.domain.category.repository.CategoryRepository;
+import com.back.domain.category.category.entity.Category;
+import com.back.domain.category.category.repository.CategoryRepository;
 import com.back.domain.member.member.entity.Member;
 import com.back.domain.member.member.repository.MemberRepository;
 import lombok.RequiredArgsConstructor;
@@ -15,7 +15,7 @@ import org.springframework.context.annotation.Profile;
 public class DataInitializer {
 
     @Bean
-    @Profile({"dev", "test"})
+    //@Profile({"dev", "test"})
     public CommandLineRunner initData(
             MemberRepository memberRepository,
             CategoryRepository categoryRepository
