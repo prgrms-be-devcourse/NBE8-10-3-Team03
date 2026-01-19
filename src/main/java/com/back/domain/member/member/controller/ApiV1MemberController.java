@@ -1,8 +1,10 @@
 package com.back.domain.member.member.controller;
 
 import com.back.domain.member.member.dto.MemberDto;
+import com.back.domain.member.member.dto.MemberWithUsernameDto;
 import com.back.domain.member.member.entity.Member;
 import com.back.domain.member.member.service.MemberService;
+import com.back.global.exception.ServiceException;
 import com.back.global.rq.Rq;
 import com.back.global.rsData.RsData;
 import jakarta.validation.Valid;
@@ -10,10 +12,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/v1/members")
@@ -53,5 +52,72 @@ public class ApiV1MemberController {
         );
     }
 
+    record MemberLoginReqBody(
+            @NotBlank
+            @Size(min = 2, max = 30)
+            String username,
+            @NotBlank
+            @Size(min = 2, max = 30)
+            String password
+    ) {
+    }
+
+    record MemberLoginResBody(
+            MemberDto item,
+            String apiKey,
+            String accessToken
+    ) {
+    }
+
+    @PostMapping("/login")
+    @Transactional(readOnly = true)
+    public RsData<MemberLoginResBody> login(
+            @Valid @RequestBody MemberLoginReqBody reqBody
+    ) {
+        Member member = memberService.findByUsername(reqBody.username())
+                .orElseThrow(() -> new ServiceException("401-1", "존재하지 않는 아이디입니다."));
+
+        memberService.checkPassword(
+                member,
+                reqBody.password()
+        );
+
+        String accessToken = memberService.genAccessToken(member);
+
+        rq.setCookie("apiKey", member.getApiKey());
+        rq.setCookie("accessToken", accessToken);
+
+        return new RsData<>(
+                "200-1",
+                "%s님 환영합니다.".formatted(member.getName()),
+                new MemberLoginResBody(
+                        new MemberDto(member),
+                        member.getApiKey(),
+                        accessToken
+                )
+        );
+    }
+
+    @DeleteMapping("/logout")
+    public RsData<Void> logout() {
+        rq.deleteCookie("apiKey");
+        rq.deleteCookie("accessToken");
+
+        return new RsData<>(
+                "200-1",
+                "로그아웃 되었습니다."
+        );
+    }
+
+
+    @GetMapping("/me")
+    @Transactional(readOnly = true)
+    public MemberWithUsernameDto me() {
+        Member actor = memberService
+                .findById(rq.getActor().getId())
+                .get();
+
+        return new MemberWithUsernameDto(actor);
+    }
 
 }
