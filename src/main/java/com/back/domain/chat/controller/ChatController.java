@@ -13,6 +13,14 @@ import java.util.List;
 public class ChatController {
     private final ChatService chatService;
 
+    // 채팅방 생성 및 입장 (UUID 반환)
+    @PostMapping("/room")
+    public String createRoom(@RequestParam Long itemId,
+                             @RequestParam String sellerId,
+                             @RequestParam String buyerId) {
+        return chatService.createChatRoom(itemId, sellerId, buyerId);
+    }
+
     @PostMapping("/send")
     public void sendMessage(@RequestBody ChatDto chatDto) {
         chatService.saveMessage(chatDto);
