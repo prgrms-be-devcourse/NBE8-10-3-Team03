@@ -25,7 +25,7 @@ public class ChatService {
                 .roomId(chatDto.roomId())
                 .sender(chatDto.sender())
                 .message(chatDto.message())
-                .sendTime(LocalDateTime.now())
+                .isRead(false)
                 .build();
 
         chatRepository.save(chatMessage);
@@ -34,7 +34,14 @@ public class ChatService {
     public List<ChatDto> getMessages(String roomId) {
         return chatRepository.findAllByRoomIdOrderBySendTimeAsc(roomId)
                 .stream()
-                .map(m -> new ChatDto(m.getItemId(), m.getRoomId(), m.getSender(), m.getMessage(), m.getSendTime()))
+                .map(m -> new ChatDto(
+                        m.getId(),
+                        m.getItemId(),
+                        m.getRoomId(),
+                        m.getSender(),
+                        m.getMessage(),
+                        m.getCreateDate(),
+                        m.isRead()))
                 .collect(Collectors.toList());
     }
 }
