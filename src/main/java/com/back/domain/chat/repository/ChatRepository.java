@@ -6,4 +6,6 @@ import java.util.List;
 
 public interface ChatRepository extends JpaRepository<Chat, Long> {
     List<Chat> findAllByRoomIdOrderByCreateDateAsc(String roomId);
+
+    List<Chat> findByRoomIdAndIdGreaterThanOrderByCreateDateAsc(String roomId, int lastId);
 }

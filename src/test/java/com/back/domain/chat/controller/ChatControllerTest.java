@@ -158,6 +158,26 @@ class ChatControllerTest {
                 .andExpect(jsonPath("$[1].message").value("답변 드립니다."));
     }
 
+    @Test
+    @DisplayName("lastChatId를 전달하면 해당 ID 이후의 메시지만 응답한다.")
+    void t9() throws Exception {
+        sendMessage(BUYER, "메시지 1");
+        sendMessage(SELLER, "메시지 2");
+        sendMessage(BUYER, "메시지 3");
+
+        String response = mockMvc.perform(get("/api/chat/room/" + ROOM_ID))
+                .andReturn().getResponse().getContentAsString();
+
+        int firstMessageId = com.jayway.jsonpath.JsonPath.read(response, "$[0].id");
+
+        mockMvc.perform(get("/api/chat/room/" + ROOM_ID)
+                        .param("lastChatId", String.valueOf(firstMessageId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].message").value("메시지 2"))
+                .andExpect(jsonPath("$[1].message").value("메시지 3"));
+    }
+
     // --- [헬퍼 메서드] ---
     private void sendMessage(String sender, String message) throws Exception {
         ChatDto dto = new ChatDto(0, ITEM_ID, ROOM_ID, sender, message, null, false);

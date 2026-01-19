@@ -19,7 +19,9 @@ public class ChatController {
     }
 
     @GetMapping("/room/{roomId}")
-    public List<ChatDto> getMessages(@PathVariable String roomId) {
-        return chatService.getMessages(roomId);
+    public List<ChatDto> getMessages(
+            @PathVariable String roomId,
+            @RequestParam(value = "lastChatId", required = false) Integer lastChatId) {
+        return chatService.getMessages(roomId, lastChatId);
     }
 }

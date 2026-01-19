@@ -7,7 +7,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -31,9 +30,15 @@ public class ChatService {
         chatRepository.save(chatMessage);
     }
 
-    public List<ChatDto> getMessages(String roomId) {
-        return chatRepository.findAllByRoomIdOrderByCreateDateAsc(roomId)
-                .stream()
+    public List<ChatDto> getMessages(String roomId, Integer lastChatId) {
+        List<Chat> chats;
+        if (lastChatId == null || lastChatId <= 0) {
+            chats = chatRepository.findAllByRoomIdOrderByCreateDateAsc(roomId);
+        } else {
+            chats = chatRepository.findByRoomIdAndIdGreaterThanOrderByCreateDateAsc(roomId, lastChatId);
+        }
+
+        return chats.stream()
                 .map(m -> new ChatDto(
                         m.getId(),
                         m.getItemId(),
