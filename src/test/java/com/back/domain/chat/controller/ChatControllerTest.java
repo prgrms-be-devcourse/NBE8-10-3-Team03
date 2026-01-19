@@ -46,8 +46,8 @@ class ChatControllerTest {
         String roomId = createRoom(ITEM_ID, SELLER, BUYER);
 
         sendMessage(roomId, BUYER, "이 물건 네고 가능한가요?");
-        sendMessage(roomId, SELLER, "아뇨, 정가 판매만 합니다.");
-        sendMessage(roomId, BUYER, "네, 알겠습니다. 구매할게요.");
+        sendMessage(roomId, SELLER, "안팔아요~");
+        sendMessage(roomId, BUYER, "알겠습니다.그냥 구매할게요.");
 
         mockMvc.perform(get("/api/chat/room/" + roomId))
                 .andExpect(status().isOk())
@@ -116,6 +116,9 @@ class ChatControllerTest {
 
         mockMvc.perform(get("/api/chat/room/" + roomId))
                 .andExpect(jsonPath("$[0].message").value("메시지 1"))
+                .andExpect(jsonPath("$[1].message").value("메시지 2"))
+                .andExpect(jsonPath("$[2].message").value("메시지 3"))
+                .andExpect(jsonPath("$[3].message").value("메시지 4"))
                 .andExpect(jsonPath("$[4].message").value("메시지 5"));
     }
 
@@ -184,13 +187,13 @@ class ChatControllerTest {
 
         String room2 = createRoom(200L, "seller2", "buyer2");
         sendMessage(room2, "buyer2", "네고 되나요?");
-        sendMessage(room2, "seller2", "쳇");
+        sendMessage(room2, "seller2", "퉷");
 
         mockMvc.perform(get("/api/chat/list"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(2))
                 .andExpect(jsonPath("$[?(@.message == '반갑습니다')].roomId").value(room1))
-                .andExpect(jsonPath("$[?(@.message == '쳇')].roomId").value(room2));
+                .andExpect(jsonPath("$[?(@.message == '퉷')].roomId").value(room2));
     }
 
     @Test
