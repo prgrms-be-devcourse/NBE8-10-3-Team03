@@ -3,6 +3,8 @@ package com.back.domain.chat.service;
 import com.back.domain.chat.dto.ChatDto;
 import com.back.domain.chat.entity.Chat;
 import com.back.domain.chat.repository.ChatRepository;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,6 +18,10 @@ import java.util.stream.Collectors;
 public class ChatService {
 
     private final ChatRepository chatRepository;
+
+    // 영속성 컨텍스트 관리를 위해 주입
+    @PersistenceContext
+    private EntityManager entityManager;
 
     @Transactional
     public void saveMessage(ChatDto chatDto) {
