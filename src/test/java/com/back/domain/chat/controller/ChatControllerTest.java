@@ -55,7 +55,7 @@ class ChatControllerTest {
         sendMessage(BUYER, "A가 보낸 메시지");
 
         String otherRoomId = "100-seller_kim-buyer_park";
-        ChatDto otherDto = new ChatDto(ITEM_ID, otherRoomId, "buyer_park", "B가 보낸 메시지", null);
+        ChatDto otherDto = new ChatDto(0, ITEM_ID, otherRoomId, "buyer_park", "B가 보낸 메시지", null, false);
 
         mockMvc.perform(post("/api/chat/send")
                         .with(csrf())
@@ -122,7 +122,8 @@ class ChatControllerTest {
 
         sendMessage(BUYER, "아이템A 문의");
 
-        ChatDto dtoB = new ChatDto(itemB, roomB, BUYER, "아이템B 문의", null);
+        // 수정된 ChatDto 반영
+        ChatDto dtoB = new ChatDto(0, itemB, roomB, BUYER, "아이템B 문의", null, false);
         mockMvc.perform(post("/api/chat/send")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
@@ -159,7 +160,7 @@ class ChatControllerTest {
 
     // --- [헬퍼 메서드] ---
     private void sendMessage(String sender, String message) throws Exception {
-        ChatDto dto = new ChatDto(ITEM_ID, ROOM_ID, sender, message, null);
+        ChatDto dto = new ChatDto(0, ITEM_ID, ROOM_ID, sender, message, null, false);
         mockMvc.perform(post("/api/chat/send")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)

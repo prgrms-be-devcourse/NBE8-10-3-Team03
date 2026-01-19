@@ -32,7 +32,7 @@ public class ChatService {
     }
 
     public List<ChatDto> getMessages(String roomId) {
-        return chatRepository.findAllByRoomIdOrderBySendTimeAsc(roomId)
+        return chatRepository.findAllByRoomIdOrderByCreateDateAsc(roomId)
                 .stream()
                 .map(m -> new ChatDto(
                         m.getId(),

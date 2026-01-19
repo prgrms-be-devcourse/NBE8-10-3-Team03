@@ -8,9 +8,7 @@ import lombok.experimental.SuperBuilder;
 
 @Entity
 @Getter
-@NoArgsConstructor
-@AllArgsConstructor
-@SuperBuilder // 상속관계에서 build 사용
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Chat extends BaseEntity {
     private Long itemId;
     private String roomId;
@@ -18,4 +16,13 @@ public class Chat extends BaseEntity {
     @Column(columnDefinition = "TEXT")
     private String message;
     private boolean isRead; // 읽음 여부
+
+    @Builder
+    public Chat(int id, Long itemId, String roomId, String sender, String message, boolean isRead) {
+        this.itemId = itemId;
+        this.roomId = roomId;
+        this.sender = sender;
+        this.message = message;
+        this.isRead = isRead;
+    }
 }
