@@ -11,7 +11,6 @@ import java.util.List;
 @RequiredArgsConstructor
 @RequestMapping("/api/chat")
 public class ChatController {
-
     private final ChatService chatService;
 
     @PostMapping("/send")

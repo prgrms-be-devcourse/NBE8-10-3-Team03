@@ -1,4 +1,4 @@
-package com.back.api.chat;
+package com.back.domain.chat.controller;
 
 import com.back.domain.chat.dto.ChatDto;
 import org.junit.jupiter.api.DisplayName;
@@ -7,11 +7,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.ObjectMapper;
 
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -20,8 +22,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 @Transactional
 @ActiveProfiles("test")
+@WithMockUser
 class ChatControllerTest {
-
     @Autowired
     private MockMvc mockMvc;
     @Autowired
@@ -54,8 +56,12 @@ class ChatControllerTest {
 
         String otherRoomId = "100-seller_kim-buyer_park";
         ChatDto otherDto = new ChatDto(ITEM_ID, otherRoomId, "buyer_park", "B가 보낸 메시지", null);
-        mockMvc.perform(post("/api/chat/send").contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(otherDto)));
+
+        mockMvc.perform(post("/api/chat/send")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(otherDto)))
+                .andExpect(status().isOk());
 
         mockMvc.perform(get("/api/chat/room/" + ROOM_ID))
                 .andExpect(jsonPath("$.length()").value(1))
@@ -87,6 +93,7 @@ class ChatControllerTest {
         String brokenJson = "{ \"itemId\": 100, \"message\": ";
 
         mockMvc.perform(post("/api/chat/send")
+                        .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(brokenJson))
                 .andExpect(status().isBadRequest());
@@ -95,9 +102,9 @@ class ChatControllerTest {
     @Test
     @DisplayName("0.01초 간격으로 메시지가 쌓여도 시간 순서대로 정렬되어야 한다.")
     void t6() throws Exception {
-        for(int i=1; i<=5; i++) {
+        for (int i = 1; i <= 5; i++) {
             sendMessage(BUYER, "메시지 " + i);
-            Thread.sleep(10); // 미세한 시간차
+            Thread.sleep(10);
         }
 
         mockMvc.perform(get("/api/chat/room/" + ROOM_ID))
@@ -116,17 +123,45 @@ class ChatControllerTest {
         sendMessage(BUYER, "아이템A 문의");
 
         ChatDto dtoB = new ChatDto(itemB, roomB, BUYER, "아이템B 문의", null);
-        mockMvc.perform(post("/api/chat/send").contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(dtoB)));
+        mockMvc.perform(post("/api/chat/send")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(dtoB)))
+                .andExpect(status().isOk());
 
-        mockMvc.perform(get("/api/chat/room/" + roomA)).andExpect(jsonPath("$.length()").value(1));
-        mockMvc.perform(get("/api/chat/room/" + roomB)).andExpect(jsonPath("$.length()").value(1));
+        mockMvc.perform(get("/api/chat/room/" + roomA))
+                .andExpect(jsonPath("$.length()").value(1));
+        mockMvc.perform(get("/api/chat/room/" + roomB))
+                .andExpect(jsonPath("$.length()").value(1));
+    }
+
+    @Test
+    @DisplayName("1초 간격으로 3번 조회하며 그 사이 추가된 메시지를 확인한다")
+    void t8() throws Exception {
+        mockMvc.perform(get("/api/chat/room/" + ROOM_ID))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
+
+        sendMessage(BUYER, "첫 번째 질문입니다.");
+
+        mockMvc.perform(get("/api/chat/room/" + ROOM_ID))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].message").value("첫 번째 질문입니다."));
+
+        sendMessage(SELLER, "답변 드립니다.");
+
+        mockMvc.perform(get("/api/chat/room/" + ROOM_ID))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[1].message").value("답변 드립니다."));
     }
 
     // --- [헬퍼 메서드] ---
     private void sendMessage(String sender, String message) throws Exception {
         ChatDto dto = new ChatDto(ITEM_ID, ROOM_ID, sender, message, null);
         mockMvc.perform(post("/api/chat/send")
+                        .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isOk());
