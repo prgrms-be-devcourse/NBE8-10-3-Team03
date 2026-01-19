@@ -39,3 +39,7 @@ out/
 ### Custom ###
 db_dev.mv.db
 db_dev.trace.db
+
+### Upload Files ###
+uploads/
+!uploads/.gitkeep

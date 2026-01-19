@@ -1,5 +1,7 @@
 package com.back.global.initData;
 
+import com.back.domain.category.category.entity.Category;
+import com.back.domain.category.category.repository.CategoryRepository;
 import com.back.domain.member.member.entity.Member;
 import com.back.domain.member.member.service.MemberService;
 import com.back.global.app.AppConfig;
@@ -18,11 +20,13 @@ public class BaseInitData {
     @Lazy
     private BaseInitData self;
     private final MemberService memberService;
+    private final CategoryRepository categoryRepository;
 
     @Bean
     ApplicationRunner baseInitDataApplicationRunner() {
         return args -> {
             self.work1();
+            self.work2();
         };
     }
 
@@ -44,5 +48,20 @@ public class BaseInitData {
 
         Member memberUser3 = memberService.join("user3", "1234", "유저3");
         if (AppConfig.isNotProd()) memberUser3.modifyApiKey(memberUser3.getUsername());
+
+        System.out.println("테스트 회원 생성 완료");
+    }
+
+    @Transactional
+    public void work2() {
+        if (categoryRepository.count() > 0) return;
+
+        categoryRepository.save(new Category("전자기기"));
+        categoryRepository.save(new Category("의류"));
+        categoryRepository.save(new Category("도서"));
+        categoryRepository.save(new Category("가구"));
+        categoryRepository.save(new Category("기타"));
+
+        System.out.println("테스트 카테고리 생성 완료");
     }
 }

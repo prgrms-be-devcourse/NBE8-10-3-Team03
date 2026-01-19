@@ -1,4 +1,7 @@
 spring:
+  profiles:
+    active: dev
+
   application:
     name: back
 
@@ -6,18 +9,9 @@ spring:
     ansi:
       enabled: ALWAYS
 
-  datasource:
-    url: jdbc:mysql://localhost:3306/DevCourse?useSSL=false&serverTimezone=Asia/Seoul&allowPublicKeyRetrieval=true
-    username: root
-    password: lldj123414
-    driver-class-name: com.mysql.cj.jdbc.Driver
-
   jpa:
-    hibernate:
-      ddl-auto: update
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.MySQLDialect
         format_sql: true
         show_sql: true
     show-sql: true
