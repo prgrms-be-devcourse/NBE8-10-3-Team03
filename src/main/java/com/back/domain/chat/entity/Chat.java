@@ -1,22 +1,22 @@
 package com.back.domain.chat.entity;
 
+import com.back.global.jpa.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.*;
+import lombok.experimental.SuperBuilder;
+
 import java.time.LocalDateTime;
 
 @Entity
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
-public class Chat {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+@SuperBuilder // 상속관계에서 build 사용
+public class Chat extends BaseEntity {
     private Long itemId;
     private String roomId;
     private String sender;
     @Column(columnDefinition = "TEXT")
     private String message;
-    private LocalDateTime sendTime;
+    private boolean isRead; // 읽음 여부
 }
