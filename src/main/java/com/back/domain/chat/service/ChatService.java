@@ -30,7 +30,12 @@ public class ChatService {
         chatRepository.save(chatMessage);
     }
 
-    public List<ChatDto> getMessages(String roomId, Integer lastChatId) {
+    @Transactional
+    public List<ChatDto> getMessages(String roomId, Integer lastChatId, String readerName) {
+        if (readerName != null) {
+            chatRepository.markMessagesAsRead(roomId, readerName);
+        }
+
         List<Chat> chats;
         if (lastChatId == null || lastChatId <= 0) {
             chats = chatRepository.findAllByRoomIdOrderByCreateDateAsc(roomId);
@@ -39,14 +44,24 @@ public class ChatService {
         }
 
         return chats.stream()
-                .map(m -> new ChatDto(
-                        m.getId(),
-                        m.getItemId(),
-                        m.getRoomId(),
-                        m.getSender(),
-                        m.getMessage(),
-                        m.getCreateDate(),
-                        m.isRead()))
+                .map(this::chatDto)
                 .collect(Collectors.toList());
+    }
+
+    public List<ChatDto> getChatList() {
+        return chatRepository.findAllLatestMessages().stream()
+                .map(this::chatDto)
+                .collect(Collectors.toList());
+    }
+
+    private ChatDto chatDto(Chat m) {
+        return new ChatDto(
+                m.getId(),
+                m.getItemId(),
+                m.getRoomId(),
+                m.getSender(),
+                m.getMessage(),
+                m.getCreateDate(),
+                m.isRead());
     }
 }

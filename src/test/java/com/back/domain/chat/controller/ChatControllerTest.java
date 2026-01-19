@@ -122,7 +122,6 @@ class ChatControllerTest {
 
         sendMessage(BUYER, "아이템A 문의");
 
-        // 수정된 ChatDto 반영
         ChatDto dtoB = new ChatDto(0, itemB, roomB, BUYER, "아이템B 문의", null, false);
         mockMvc.perform(post("/api/chat/send")
                         .with(csrf())
@@ -178,9 +177,47 @@ class ChatControllerTest {
                 .andExpect(jsonPath("$[1].message").value("메시지 3"));
     }
 
-    // --- [헬퍼 메서드] ---
+    @Test
+    @DisplayName("채팅 목록 조회 시 각 채팅방의 가장 최신 메시지 하나씩만 보여준다.")
+    void t10() throws Exception {
+        String room1 = "100-seller-buyer1";
+        sendMessageRaw(100L, room1, "buyer1", "안녕하세요");
+        sendMessageRaw(100L, room1, "seller", "반갑습니다");
+
+        String room2 = "200-seller-buyer2";
+        sendMessageRaw(200L, room2, "buyer2", "네고 되나요?");
+        sendMessageRaw(200L, room2, "seller", "안됩니다");
+        sendMessageRaw(200L, room2, "buyer2", "쳇");
+
+        mockMvc.perform(get("/api/chat/list"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[?(@.message == '반갑습니다')].roomId").value(room1))
+                .andExpect(jsonPath("$[?(@.message == '쳇')].roomId").value(room2));
+    }
+
+    @Test
+    @DisplayName("상대방이 메시지를 폴링해 가면 읽음 상태(isRead)가 true로 변해야 한다.")
+    void t11() throws Exception {
+        sendMessage(SELLER, "안 팔아요.");
+
+        mockMvc.perform(get("/api/chat/room/" + ROOM_ID)
+                        .param("readerName", BUYER))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].isRead").value(true));
+
+        mockMvc.perform(get("/api/chat/room/" + ROOM_ID)
+                        .param("readerName", SELLER))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].isRead").value(true));
+    }
+
     private void sendMessage(String sender, String message) throws Exception {
-        ChatDto dto = new ChatDto(0, ITEM_ID, ROOM_ID, sender, message, null, false);
+        sendMessageRaw(ITEM_ID, ROOM_ID, sender, message);
+    }
+
+    private void sendMessageRaw(Long itemId, String roomId, String sender, String message) throws Exception {
+        ChatDto dto = new ChatDto(0, itemId, roomId, sender, message, null, false);
         mockMvc.perform(post("/api/chat/send")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
