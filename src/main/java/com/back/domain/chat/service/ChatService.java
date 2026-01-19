@@ -2,15 +2,14 @@ package com.back.domain.chat.service;
 
 import com.back.domain.chat.dto.ChatDto;
 import com.back.domain.chat.entity.Chat;
+import com.back.domain.chat.entity.ChatRoom;
 import com.back.domain.chat.repository.ChatRepository;
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.PersistenceContext;
+import com.back.domain.chat.repository.ChatRoomRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -19,13 +18,25 @@ import java.util.stream.Collectors;
 public class ChatService {
 
     private final ChatRepository chatRepository;
+    private final ChatRoomRepository chatRoomRepository;
 
-    // 영속성 컨텍스트 관리를 위해 주입
-    @PersistenceContext
-    private EntityManager entityManager;
+    @Transactional
+    public String createChatRoom(Long itemId, String sellerId, String buyerId) {
+        // 이미 존재하는 방인지 확인
+        return chatRoomRepository.findByItemIdAndSellerIdAndBuyerId(itemId, sellerId, buyerId)
+                .map(ChatRoom::getRoomId)
+                .orElseGet(() -> {
+                    ChatRoom newRoom = ChatRoom.create(itemId, sellerId, buyerId);
+                    return chatRoomRepository.save(newRoom).getRoomId();
+                });
+    }
 
     @Transactional
     public void saveMessage(ChatDto chatDto) {
+        // 방 존재 여부 검증
+        chatRoomRepository.findByRoomId(chatDto.roomId())
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 채팅방입니다."));
+
         Chat chatMessage = Chat.builder()
                 .itemId(chatDto.itemId())
                 .roomId(chatDto.roomId())
