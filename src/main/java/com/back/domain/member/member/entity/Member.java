@@ -1,12 +1,11 @@
 package com.back.domain.member.member.entity;
 
+import com.back.domain.member.member.enums.Role;
 import com.back.global.jpa.entity.BaseEntity;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.OneToOne;
+import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
@@ -17,6 +16,7 @@ import java.util.UUID;
 
 @Entity
 @Getter
+@Table(name = "users")
 @NoArgsConstructor
 public class Member extends BaseEntity {
     @Column(unique = true)
@@ -34,6 +34,11 @@ public class Member extends BaseEntity {
 
     @OneToOne(mappedBy = "member", fetch = FetchType.LAZY)
     private Reputation reputation;
+
+    @Setter
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Role role;
 
     public Member(int id, String username, String name) {
         setId(id);
@@ -62,8 +67,7 @@ public class Member extends BaseEntity {
     }
 
     public boolean isAdmin() {
-        if ("system".equals(username)) return true;
-        if ("admin".equals(username)) return true;
+        if(this.role == Role.ADMIN) return true;
 
         return false;
     }
@@ -75,11 +79,15 @@ public class Member extends BaseEntity {
                 .toList();
     }
 
+
     private List<String> getAuthoritiesAsStringList() {
         List<String> authorities = new ArrayList<>();
 
-        if (isAdmin())
+        authorities.add("ROLE_USER");
+
+        if (isAdmin()) {
             authorities.add("ROLE_ADMIN");
+        }
 
         return authorities;
     }
