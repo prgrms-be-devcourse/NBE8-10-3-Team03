@@ -1,7 +1,9 @@
 package com.back.domain.member.member.service;
 
 import com.back.domain.member.member.entity.Member;
+import com.back.domain.member.member.entity.Reputation;
 import com.back.domain.member.member.repository.MemberRepository;
+import com.back.domain.member.member.repository.ReputationRepository;
 import com.back.domain.member.member.service.AuthTokenService;
 import com.back.global.exception.ServiceException;
 import lombok.RequiredArgsConstructor;
@@ -17,6 +19,7 @@ public class MemberService {
     private final AuthTokenService authTokenService;
     private final MemberRepository memberRepository;
     private final PasswordEncoder passwordEncoder;
+    private final ReputationRepository reputationRepository;
 
     public long count() {
         return memberRepository.count();
@@ -32,6 +35,8 @@ public class MemberService {
         password = passwordEncoder.encode(password);
 
         Member member = new Member(username, password, nickname);
+        Reputation reputation = new Reputation(member, 50.0);
+        reputationRepository.save(reputation);
 
         return memberRepository.save(member);
     }
