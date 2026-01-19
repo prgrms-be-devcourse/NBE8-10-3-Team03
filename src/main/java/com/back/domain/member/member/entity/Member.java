@@ -3,7 +3,8 @@ package com.back.domain.member.member.entity;
 import com.back.global.jpa.entity.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.Table;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.OneToOne;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.springframework.security.core.GrantedAuthority;
@@ -15,7 +16,6 @@ import java.util.List;
 import java.util.UUID;
 
 @Entity
-@Table(name = "users")
 @Getter
 @NoArgsConstructor
 public class Member extends BaseEntity {
@@ -28,8 +28,12 @@ public class Member extends BaseEntity {
     private String nickname;
 
     private Boolean isActive;
+
     @Column(unique = true)
     private String apiKey;
+
+    @OneToOne(mappedBy = "member", fetch = FetchType.LAZY)
+    private Reputation reputation;
 
     public Member(int id, String username, String name) {
         setId(id);
@@ -41,6 +45,7 @@ public class Member extends BaseEntity {
         this.username = username;
         this.password = password;
         this.nickname = nickname;
+        this.isActive = true;
         this.apiKey = UUID.randomUUID().toString();
     }
 
@@ -78,5 +83,4 @@ public class Member extends BaseEntity {
 
         return authorities;
     }
-
 }
