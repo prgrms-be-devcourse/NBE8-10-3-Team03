@@ -1,5 +1,6 @@
 package com.back.global.app;
 
+import com.back.standard.util.Ut;
 import jakarta.annotation.PostConstruct;
 import lombok.Getter;
 import org.springframework.beans.factory.annotation.Autowired;
