@@ -1,6 +1,7 @@
 package com.back.domain.member.member.service;
 
 import com.back.domain.member.member.entity.Member;
+import com.back.domain.member.member.enums.Role;
 import com.back.standard.util.Ut;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -19,11 +20,12 @@ public class AuthTokenService {
         long id = member.getId();
         String username = member.getUsername();
         String name = member.getName();
+        String role = member.getRole().name();
 
         return Ut.jwt.toString(
                 jwtSecretKey,
                 accessTokenExpirationSeconds,
-                Map.of("id", id, "username", username, "name", name)
+                Map.of("id", id, "username", username, "name", name, "role", role)
         );
     }
 
@@ -35,7 +37,8 @@ public class AuthTokenService {
         int id = (int) parsedPayload.get("id");
         String username = (String) parsedPayload.get("username");
         String name = (String) parsedPayload.get("name");
+        String role = (String) parsedPayload.get("role");
 
-        return Map.of("id", id, "username", username, "name", name);
+        return Map.of("id", id, "username", username, "name", name, "role", role);
     }
 }
