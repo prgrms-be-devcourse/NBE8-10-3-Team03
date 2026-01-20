@@ -4,6 +4,7 @@ import com.back.domain.auction.auction.entity.Auction;
 import com.back.domain.auction.auction.repository.AuctionRepository;
 import com.back.domain.category.category.entity.Category;
 import com.back.domain.category.category.repository.CategoryRepository;
+import com.back.domain.chat.chat.dto.response.ChatResponse;
 import com.back.domain.member.member.entity.Member;
 import com.back.domain.member.member.enums.Role;
 import com.back.domain.member.member.repository.MemberRepository;
@@ -17,9 +18,12 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.security.test.context.support.WithAnonymousUser;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,6 +34,10 @@ import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
@@ -57,6 +65,9 @@ class ChatControllerTest {
     private AuctionRepository auctionRepository;
     @Autowired
     private CategoryRepository categoryRepository;
+
+    @MockitoBean
+    private SimpMessagingTemplate messagingTemplate;
 
     private Member seller;
     private Member buyer;
@@ -379,6 +390,76 @@ class ChatControllerTest {
                 .andExpect(jsonPath("$.data[0].imageUrls").isArray())
                 .andExpect(jsonPath("$.data[0].imageUrls").isNotEmpty());
     }
+
+    @Test
+    @DisplayName("19. 인증되지 않은 사용자가 메시지 전송 시도 시 401 Unauthorized 발생")
+    @WithAnonymousUser
+    void t19() throws Exception {
+        String roomId = "any-room-id";
+        mockMvc.perform(multipart("/api/chat/send")
+                        .param("roomId", roomId)
+                        .param("sender", "guest")
+                        .param("message", "접근 거부 테스트"))
+                .andExpect(status().isUnauthorized()) // 403에서 401로 변경
+                .andExpect(jsonPath("$.resultCode").value("401-1"))
+                .andExpect(jsonPath("$.msg").value("로그인 후 이용해주세요."));
+    }
+
+    @Test
+    @DisplayName("20. 채팅방 참여자가 아닌 제3자가 메시지 목록 조회를 시도할 경우 차단")
+    @WithMockUser(username = "another_user")
+    void t20() throws Exception {
+        String roomId = createRoom(salePostId, "POST", buyer.getApiKey());
+
+        mockMvc.perform(get("/api/chat/room/" + roomId))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("21. 메시지 전송 시 WebSocket 구독 경로로 메시지가 브로드캐스트 되어야 한다.")
+    void t21() throws Exception {
+        String roomId = createRoom(salePostId, "POST", buyer.getApiKey());
+
+        mockMvc.perform(multipart("/api/chat/send")
+                        .with(csrf())
+                        .param("roomId", roomId)
+                        .param("sender", buyer.getNickname())
+                        .param("message", "실시간 전송 확인"))
+                .andExpect(status().isOk());
+
+        // /sub/chat/room/{roomId} 경로로 메시지가 전송되었는지 확인
+        verify(messagingTemplate, times(1))
+                .convertAndSend(eq("/sub/chat/room/" + roomId), any(ChatResponse.class));
+    }
+
+    @Test
+    @DisplayName("22. 빈 이미지 파일이 포함된 경우 무시하고 메시지만 저장")
+    void t22() throws Exception {
+        String roomId = createRoom(salePostId, "POST", buyer.getApiKey());
+        MockMultipartFile emptyFile = new MockMultipartFile("images", "", "image/jpeg", new byte[0]);
+
+        mockMvc.perform(multipart("/api/chat/send")
+                        .file(emptyFile)
+                        .with(csrf())
+                        .param("roomId", roomId)
+                        .param("sender", buyer.getNickname())
+                        .param("message", "빈 파일 테스트"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.chatId").exists());
+    }
+
+    @Test
+    @DisplayName("23. 대량의 읽지 않은 메시지가 한 번의 조회로 모두 true로 변경되는지 확인")
+    void t23() throws Exception {
+        String roomId = createRoom(salePostId, "POST", buyer.getApiKey());
+        for(int i=0; i<5; i++) sendMessage(roomId, seller.getNickname(), "msg " + i, null);
+
+        mockMvc.perform(get("/api/chat/room/" + roomId)
+                        .param("readerName", buyer.getNickname()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[?(@.isRead == false)]").doesNotExist()); // 읽지 않은 메시지가 없어야 함
+    }
+
 
     // --- [헬퍼 메서드] ---
     // 채팅방 생성 후 Room ID(UUID String) 반환
