@@ -7,6 +7,8 @@ import com.back.domain.member.member.repository.MemberRepository;
 import com.back.domain.member.member.repository.ReputationRepository;
 import com.back.domain.member.member.service.AuthTokenService;
 import com.back.global.exception.ServiceException;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -73,5 +75,30 @@ public class MemberService {
     public void checkPassword(Member member, String password) {
         if (!passwordEncoder.matches(password, member.getPassword()))
             throw new ServiceException("401-1", "비밀번호가 일치하지 않습니다.");
+    }
+
+    public void modify(Member member, String nickname, String password, String newPassword, String checkPassword) {
+        if (!passwordEncoder.matches(password, member.getPassword()))
+            throw new ServiceException("401-1", "현재 비밀번호와 일치하지 않습니다.");
+
+        if (!newPassword.equals(checkPassword))
+            throw new ServiceException("401-1", "비밀번호가 일치하지 않습니다.");
+
+        member.modify(nickname, passwordEncoder.encode(newPassword));
+    }
+
+    public void modifyNickname(Member member, String nickname) {
+        member.modifyName(nickname);
+    }
+
+    public void modifyPassword(Member member, String password, String newPassword, String checkPassword) {
+        if (!passwordEncoder.matches(password, member.getPassword()))
+            throw new ServiceException("401-1", "현재 비밀번호와 일치하지 않습니다.");
+
+        if (!newPassword.equals(checkPassword))
+            throw new ServiceException("401-1", "비밀번호가 일치하지 않습니다.");
+
+        member.modifyPassword(passwordEncoder.encode(newPassword));
+
     }
 }
