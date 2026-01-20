@@ -1,9 +1,15 @@
 package com.back.domain.member.member.service;
 
+import com.back.domain.auction.auction.entity.Auction;
+import com.back.domain.auction.auction.repository.AuctionRepository;
 import com.back.domain.member.member.entity.Member;
 import com.back.domain.member.member.entity.Reputation;
+import com.back.domain.member.member.entity.ReputationEvent;
+import com.back.domain.member.member.enums.EventType;
+import com.back.domain.member.member.enums.RefType;
 import com.back.domain.member.member.enums.Role;
 import com.back.domain.member.member.repository.MemberRepository;
+import com.back.domain.member.member.repository.ReputationEventRepository;
 import com.back.domain.member.member.repository.ReputationRepository;
 import com.back.domain.member.member.service.AuthTokenService;
 import com.back.global.exception.ServiceException;
@@ -23,6 +29,8 @@ public class MemberService {
     private final MemberRepository memberRepository;
     private final PasswordEncoder passwordEncoder;
     private final ReputationRepository reputationRepository;
+    private final ReputationEventRepository eventRepository;
+    private final AuctionRepository auctionRepository;
 
     public long count() {
         return memberRepository.count();
@@ -100,5 +108,50 @@ public class MemberService {
 
         member.modifyPassword(passwordEncoder.encode(newPassword));
 
+    }
+
+    public void decreaseByNofiy(Member member) {
+        int userId = member.getId();
+        ReputationEvent event = new ReputationEvent(member, EventType.NOTIFY, RefType.DEAL);
+        eventRepository.save(event);
+
+        int caution = eventRepository.findByUserIdWithSum(userId, EventType.NOTIFY) / 10;
+
+        Reputation reputation = reputationRepository.findById(userId).get();
+        int nowCaution = reputation.getCaution();
+        if (nowCaution < caution) {
+            reputation.update(caution);
+            reputation.decrease();
+        }
+    }
+
+    // 경매 취소 시 신용도 감소 (if 입찰 O)
+    public void decreaseByCancel(int auctionId) {
+        Auction auction = auctionRepository.findById(auctionId).get();
+        Member seller = memberRepository.findById(auction.getSeller().getId()).get();
+
+        if (auction.getBidCount() > 0) {
+            Reputation reputation = reputationRepository.findById(seller.getId()).get();
+            double before = reputation.getScore();
+            reputation.decrease();
+            double after = reputation.getScore();
+            double delta = Math.abs(before - after);
+            ReputationEvent event = new ReputationEvent(seller, EventType.CANCEL, RefType.AUCTION, auctionId, delta);
+            eventRepository.save(event);
+        }
+    }
+
+    // 낙찰 & 거래 완료 시 신용도 증가
+    public void increaseByDeal(int dealId) {
+        Auction auction = auctionRepository.findById(dealId).get();
+        Member seller = memberRepository.findById(auction.getSeller().getId()).get();
+
+        Reputation reputation = reputationRepository.findById(seller.getId()).get();
+        double before = reputation.getScore();
+        reputation.increase();
+        double after = reputation.getScore();
+        double delta = Math.abs(before - after);
+        ReputationEvent event = new ReputationEvent(seller, EventType.CANCEL, RefType.AUCTION, dealId, delta);
+        eventRepository.save(event);
     }
 }
