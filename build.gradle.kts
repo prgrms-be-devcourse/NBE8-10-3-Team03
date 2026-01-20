@@ -47,6 +47,9 @@ dependencies {
     runtimeOnly("io.jsonwebtoken:jjwt-jackson:0.13.0")
 
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.0")
+
+    // 웹소켓
+    implementation("org.springframework.boot:spring-boot-starter-websocket")
 }
 
 tasks.withType<Test> {
