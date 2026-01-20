@@ -120,4 +120,59 @@ public class ApiV1MemberController {
         return new MemberWithUsernameDto(actor);
     }
 
+    record MemberNameModifyReqBody(
+            @NotBlank
+            @Size(min = 2, max = 30)
+            String nickname
+    ) {
+    }
+
+    @PatchMapping("/me/nickname")
+    @Transactional
+    public RsData<Void> modifyNickname(@Valid @RequestBody MemberNameModifyReqBody reqBody) {
+        Member member = memberService
+                .findById(rq.getActor().getId())
+                .get();
+
+        member.checkActorCanModify(member);
+
+        memberService.modifyNickname(member, reqBody.nickname());
+
+        return new RsData<>(
+                "200-1",
+                "수정이 완료되었습니다."
+        );
+    }
+
+    record MemberPwModifyReqBody(
+            @NotBlank
+            @Size(min = 2, max = 30)
+            String password,
+            @NotBlank
+            @Size(min = 2, max = 30)
+            String newPassword,
+            @NotBlank
+            @Size(min = 2, max = 30)
+            String checkPassword
+    ) {
+    }
+
+    @PatchMapping("/me/password")
+    @Transactional
+    public RsData<Void> modifyPassword(@Valid @RequestBody MemberPwModifyReqBody reqBody) {
+        Member member = memberService
+                .findById(rq.getActor().getId())
+                .get();
+
+        member.checkActorCanModify(member);
+
+        memberService.modifyPassword(member, reqBody.password(), reqBody.newPassword(), reqBody.checkPassword());
+
+        return new RsData<>(
+                "200-1",
+                "수정이 완료되었습니다."
+        );
+    }
+
+
 }
