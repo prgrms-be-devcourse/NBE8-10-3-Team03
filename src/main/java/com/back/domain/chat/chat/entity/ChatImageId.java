@@ -11,7 +11,7 @@ public class ChatImageId implements Serializable {
     private Integer chat;
     private Integer image;
 
-    public chatImageId(Integer chat, Integer image) {
+    public ChatImageId(Integer chat, Integer image) {
         this.chat = chat;
         this.image = image;
     }

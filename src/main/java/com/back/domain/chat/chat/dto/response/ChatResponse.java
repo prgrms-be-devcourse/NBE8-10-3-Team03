@@ -2,6 +2,7 @@ package com.back.domain.chat.chat.dto.response;
 
 import com.back.domain.chat.chat.entity.Chat;
 import com.back.domain.chat.chat.entity.ChatRoomType;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Getter;
 
 import java.time.LocalDateTime;
@@ -16,6 +17,7 @@ public class ChatResponse {
     private final String message;
     private final LocalDateTime createDate;
     private final List<String> imageUrls;
+    @JsonProperty("isRead")
     private final boolean isRead;
 
     public ChatResponse(Chat chat) {

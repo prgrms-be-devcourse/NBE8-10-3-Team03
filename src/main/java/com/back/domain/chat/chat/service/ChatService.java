@@ -130,8 +130,7 @@ public class ChatService {
                 Image savedImage = imageRepository.save(new Image(imageUrl));
 
                 ChatImage chatImage = new ChatImage(chatMessage, savedImage);
-                chatMessage.addChatImage(chatImage); // 편의 메서드 사용
-                chatImageRepository.save(chatImage);
+                chatMessage.addChatImage(chatImage);
             }
         }
 
