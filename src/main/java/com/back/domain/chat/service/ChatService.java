@@ -45,43 +45,50 @@ public class ChatService {
         Member buyer = memberRepository.findByApiKey(buyerApiKey)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
 
+        Member seller;
+        Post post = null;
+        Auction auction = null;
+
         if (type == ChatRoomType.POST) {
-            Post post = postRepository.findById(itemId)
+            post = postRepository.findById(itemId)
                     .orElseThrow(() -> new IllegalArgumentException("해당 게시글이 존재하지 않습니다."));
 
-            // SALE 상태가 아니면 채팅방 생성 불가능
             if (post.getStatus() != PostStatus.SALE) {
                 throw new IllegalStateException("판매 중인 상품이 아니므로 채팅을 시작할 수 없습니다.");
             }
-
-            // 셀프 채팅 방지
-            if (post.getSeller().getApiKey().equals(buyerApiKey)) {
-                throw new IllegalArgumentException("본인의 상품에는 채팅을 개설할 수 없습니다.");
-            }
-
-            // 이미 존재하는 방인지 확인 후 없으면 생성
-            return chatRoomRepository.findByPostAndBuyerId(post, buyerApiKey)
-                    .map(ChatRoom::getRoomId)
-                    .orElseGet(() -> {
-                        ChatRoom room = ChatRoom.createForPost(post, buyer);
-                        chatRoomRepository.save(room);
-                        return room.getRoomId();
-                    });
+            seller = post.getSeller();
 
         } else if (type == ChatRoomType.AUCTION) {
-            Auction auction = auctionRepository.findById(itemId)
+            auction = auctionRepository.findById(itemId)
                     .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 경매입니다."));
 
-            return chatRoomRepository.findByAuctionAndBuyerId(auction, buyerApiKey)
-                    .map(ChatRoom::getRoomId)
-                    .orElseGet(() -> {
-                        ChatRoom room = ChatRoom.createForAuction(auction, buyer);
-                        chatRoomRepository.save(room);
-                        return room.getRoomId();
-                    });
+            seller = auction.getSeller();
 
         } else {
             throw new IllegalArgumentException("채팅을 개설할 수 없습니다.");
+        }
+
+        // 셀프 채팅 방지
+        if (seller.getApiKey().equals(buyerApiKey)) {
+            throw new IllegalArgumentException("본인의 상품에는 채팅을 개설할 수 없습니다.");
+        }
+
+        if (type == ChatRoomType.POST) {
+            final Post finalPost = post;
+            return chatRoomRepository.findByPostAndBuyerId(post, buyerApiKey)
+                    .map(ChatRoom::getRoomId)
+                    .orElseGet(() -> {
+                        ChatRoom room = ChatRoom.createForPost(finalPost, buyer);
+                        return chatRoomRepository.save(room).getRoomId();
+                    });
+        } else {
+            final Auction finalAuction = auction;
+            return chatRoomRepository.findByAuctionAndBuyerId(auction, buyerApiKey)
+                    .map(ChatRoom::getRoomId)
+                    .orElseGet(() -> {
+                        ChatRoom room = ChatRoom.createForAuction(finalAuction, buyer);
+                        return chatRoomRepository.save(room).getRoomId();
+                    });
         }
     }
 
@@ -109,9 +116,9 @@ public class ChatService {
 
         List<Chat> chats;
         if (lastChatId == null || lastChatId <= 0) {
-            chats = chatRepository.findAllByRoomIdOrderByCreateDateAsc(roomId);
+            chats = chatRepository.findAllByChatRoom_RoomIdOrderByCreateDateAsc(roomId);
         } else {
-            chats = chatRepository.findByRoomIdAndIdGreaterThanOrderByCreateDateAsc(roomId, lastChatId);
+            chats = chatRepository.findByChatRoom_RoomIdAndIdGreaterThanOrderByCreateDateAsc(roomId, lastChatId);
         }
 
         return chats.stream()

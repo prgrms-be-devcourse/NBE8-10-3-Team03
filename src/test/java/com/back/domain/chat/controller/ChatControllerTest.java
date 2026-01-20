@@ -1,7 +1,17 @@
 package com.back.domain.chat.controller;
 
+import com.back.domain.auction.auction.entity.Auction;
+import com.back.domain.auction.auction.repository.AuctionRepository;
+import com.back.domain.category.category.entity.Category;
+import com.back.domain.category.category.repository.CategoryRepository;
 import com.back.domain.chat.dto.ChatDto;
-import com.jayway.jsonpath.JsonPath;
+import com.back.domain.member.member.entity.Member;
+import com.back.domain.member.member.enums.Role;
+import com.back.domain.member.member.repository.MemberRepository;
+import com.back.domain.post.post.entity.Post;
+import com.back.domain.post.post.entity.PostStatus;
+import com.back.domain.post.post.repository.PostRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,9 +25,11 @@ import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.ObjectMapper;
 
-import java.nio.charset.StandardCharsets;
-import java.util.UUID;
+import java.time.LocalDateTime;
 
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.hamcrest.Matchers.containsString;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -32,200 +44,310 @@ class ChatControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
-
     @Autowired
     private ObjectMapper objectMapper;
 
-    private final Long ITEM_ID = 100L;
-    private final String SELLER = "seller_kim";
-    private final String BUYER = "buyer_lee";
+    @Autowired
+    private MemberRepository memberRepository;
+    @Autowired
+    private PostRepository postRepository;
+    @Autowired
+    private AuctionRepository auctionRepository;
+    @Autowired
+    private CategoryRepository categoryRepository;
+
+    private Member seller;
+    private Member buyer;
+    private Member anotherUser;
+
+    private Post salePost;
+    private Post soldPost;
+    private Auction openAuction;
+
+    private int salePostId;
+    private int soldPostId;
+    private int auctionId;
+
+    // 테스트 데이터 셋팅
+    @BeforeEach
+    void setUp() {
+        Category category = new Category("디지털");
+        categoryRepository.save(category);
+
+        seller = new Member("seller", "1234", "판매자");
+        seller.setRole(Role.USER);
+        memberRepository.save(seller);
+
+        buyer = new Member("buyer", "1234", "구매자");
+        buyer.setRole(Role.USER);
+        memberRepository.save(buyer);
+
+        anotherUser = new Member("another", "1234", "제3자");
+        anotherUser.setRole(Role.USER);
+        memberRepository.save(anotherUser);
+
+        salePost = Post.builder()
+                .title("판매 중 물품")
+                .content("판매 중 입니다.")
+                .price(10000)
+                .seller(seller)
+                .status(PostStatus.SALE)
+                .build();
+        postRepository.save(salePost);
+        salePostId = salePost.getId();
+
+        soldPost = Post.builder()
+                .title("판매완료 물품")
+                .content("판매완료 입니다.")
+                .price(5000)
+                .seller(seller)
+                .status(PostStatus.SOLD)
+                .build();
+        postRepository.save(soldPost);
+        soldPostId = soldPost.getId();
+
+        openAuction = Auction.builder()
+                .seller(seller)
+                .category(category)
+                .name("경매 물품")
+                .description("경매 중 입니다.")
+                .startPrice(1000)
+                .startAt(LocalDateTime.now())
+                .endAt(LocalDateTime.now().plusDays(1))
+                .build();
+        auctionRepository.save(openAuction);
+        auctionId = openAuction.getId();
+    }
 
     @Test
-    @DisplayName("판매자와 구매자가 정상적으로 대화를 주고받고 저장된다.")
+    @DisplayName("1. 일반 상품 채팅방 생성 성공")
     void t1() throws Exception {
-        String roomId = createRoom(ITEM_ID, SELLER, BUYER);
-
-        sendMessage(roomId, BUYER, "이 물건 네고 가능한가요?");
-        sendMessage(roomId, SELLER, "안팔아요~");
-        sendMessage(roomId, BUYER, "알겠습니다.그냥 구매할게요.");
-
-        mockMvc.perform(get("/api/chat/room/" + roomId))
+        mockMvc.perform(post("/api/chat/room")
+                        .with(csrf())
+                        .param("itemId", String.valueOf(salePostId))
+                        .param("txType", "POST")
+                        .param("buyerApiKey", buyer.getApiKey()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(3))
-                .andExpect(jsonPath("$[0].sender").value(BUYER))
-                .andExpect(jsonPath("$[1].sender").value(SELLER))
-                .andExpect(jsonPath("$[2].sender").value(BUYER));
+                .andExpect(result -> assertThat(result.getResponse().getContentAsString()).isNotEmpty());
     }
 
     @Test
-    @DisplayName("다른 UUID 방의 메시지는 현재 방에 조회되지 않아야 한다.")
+    @DisplayName("2. 경매 상품 채팅방 생성 성공")
     void t2() throws Exception {
-        String roomId = createRoom(ITEM_ID, SELLER, BUYER);
-        sendMessage(roomId, BUYER, "A가 보낸 메시지");
-
-        // 다른 방 생성
-        String otherRoomId = createRoom(200L, "otherSeller", "otherBuyer");
-        sendMessage(otherRoomId, "otherBuyer", "B가 보낸 메시지");
-
-        mockMvc.perform(get("/api/chat/room/" + roomId))
-                .andExpect(jsonPath("$.length()").value(1))
-                .andExpect(jsonPath("$[0].message").value("A가 보낸 메시지"));
+        mockMvc.perform(post("/api/chat/room")
+                        .with(csrf())
+                        .param("itemId", String.valueOf(auctionId))
+                        .param("txType", "AUCTION")
+                        .param("buyerApiKey", buyer.getApiKey()))
+                .andExpect(status().isOk())
+                .andExpect(result -> assertThat(result.getResponse().getContentAsString()).isNotEmpty());
     }
 
     @Test
-    @DisplayName("존재하지 않거나 메시지가 없는 방을 폴링하면 빈 리스트를 응답한다.")
+    @DisplayName("3. 이미 존재하는 방이면 기존 RoomId를 반환해야 한다")
     void t3() throws Exception {
-        // 무작위 UUID로 존재하지 않는 방 조회
-        mockMvc.perform(get("/api/chat/room/" + UUID.randomUUID()))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(0));
+        String firstRoomId = createRoom(salePostId, "POST", buyer.getApiKey());
+        String secondRoomId = createRoom(salePostId, "POST", buyer.getApiKey());
+
+        assertThat(firstRoomId).isEqualTo(secondRoomId);
     }
 
     @Test
-    @DisplayName("메시지 내용이 극단적으로 길거나 특수문자가 포함되어도 처리 가능하다.")
+    @DisplayName("4. 존재하지 않는 상품 ID 요청 시 예외 발생")
     void t4() throws Exception {
-        String roomId = createRoom(ITEM_ID, SELLER, BUYER);
-        String longAndSpecial = "장문 메시지 테스트: " + "ㅋ".repeat(1000) + " 😊❤️ @#$%";
-        sendMessage(roomId, BUYER, longAndSpecial);
-
-        mockMvc.perform(get("/api/chat/room/" + roomId))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].message").value(longAndSpecial));
+        mockMvc.perform(post("/api/chat/room")
+                        .with(csrf())
+                        .param("itemId", "999999")
+                        .param("txType", "POST")
+                        .param("buyerApiKey", buyer.getApiKey()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.resultCode").value("400-1"))
+                .andExpect(jsonPath("$.msg").value("해당 게시글이 존재하지 않습니다."));
     }
 
     @Test
-    @DisplayName("잘못된 JSON 형식으로 요청을 보내면 400 에러를 반환한다.")
+    @DisplayName("5. 존재하지 않는 회원(API Key) 요청 시 예외 발생")
     void t5() throws Exception {
-        String brokenJson = "{ \"itemId\": 100, \"message\": ";
+        mockMvc.perform(post("/api/chat/room")
+                        .with(csrf())
+                        .param("itemId", String.valueOf(salePostId))
+                        .param("txType", "POST")
+                        .param("buyerApiKey", "invalid-key"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.resultCode").value("400-1"))
+                .andExpect(jsonPath("$.msg").value("존재하지 않는 회원입니다."));
+    }
+
+    @Test
+    @DisplayName("6. 판매 중(SALE)이 아닌 상품(SOLD)에 채팅 시도 시 예외 발생")
+    void t6() throws Exception {
+        mockMvc.perform(post("/api/chat/room")
+                        .with(csrf())
+                        .param("itemId", String.valueOf(soldPostId))
+                        .param("txType", "POST")
+                        .param("buyerApiKey", buyer.getApiKey()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.resultCode").value("400-2"))
+                .andExpect(jsonPath("$.msg").value("판매 중인 상품이 아니므로 채팅을 시작할 수 없습니다."));
+    }
+
+    @Test
+    @DisplayName("7. 본인(판매자)이 본인 상품에 채팅 시도 시 예외 발생")
+    void t7() throws Exception {
+        mockMvc.perform(post("/api/chat/room")
+                        .with(csrf())
+                        .param("itemId", String.valueOf(salePostId))
+                        .param("txType", "POST")
+                        .param("buyerApiKey", seller.getApiKey()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.resultCode").value("400-1"))
+                .andExpect(jsonPath("$.msg").value("본인의 상품에는 채팅을 개설할 수 없습니다."));
+    }
+
+    @Test
+    @DisplayName("8. 지원하지 않는 거래 타입(TxType) 요청")
+    void t8() throws Exception {
+        mockMvc.perform(post("/api/chat/room")
+                        .with(csrf())
+                        .param("itemId", String.valueOf(salePostId))
+                        .param("txType", "UNKNOWN")
+                        .param("buyerApiKey", buyer.getApiKey()))
+                .andExpect(status().isBadRequest()) // 400 응답 확인
+                .andExpect(jsonPath("$.resultCode").value("400-1"));
+    }
+
+    @Test
+    @DisplayName("9. 본인(판매자)이 본인 경매에 채팅 시도 시 예외 발생")
+    void t9() throws Exception {
+        mockMvc.perform(post("/api/chat/room")
+                        .with(csrf())
+                        .param("itemId", String.valueOf(auctionId))
+                        .param("txType", "AUCTION")
+                        .param("buyerApiKey", seller.getApiKey()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.resultCode").value("400-1"))
+                .andExpect(jsonPath("$.msg").value("본인의 상품에는 채팅을 개설할 수 없습니다."));
+    }
+
+    @Test
+    @DisplayName("10. 메시지 전송 성공")
+    void t10() throws Exception {
+        String roomId = createRoom(salePostId, "POST", buyer.getApiKey());
+        ChatDto dto = new ChatDto(0, salePostId, roomId, buyer.getNickname(), "구매 희망합니다.", null, false);
 
         mockMvc.perform(post("/api/chat/send")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(brokenJson))
-                .andExpect(status().isBadRequest());
+                        .content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isOk());
     }
 
     @Test
-    @DisplayName("순차적으로 메시지가 쌓여도 시간 순서대로 정렬되어야 한다.")
-    void t6() throws Exception {
-        String roomId = createRoom(ITEM_ID, SELLER, BUYER);
-
-        for (int i = 1; i <= 5; i++) {
-            sendMessage(roomId, BUYER, "메시지 " + i);
-        }
-
-        mockMvc.perform(get("/api/chat/room/" + roomId))
-                .andExpect(jsonPath("$[0].message").value("메시지 1"))
-                .andExpect(jsonPath("$[1].message").value("메시지 2"))
-                .andExpect(jsonPath("$[2].message").value("메시지 3"))
-                .andExpect(jsonPath("$[3].message").value("메시지 4"))
-                .andExpect(jsonPath("$[4].message").value("메시지 5"));
-    }
-
-
-    @Test
-    @DisplayName("동일한 참여자라도 상품(itemId)이 다르면 방 ID(UUID)가 달라야 한다.")
-    void t7() throws Exception {
-        String roomA = createRoom(100L, SELLER, BUYER);
-        String roomB = createRoom(200L, SELLER, BUYER);
-
-        // 두 UUID가 서로 달라야 함
-        assert !roomA.equals(roomB);
-
-        sendMessage(roomA, BUYER, "아이템A 문의");
-        sendMessage(roomB, BUYER, "아이템B 문의");
-
-        mockMvc.perform(get("/api/chat/room/" + roomA))
-                .andExpect(jsonPath("$.length()").value(1))
-                .andExpect(jsonPath("$[0].message").value("아이템A 문의"));
-    }
-
-    @Test
-    @DisplayName("실시간 채팅 시나리오: 조회 -> 메시지 추가 -> 다시 조회")
-    void t8() throws Exception {
-        String roomId = createRoom(ITEM_ID, SELLER, BUYER);
-
-        mockMvc.perform(get("/api/chat/room/" + roomId))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(0));
-
-        sendMessage(roomId, BUYER, "첫 번째 질문입니다.");
-
-        mockMvc.perform(get("/api/chat/room/" + roomId))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(1))
-                .andExpect(jsonPath("$[0].message").value("첫 번째 질문입니다."));
-    }
-
-    @Test
-    @DisplayName("lastChatId를 전달하면 해당 ID 이후의 메시지만 응답한다.")
-    void t9() throws Exception {
-        String roomId = createRoom(ITEM_ID, SELLER, BUYER);
-        sendMessage(roomId, BUYER, "메시지 1");
-        sendMessage(roomId, SELLER, "메시지 2");
-        sendMessage(roomId, BUYER, "메시지 3");
-
-        MvcResult result = mockMvc.perform(get("/api/chat/room/" + roomId))
-                .andReturn();
-        String content = result.getResponse().getContentAsString(StandardCharsets.UTF_8);
-        Integer firstMessageId = JsonPath.read(content, "$[0].id");
-
-        mockMvc.perform(get("/api/chat/room/" + roomId)
-                        .param("lastChatId", String.valueOf(firstMessageId)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(2))
-                .andExpect(jsonPath("$[0].message").value("메시지 2"))
-                .andExpect(jsonPath("$[1].message").value("메시지 3"));
-    }
-
-    @Test
-    @DisplayName("채팅 목록 조회 시 각 방의 '가장 최신 메시지' 하나씩만 보여준다.")
-    void t10() throws Exception {
-        String room1 = createRoom(100L, "seller1", "buyer1");
-        sendMessage(room1, "buyer1", "안녕하세요");
-        sendMessage(room1, "seller1", "반갑습니다");
-
-        String room2 = createRoom(200L, "seller2", "buyer2");
-        sendMessage(room2, "buyer2", "네고 되나요?");
-        sendMessage(room2, "seller2", "퉷");
-
-        mockMvc.perform(get("/api/chat/list"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(2))
-                .andExpect(jsonPath("$[?(@.message == '반갑습니다')].roomId").value(room1))
-                .andExpect(jsonPath("$[?(@.message == '퉷')].roomId").value(room2));
-    }
-
-    @Test
-    @DisplayName("상대방이 메시지를 읽으면(조회하면) isRead가 true로 변해야 한다.")
+    @DisplayName("11. 존재하지 않는 방 ID로 메시지 전송 시 실패")
     void t11() throws Exception {
-        String roomId = createRoom(ITEM_ID, SELLER, BUYER);
-        sendMessage(roomId, SELLER, "안 팔아요.");
+        ChatDto dto = new ChatDto(0, salePostId, "invalid-room-uuid", buyer.getNickname(), "Hello", null, false);
 
-        // 구매자가 읽음
+        mockMvc.perform(post("/api/chat/send")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.resultCode").value("400-1"))
+                .andExpect(jsonPath("$.msg").value("존재하지 않는 채팅방입니다."));
+    }
+
+    @Test
+    @DisplayName("12. 메시지 목록 조회 및 내용 검증")
+    void t12() throws Exception {
+        String roomId = createRoom(salePostId, "POST", buyer.getApiKey());
+        sendMessage(roomId, salePostId, buyer.getNickname(), "안녕하세요");
+        sendMessage(roomId, salePostId, seller.getNickname(), "반갑습니다");
+
+        mockMvc.perform(get("/api/chat/room/" + roomId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].message").value("안녕하세요"))
+                .andExpect(jsonPath("$[1].message").value("반갑습니다"));
+    }
+
+    @Test
+    @DisplayName("13. 읽음 처리 확인 (상대방이 조회하면 isRead가 true)")
+    void t13() throws Exception {
+        String roomId = createRoom(salePostId, "POST", buyer.getApiKey());
+        sendMessage(roomId, salePostId, seller.getNickname(), "메시지");
+
         mockMvc.perform(get("/api/chat/room/" + roomId)
-                        .param("readerName", BUYER))
+                        .param("readerName", buyer.getNickname()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].isRead").value(true));
     }
 
+    @Test
+    @DisplayName("14. lastChatId를 이용한 페이징(이어보기)")
+    void t14() throws Exception {
+        String roomId = createRoom(salePostId, "POST", buyer.getApiKey());
+        sendMessage(roomId, salePostId, buyer.getNickname(), "1");
+        sendMessage(roomId, salePostId, buyer.getNickname(), "2");
+        sendMessage(roomId, salePostId, buyer.getNickname(), "3");
+
+        MvcResult result = mockMvc.perform(get("/api/chat/room/" + roomId)).andReturn();
+        String content = result.getResponse().getContentAsString();
+        ChatDto[] chats = objectMapper.readValue(content, ChatDto[].class);
+        int secondMsgId = chats[1].id();
+
+        mockMvc.perform(get("/api/chat/room/" + roomId)
+                        .param("lastChatId", String.valueOf(secondMsgId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].message").value("3"));
+    }
+
+    @Test
+    @DisplayName("15. 채팅 목록 조회 (여러 방이 있을 때)")
+    void t15() throws Exception {
+        String room1 = createRoom(salePostId, "POST", buyer.getApiKey());
+        sendMessage(room1, salePostId, buyer.getNickname(), "Room1 Msg");
+
+        String room2 = createRoom(salePostId, "POST", anotherUser.getApiKey());
+        sendMessage(room2, salePostId, anotherUser.getNickname(), "Room2 Msg");
+
+        mockMvc.perform(get("/api/chat/list"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(result -> {
+                    String json = result.getResponse().getContentAsString();
+                    assertThat(json).contains("Room1 Msg");
+                    assertThat(json).contains("Room2 Msg");
+                });
+    }
+
+    @Test
+    @DisplayName("16. 채팅 목록 갱신 확인 (최신 메시지 반영)")
+    void t16() throws Exception {
+        String roomId = createRoom(salePostId, "POST", buyer.getApiKey());
+        sendMessage(roomId, salePostId, buyer.getNickname(), "Old");
+        sendMessage(roomId, salePostId, buyer.getNickname(), "New");
+
+        mockMvc.perform(get("/api/chat/list"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].message").value("New"));
+    }
+
     // --- [헬퍼 메서드] ---
     // 채팅방 생성 API를 호출하고 생성된 UUID(String)를 반환
-    private String createRoom(Long itemId, String seller, String buyer) throws Exception {
+    private String createRoom(int itemId, String txType, String buyerApiKey) throws Exception {
         MvcResult result = mockMvc.perform(post("/api/chat/room")
-                        .with(csrf()) // 보안 설정 때문에 csrf 토큰 필요
+                        .with(csrf())
                         .param("itemId", String.valueOf(itemId))
-                        .param("sellerId", seller)
-                        .param("buyerId", buyer))
+                        .param("txType", txType)
+                        .param("buyerApiKey", buyerApiKey))
                 .andExpect(status().isOk())
                 .andReturn();
-
         return result.getResponse().getContentAsString();
     }
 
-    private void sendMessage(String roomId, String sender, String message) throws Exception {
-        ChatDto dto = new ChatDto(0, ITEM_ID, roomId, sender, message, null, false);
-
+    private void sendMessage(String roomId, int itemId, String sender, String message) throws Exception {
+        ChatDto dto = new ChatDto(0, itemId, roomId, sender, message, LocalDateTime.now(), false);
         mockMvc.perform(post("/api/chat/send")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
