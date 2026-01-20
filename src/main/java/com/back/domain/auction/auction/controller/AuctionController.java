@@ -2,6 +2,7 @@ package com.back.domain.auction.auction.controller;
 
 import com.back.domain.auction.auction.dto.request.AuctionCreateRequest;
 import com.back.domain.auction.auction.dto.request.AuctionUpdateRequest;
+import com.back.domain.auction.auction.dto.response.AuctionDeleteResponse;
 import com.back.domain.auction.auction.dto.response.AuctionDetailResponse;
 import com.back.domain.auction.auction.dto.response.AuctionIdResponse;
 import com.back.domain.auction.auction.dto.response.AuctionPageResponse;
@@ -67,5 +68,18 @@ public class AuctionController {
         }
 
         return auctionService.updateAuction(auctionId, request, actor.getId());
+    }
+
+    @DeleteMapping("/{auctionId}")
+    public RsData<AuctionDeleteResponse> deleteAuction(
+            @PathVariable Integer auctionId
+    ) {
+        Member actor = rq.getActor();
+
+        if (actor == null) {
+            throw new ServiceException("401-1", "로그인이 필요합니다.");
+        }
+
+        return auctionService.deleteAuction(auctionId, actor.getId());
     }
 }
