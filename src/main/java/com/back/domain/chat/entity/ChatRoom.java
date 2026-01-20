@@ -1,37 +1,77 @@
 package com.back.domain.chat.entity;
 
+import com.back.domain.auction.auction.entity.Auction;
+import com.back.domain.member.member.entity.Member;
+import com.back.domain.post.post.entity.Post;
 import com.back.global.jpa.entity.BaseEntity;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
+import jakarta.persistence.*;
 import lombok.*;
-import lombok.experimental.SuperBuilder;
 import java.util.UUID;
 
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class ChatRoom extends BaseEntity {
-    private Long itemId;      // 관련 상품 ID
     @Column(unique = true, nullable = false)
     private String roomId;    // UUID
-    private String sellerId;  // 판매자명
-    private String buyerId;   // 구매자명
 
-    // 현재 클래스의 필드만 빌더로 생성
+    // 거래의 종류 (AUCTION or POST)
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private ChatRoomType txType;
+
+    // 경매 상품일 경우 참조하고 일반 상품일 경우 NULL
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "auction_id")
+    private Auction auction;
+
+    // 일반 상품일 경우 참조하고 경매 상품일 경우 NULL
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "post_id")
+    private Post post;
+
+    @Column(name = "seller_id", nullable = false)
+    private String sellerId; // 판매자 id
+
+    @Column(name = "buyer_id", nullable = false)
+    private String buyerId;  // 구매자 id
+
     @Builder
-    private ChatRoom(Long itemId, String roomId, String sellerId, String buyerId) {
-        this.itemId = itemId;
+    private ChatRoom(String roomId,
+                     ChatRoomType txType,
+                     Auction auction,
+                     Post post,
+                     String sellerId,
+                     String buyerId) {
         this.roomId = roomId;
+        this.txType = txType;
+        this.auction = auction;
+        this.post = post;
         this.sellerId = sellerId;
         this.buyerId = buyerId;
     }
 
-    public static ChatRoom create(Long itemId, String sellerId, String buyerId) {
+    // 경매(Auction) 낙찰 후 채팅방 생성
+    public static ChatRoom createForAuction(Auction auction, Member buyer) {
         return ChatRoom.builder()
-                .itemId(itemId)
-                .sellerId(sellerId)
-                .buyerId(buyerId)
                 .roomId(UUID.randomUUID().toString())
+                .txType(ChatRoomType.AUCTION)
+                .auction(auction)
+                .post(null)
+                .sellerId(auction.getSeller().getApiKey())
+                .buyerId(buyer.getApiKey())
+                .build();
+    }
+
+    // 일반 판매(Post)용 채팅방 생성
+    public static ChatRoom createForPost(Post post, Member buyer) {
+        return ChatRoom.builder()
+                .roomId(UUID.randomUUID().toString())
+                .txType(ChatRoomType.POST)
+                .auction(null)
+                .post(post)
+                .sellerId(post.getSeller().getApiKey())
+                .buyerId(buyer.getApiKey())
                 .build();
     }
 }

@@ -4,7 +4,7 @@ import java.time.LocalDateTime;
 
 public record ChatDto(
         int id,
-        Long itemId, // 상품 ID
+        int itemId, // 상품 ID
         String roomId,   // 방 번호
         String sender,   // 보낸 사람
         String message,  // 메시지 내용

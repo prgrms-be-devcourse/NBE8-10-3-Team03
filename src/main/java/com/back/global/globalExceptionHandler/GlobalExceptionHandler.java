@@ -114,4 +114,26 @@ public class GlobalExceptionHandler {
 
         return rsData;
     }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<RsData<Void>> handle(IllegalArgumentException ex) {
+        return new ResponseEntity<>(
+                new RsData<>(
+                        "400-1",
+                        ex.getMessage()
+                ),
+                BAD_REQUEST
+        );
+    }
+
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<RsData<Void>> handle(IllegalStateException ex) {
+        return new ResponseEntity<>(
+                new RsData<>(
+                        "400-2",
+                        ex.getMessage()
+                ),
+                BAD_REQUEST
+        );
+    }
 }
