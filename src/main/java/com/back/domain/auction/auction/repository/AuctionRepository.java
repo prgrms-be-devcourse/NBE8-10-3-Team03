@@ -1,10 +1,35 @@
 package com.back.domain.auction.auction.repository;
 
 import com.back.domain.auction.auction.entity.Auction;
+import com.back.domain.auction.auction.entity.AuctionStatus;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.Optional;
+
 @Repository
 public interface AuctionRepository extends JpaRepository<Auction, Integer> {
-}
 
+    // 전체 조회 (페이징) - EntityGraph로 N+1 해결
+    @EntityGraph(attributePaths = {"seller", "seller.reputation", "category"})
+    Page<Auction> findAll(Pageable pageable);
+
+    // 카테고리로 필터링
+    @EntityGraph(attributePaths = {"seller", "seller.reputation", "category"})
+    Page<Auction> findByCategoryName(String categoryName, Pageable pageable);
+
+    // 상태로 필터링
+    @EntityGraph(attributePaths = {"seller", "seller.reputation", "category"})
+    Page<Auction> findByStatus(AuctionStatus status, Pageable pageable);
+
+    // 카테고리 + 상태로 필터링
+    @EntityGraph(attributePaths = {"seller", "seller.reputation", "category"})
+    Page<Auction> findByCategoryNameAndStatus(String categoryName, AuctionStatus status, Pageable pageable);
+
+    // 상세 조회 - 이미지 포함
+    @EntityGraph(attributePaths = {"seller", "seller.reputation", "category", "auctionImages", "auctionImages.image"})
+    Optional<Auction> findWithDetailsById(Integer id);
+}
