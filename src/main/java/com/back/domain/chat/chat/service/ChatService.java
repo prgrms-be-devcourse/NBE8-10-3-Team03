@@ -23,7 +23,7 @@ import com.back.domain.post.post.entity.PostStatus;
 import com.back.domain.post.post.repository.PostRepository;
 import com.back.global.rq.Rq;
 import com.back.global.rsData.RsData;
-import com.back.global.exception.ServiceException; // ServiceException이 있다고 가정
+import com.back.global.exception.ServiceException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
@@ -53,15 +53,21 @@ public class ChatService {
      * * 채팅방 생성
      * @param itemId 상품 ID (Post ID or Auction ID)
      * @param txType POST or AUCTION
-     * @param buyerApiKey 구매자 API Key
      * @return roomId (UUID)
      **/
     @Transactional
-    public RsData<ChatRoomIdResponse> createChatRoom(int itemId, String txType, String buyerApiKey) {
+    public RsData<ChatRoomIdResponse> createChatRoom(int itemId, String txType) {
         ChatRoomType type = ChatRoomType.valueOf(txType.toUpperCase());
 
-        Member buyer = memberRepository.findByApiKey(buyerApiKey)
+        Member actor = rq.getActor();
+        if (actor == null) {
+            throw new ServiceException("401-1", "로그인이 필요합니다.");
+        }
+
+        Member buyer = memberRepository.findById(actor.getId())
                 .orElseThrow(() -> new ServiceException("404-1", "존재하지 않는 회원입니다."));
+
+        String buyerApiKey = buyer.getApiKey();
 
         Member seller;
         Post post = null;
@@ -117,8 +123,14 @@ public class ChatService {
         ChatRoom room = chatRoomRepository.findByRoomId(req.getRoomId())
                 .orElseThrow(() -> new ServiceException("404-1", "존재하지 않는 채팅방입니다."));
 
+        // [수정] Rq Actor ID로 완전한 Member 조회 후 API Key 확보
+        Member actor = rq.getActor();
+        Member sender = memberRepository.findById(actor.getId())
+                .orElseThrow(() -> new ServiceException("404-1", "존재하지 않는 회원입니다."));
+
+        String currentApiKey = sender.getApiKey();
+
         // 참여자 권한체크
-        String currentApiKey = rq.getActor().getApiKey();
         if (!room.getSellerId().equals(currentApiKey) && !room.getBuyerId().equals(currentApiKey)) {
             throw new ServiceException("403-1", "해당 채팅방에 메세지를 보낼 권한이 없습니다.");
         }
@@ -146,9 +158,11 @@ public class ChatService {
             }
         }
 
+        chatRepository.save(chatMessage);
+
         ChatResponse chatResponse = new ChatResponse(chatMessage);
 
-        // /sub/chat/room/{roomId} 를 구독(Sub) 중인 모든 클라이언트에게 전송
+        // "/sub/chat/room/{roomId}" 를 구독(Sub) 중인 모든 클라이언트에게 전송
         messagingTemplate.convertAndSend("/sub/chat/room/" + req.getRoomId(), chatResponse);
 
         return new RsData<>("200-1", "메시지가 전송되었습니다.", new ChatIdResponse(chatMessage.getId()));
@@ -159,8 +173,13 @@ public class ChatService {
         ChatRoom room = chatRoomRepository.findByRoomId(roomId)
                 .orElseThrow(() -> new ServiceException("404-1", "존재하지 않는 채팅방입니다."));
 
+        Member actor = rq.getActor();
+        Member reader = memberRepository.findById(actor.getId())
+                .orElseThrow(() -> new ServiceException("404-1", "존재하지 않는 회원입니다."));
+
+        String currentApiKey = reader.getApiKey();
+
         // 참여자만 메시지 조회 가능
-        String currentApiKey = rq.getActor().getApiKey();
         if (!room.getSellerId().equals(currentApiKey) && !room.getBuyerId().equals(currentApiKey)) {
             throw new ServiceException("403-1", "해당 채팅방에 접근 권한이 없습니다.");
         }
@@ -182,7 +201,11 @@ public class ChatService {
     }
 
     public RsData<List<ChatResponse>> getChatList() {
-        String currentApiKey = rq.getActor().getApiKey();
+        Member actor = rq.getActor();
+        Member me = memberRepository.findById(actor.getId())
+                .orElseThrow(() -> new ServiceException("404-1", "존재하지 않는 회원입니다."));
+
+        String currentApiKey = me.getApiKey();
 
         List<ChatResponse> responses = chatRepository.findAllLatestMessagesByMember(currentApiKey).stream()
                 .map(ChatResponse::new)

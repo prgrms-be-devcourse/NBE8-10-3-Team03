@@ -20,13 +20,11 @@ import java.util.List;
 public class ChatController {
 
     private final ChatService chatService;
-    private final Rq rq;
 
     @PostMapping("/room")
     public RsData<ChatRoomIdResponse> createRoom(@RequestParam int itemId,
                                                  @RequestParam String txType) {
-        String buyerApiKey = rq.getActor().getApiKey();
-        return chatService.createChatRoom(itemId, txType, buyerApiKey);
+        return chatService.createChatRoom(itemId, txType);
     }
 
     @PostMapping(value = "/send", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -37,8 +35,7 @@ public class ChatController {
     @GetMapping("/room/{roomId}")
     public RsData<List<ChatResponse>> getMessages(
             @PathVariable String roomId,
-            @RequestParam(value = "lastChatId", required = false) Integer lastChatId,
-            @RequestParam(required = false) String readerName) {
+            @RequestParam(value = "lastChatId", required = false) Integer lastChatId) {
         return chatService.getMessages(roomId, lastChatId);
     }
 
