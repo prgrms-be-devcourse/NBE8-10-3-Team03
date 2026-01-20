@@ -40,7 +40,7 @@ public class ApiV1MemberController {
                 <p>Host Name: %s</p>
                 <p>Host Address: %s</p>
                 <div>
-                    <a href="/swagger-ui/index.html">API 문서로 이동</a>
+                    <a href="/api/v1/members/me">내 정보 확인으로 이동</a>
                 </div>
                 """.formatted(localHost.getHostName(), localHost.getHostAddress());
     }
