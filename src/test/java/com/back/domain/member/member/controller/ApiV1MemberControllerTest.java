@@ -231,4 +231,54 @@ public class ApiV1MemberControllerTest {
                 .andExpect(jsonPath("$.msg").value("Authorization 헤더가 Bearer 형식이 아닙니다."));
     }
 
+    @Test
+    @DisplayName("회원 닉네임 수정")
+    @WithUserDetails("user1")
+    void t9() throws Exception {
+        ResultActions resultActions = mvc
+                .perform(
+                        patch("/api/v1/members/me/nickname")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("""
+                                        {
+                                            "nickname": "new 무명"
+                                        }
+                                        """.stripIndent())
+                )
+                .andDo(print());
+
+        resultActions
+                .andExpect(handler().handlerType(ApiV1MemberController.class))
+                .andExpect(handler().methodName("modifyNickname"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.resultCode").value("200-1"))
+                .andExpect(jsonPath("$.msg").value("수정이 완료되었습니다."));
+    }
+
+    @Test
+    @DisplayName("비밀번호 수정")
+    @WithUserDetails("user1")
+    void t10() throws Exception {
+        ResultActions resultActions = mvc
+                .perform(
+                        patch("/api/v1/members/me/password")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("""
+                                        {
+                                            "password": "1234",
+                                            "newPassword" : "new1234",
+                                            "checkPassword" : "new1234"
+                                        }
+                                        """.stripIndent())
+                )
+                .andDo(print());
+
+        resultActions
+                .andExpect(handler().handlerType(ApiV1MemberController.class))
+                .andExpect(handler().methodName("modifyPassword"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.resultCode").value("200-1"))
+                .andExpect(jsonPath("$.msg").value("수정이 완료되었습니다."));
+    }
+
 }
