@@ -1,9 +1,13 @@
 package com.back.domain.auction.auction.service;
 
 import com.back.domain.auction.auction.dto.request.AuctionCreateRequest;
+import com.back.domain.auction.auction.dto.response.AuctionDetailResponse;
 import com.back.domain.auction.auction.dto.response.AuctionIdResponse;
+import com.back.domain.auction.auction.dto.response.AuctionListItemDto;
+import com.back.domain.auction.auction.dto.response.AuctionPageResponse;
 import com.back.domain.auction.auction.entity.Auction;
 import com.back.domain.auction.auction.entity.AuctionImage;
+import com.back.domain.auction.auction.entity.AuctionStatus;
 import com.back.domain.auction.auction.repository.AuctionImageRepository;
 import com.back.domain.auction.auction.repository.AuctionRepository;
 import com.back.domain.category.category.entity.Category;
@@ -15,6 +19,10 @@ import com.back.domain.member.member.repository.MemberRepository;
 import com.back.global.exception.ServiceException;
 import com.back.global.rsData.RsData;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -110,5 +118,94 @@ public class AuctionService {
             }
         }
     }
-}
 
+    public RsData<AuctionPageResponse> getAuctions(
+            int page,
+            int size,
+            String sortBy,
+            String categoryName,
+            String status
+    ) {
+        // 파라미터 검증
+        if (page < 0) {
+            throw new ServiceException("400-1", "페이지 번호는 0 이상이어야 합니다.");
+        }
+        if (size <= 0) {
+            throw new ServiceException("400-1", "페이지 크기는 1 이상이어야 합니다.");
+        }
+
+        // 정렬 설정
+        Sort sort = createSort(sortBy);
+        Pageable pageable = PageRequest.of(page, size, sort);
+
+        // 상태 변환
+        AuctionStatus auctionStatus = null;
+        if (status != null && !status.isBlank()) {
+            try {
+                auctionStatus = AuctionStatus.valueOf(status.toUpperCase());
+            } catch (IllegalArgumentException e) {
+                throw new ServiceException("400-1", "유효하지 않은 경매 상태입니다. (OPEN, CLOSED)");
+            }
+        }
+
+        // 조건에 맞는 경매 조회
+        Page<Auction> auctionPage;
+
+        if (categoryName != null && !categoryName.isBlank() && auctionStatus != null) {
+            auctionPage = auctionRepository.findByCategoryNameAndStatus(categoryName, auctionStatus, pageable);
+        } else if (categoryName != null && !categoryName.isBlank()) {
+            auctionPage = auctionRepository.findByCategoryName(categoryName, pageable);
+        } else if (auctionStatus != null) {
+            auctionPage = auctionRepository.findByStatus(auctionStatus, pageable);
+        } else {
+            auctionPage = auctionRepository.findAll(pageable);
+        }
+
+        // DTO 변환
+        Page<AuctionListItemDto> dtoPage = auctionPage.map(auction -> {
+            String thumbnailUrl = getThumbnailUrl(auction);
+            return new AuctionListItemDto(auction, thumbnailUrl);
+        });
+
+        AuctionPageResponse response = AuctionPageResponse.from(dtoPage);
+
+        return new RsData<>("200-1", "경매 목록 조회 성공", response);
+    }
+
+    private Sort createSort(String sortBy) {
+        if (sortBy == null || sortBy.isBlank()) {
+            // 기본 정렬: 최신순
+            return Sort.by(Sort.Direction.DESC, "createDate");
+        }
+
+        String[] sortParams = sortBy.split(",");
+        String property = sortParams[0];
+        Sort.Direction direction = Sort.Direction.DESC;
+
+        if (sortParams.length > 1) {
+            direction = sortParams[1].equalsIgnoreCase("asc")
+                    ? Sort.Direction.ASC
+                    : Sort.Direction.DESC;
+        }
+
+        return Sort.by(direction, property);
+    }
+
+    private String getThumbnailUrl(Auction auction) {
+        if (auction.getAuctionImages() == null || auction.getAuctionImages().isEmpty()) {
+            return null;
+        }
+
+        // 첫 번째 이미지를 썸네일로 사용
+        return auction.getAuctionImages().get(0).getImage().getUrl();
+    }
+
+    public RsData<AuctionDetailResponse> getAuctionDetail(Integer auctionId) {
+        Auction auction = auctionRepository.findWithDetailsById(auctionId)
+                .orElseThrow(() -> new ServiceException("404-1", "존재하지 않는 경매입니다."));
+
+        AuctionDetailResponse response = new AuctionDetailResponse(auction);
+
+        return new RsData<>("200-1", "경매 상세 조회 성공", response);
+    }
+}
