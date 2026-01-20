@@ -3,7 +3,10 @@ package com.back.domain.chat.chat.service;
 import com.back.domain.auction.auction.entity.Auction;
 import com.back.domain.auction.auction.repository.AuctionRepository;
 import com.back.domain.auction.auction.service.FileStorageService;
-import com.back.domain.chat.chat.dto.ChatDto;
+import com.back.domain.chat.chat.dto.request.ChatMessageRequest;
+import com.back.domain.chat.chat.dto.response.ChatIdResponse;
+import com.back.domain.chat.chat.dto.response.ChatResponse;
+import com.back.domain.chat.chat.dto.response.ChatRoomIdResponse;
 import com.back.domain.chat.chat.entity.Chat;
 import com.back.domain.chat.chat.entity.ChatImage;
 import com.back.domain.chat.chat.entity.ChatRoom;
@@ -18,6 +21,8 @@ import com.back.domain.member.member.repository.MemberRepository;
 import com.back.domain.post.post.entity.Post;
 import com.back.domain.post.post.entity.PostStatus;
 import com.back.domain.post.post.repository.PostRepository;
+import com.back.global.rsData.RsData;
+import com.back.global.exception.ServiceException; // ServiceException이 있다고 가정
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -41,18 +46,14 @@ public class ChatService {
     private final FileStorageService fileStorageService;
 
     /**
-     * 채팅방 생성
-     * @param itemId 상품 ID (Post ID or Auction ID)
-     * @param txType POST or AUCTION
-     * @param buyerApiKey 구매자 API Key
-     * @return roomId (UUID)
+     * 채팅방 생성 및 입장
      */
     @Transactional
-    public String createChatRoom(int itemId, String txType, String buyerApiKey) {
+    public RsData<ChatRoomIdResponse> createChatRoom(int itemId, String txType, String buyerApiKey) {
         ChatRoomType type = ChatRoomType.valueOf(txType.toUpperCase());
 
         Member buyer = memberRepository.findByApiKey(buyerApiKey)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
+                .orElseThrow(() -> new ServiceException("404-1", "존재하지 않는 회원입니다."));
 
         Member seller;
         Post post = null;
@@ -60,31 +61,31 @@ public class ChatService {
 
         if (type == ChatRoomType.POST) {
             post = postRepository.findById(itemId)
-                    .orElseThrow(() -> new IllegalArgumentException("해당 게시글이 존재하지 않습니다."));
+                    .orElseThrow(() -> new ServiceException("404-2", "해당 게시글이 존재하지 않습니다."));
 
             if (post.getStatus() != PostStatus.SALE) {
-                throw new IllegalStateException("판매 중인 상품이 아니므로 채팅을 시작할 수 없습니다.");
+                throw new ServiceException("400-1", "판매 중인 상품이 아니므로 채팅을 시작할 수 없습니다.");
             }
             seller = post.getSeller();
 
         } else if (type == ChatRoomType.AUCTION) {
             auction = auctionRepository.findById(itemId)
-                    .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 경매입니다."));
+                    .orElseThrow(() -> new ServiceException("404-3", "존재하지 않는 경매입니다."));
 
             seller = auction.getSeller();
 
         } else {
-            throw new IllegalArgumentException("채팅을 개설할 수 없습니다.");
+            throw new ServiceException("400-2", "채팅을 개설할 수 없습니다.");
         }
 
-        // 셀프 채팅 방지
         if (seller.getApiKey().equals(buyerApiKey)) {
-            throw new IllegalArgumentException("본인의 상품에는 채팅을 개설할 수 없습니다.");
+            throw new ServiceException("400-3", "본인의 상품에는 채팅을 개설할 수 없습니다.");
         }
 
+        String roomId;
         if (type == ChatRoomType.POST) {
             final Post finalPost = post;
-            return chatRoomRepository.findByPostAndBuyerId(post, buyerApiKey)
+            roomId = chatRoomRepository.findByPostAndBuyerId(post, buyerApiKey)
                     .map(ChatRoom::getRoomId)
                     .orElseGet(() -> {
                         ChatRoom room = ChatRoom.createForPost(finalPost, buyer);
@@ -92,47 +93,49 @@ public class ChatService {
                     });
         } else {
             final Auction finalAuction = auction;
-            return chatRoomRepository.findByAuctionAndBuyerId(auction, buyerApiKey)
+            roomId = chatRoomRepository.findByAuctionAndBuyerId(auction, buyerApiKey)
                     .map(ChatRoom::getRoomId)
                     .orElseGet(() -> {
                         ChatRoom room = ChatRoom.createForAuction(finalAuction, buyer);
                         return chatRoomRepository.save(room).getRoomId();
                     });
         }
+
+        return new RsData<>("200-1", "채팅방에 입장했습니다.", new ChatRoomIdResponse(roomId));
     }
 
     @Transactional
-    public void saveMessage(ChatDto chatDto) {
-        // 방 존재 여부 검증
-        ChatRoom room = chatRoomRepository.findByRoomId(chatDto.roomId())
-                        .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 채팅방입니다."));
+    public RsData<ChatIdResponse> saveMessage(ChatMessageRequest req) {
+        ChatRoom room = chatRoomRepository.findByRoomId(req.getRoomId())
+                .orElseThrow(() -> new ServiceException("404-1", "존재하지 않는 채팅방입니다."));
 
         Chat chatMessage = Chat.builder()
                 .chatRoom(room)
-                .sender(chatDto.sender())
-                .message(chatDto.message())
+                .sender(req.getSender())
+                .message(req.getMessage())
                 .isRead(false)
                 .build();
 
         chatRepository.save(chatMessage);
 
-        // 이미지 처리
-        if (chatDto.images() != null) {
-            for (MultipartFile file : chatDto.images()) {
+        if (req.getImages() != null) {
+            for (MultipartFile file : req.getImages()) {
                 if (file.isEmpty()) continue;
 
                 String imageUrl = fileStorageService.storeFile(file);
-
                 Image savedImage = imageRepository.save(new Image(imageUrl));
 
-                chatMessage.addChatImage(new ChatImage(chatMessage, savedImage));
-                chatImageRepository.save(new ChatImage(chatMessage, savedImage));
+                ChatImage chatImage = new ChatImage(chatMessage, savedImage);
+                chatMessage.addChatImage(chatImage); // 편의 메서드 사용
+                chatImageRepository.save(chatImage);
             }
         }
+
+        return new RsData<>("200-1", "메시지가 전송되었습니다.", new ChatIdResponse(chatMessage.getId()));
     }
 
     @Transactional
-    public List<ChatDto> getMessages(String roomId, Integer lastChatId, String readerName) {
+    public RsData<List<ChatResponse>> getMessages(String roomId, Integer lastChatId, String readerName) {
         if (readerName != null) {
             chatRepository.markMessagesAsRead(roomId, readerName);
         }
@@ -144,35 +147,18 @@ public class ChatService {
             chats = chatRepository.findByChatRoom_RoomIdAndIdGreaterThanOrderByCreateDateAsc(roomId, lastChatId);
         }
 
-        return chats.stream()
-                .map(this::chatDto)
+        List<ChatResponse> responses = chats.stream()
+                .map(ChatResponse::new)
                 .collect(Collectors.toList());
+
+        return new RsData<>("200-1", "메시지 조회 성공", responses);
     }
 
-    public List<ChatDto> getChatList() {
-        return chatRepository.findAllLatestMessages().stream()
-                .map(this::chatDto)
+    public RsData<List<ChatResponse>> getChatList() {
+        List<ChatResponse> responses = chatRepository.findAllLatestMessages().stream()
+                .map(ChatResponse::new)
                 .collect(Collectors.toList());
-    }
 
-    private ChatDto chatDto(Chat chat) {
-        ChatRoom room = chat.getChatRoom();
-
-        Integer itemId = null;
-        if (room.getTxType() == ChatRoomType.POST) {
-            itemId = (room.getPost() != null) ? room.getPost().getId() : null;
-        } else if (room.getTxType() == ChatRoomType.AUCTION) {
-            itemId = (room.getAuction() != null) ? room.getAuction().getId() : null;
-        }
-
-        return new ChatDto(
-                chat.getId(),
-                itemId != null ? itemId : 0,
-                room.getRoomId(),
-                chat.getSender(),
-                chat.getMessage(),
-                chat.getCreateDate(),
-                null,
-                chat.isRead());
+        return new RsData<>("200-1", "채팅 목록 조회 성공", responses);
     }
 }
