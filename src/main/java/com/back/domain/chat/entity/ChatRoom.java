@@ -51,7 +51,7 @@ public class ChatRoom extends BaseEntity {
         this.buyerId = buyerId;
     }
 
-    // 경매 낙찰 후 채팅방 생성
+    // 경매(Auction) 낙찰 후 채팅방 생성
     public static ChatRoom createForAuction(Auction auction, Member buyer) {
         return ChatRoom.builder()
                 .roomId(UUID.randomUUID().toString())
