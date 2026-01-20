@@ -1,9 +1,13 @@
 package com.back.domain.post.post.entity;
 
+import com.back.domain.category.category.entity.Category; // 카테고리 임포트 확인
 import com.back.domain.member.member.entity.Member;
 import com.back.global.jpa.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.*;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Getter
@@ -27,10 +31,23 @@ public class Post extends BaseEntity {
     @Builder.Default
     private boolean deleted = false;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "category_id")
+    private Category category;
 
-    public void update(String title, String content, int price) {
+    @OneToMany(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<PostImage> postImages = new ArrayList<>();
+
+    public void addPostImage(PostImage postImage) {
+        this.postImages.add(postImage);
+    }
+
+
+    public void update(String title, String content, int price, Category category) {
         this.title = title;
         this.content = content;
         this.price = price;
+        this.category = category;
     }
 }
