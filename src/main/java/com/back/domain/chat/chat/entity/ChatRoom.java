@@ -1,4 +1,4 @@
-package com.back.domain.chat.entity;
+package com.back.domain.chat.chat.entity;
 
 import com.back.domain.auction.auction.entity.Auction;
 import com.back.domain.member.member.entity.Member;

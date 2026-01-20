@@ -131,4 +131,26 @@ public class Auction extends BaseEntity {
     public void clearAuctionImages() {
         this.auctionImages.clear();
     }
+
+    // 입찰 정보 업데이트
+    public void updateBid(Integer newPrice) {
+        this.currentHighestBid = newPrice;
+        this.bidCount++;
+    }
+
+    // 경매 즉시 종료 (즉시구매)
+    public void closeAuction() {
+        this.status = AuctionStatus.CLOSED;
+        this.completed = true;
+    }
+
+    // 경매 종료 여부 확인
+    public boolean isExpired() {
+        return LocalDateTime.now().isAfter(this.endAt);
+    }
+
+    // 경매 진행 중 여부 확인
+    public boolean isActive() {
+        return this.status == AuctionStatus.OPEN && !isExpired();
+    }
 }

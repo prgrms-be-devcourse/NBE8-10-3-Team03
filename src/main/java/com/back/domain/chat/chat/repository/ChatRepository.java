@@ -1,6 +1,6 @@
-package com.back.domain.chat.repository;
+package com.back.domain.chat.chat.repository;
 
-import com.back.domain.chat.entity.Chat;
+import com.back.domain.chat.chat.entity.Chat;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;

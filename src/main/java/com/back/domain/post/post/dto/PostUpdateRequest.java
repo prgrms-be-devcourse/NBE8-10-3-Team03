@@ -7,26 +7,22 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.springframework.web.multipart.MultipartFile;
-
 import java.util.List;
 
-@Getter
-@Setter
-@NoArgsConstructor
-public class PostSaveRequest{
-
+@Getter @Setter @NoArgsConstructor
+public class PostUpdateRequest {
     @NotBlank(message = "제목은 필수입니다.")
     private String title;
 
-    @NotBlank(message = "물품 설명은 필수입니다.")
+    @NotBlank(message = "내용은 필수입니다.")
     private String content;
 
-    @NotNull(message = "물품 가격은 필수입니다.")
     @Min(value = 0, message = "가격은 0원 이상이어야 합니다.")
-    private Integer price;
+    private int price;
 
-    @NotNull(message = "카테고리 ID는 필수입니다.")
+    @NotNull(message = "카테고리를 선택해주세요.")
     private Integer categoryId;
 
     private List<MultipartFile> images;
+    private List<String> keepImageUrls;
 }
