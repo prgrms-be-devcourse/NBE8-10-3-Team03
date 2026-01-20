@@ -37,6 +37,9 @@ public class Member extends BaseEntity {
     @OneToOne(mappedBy = "member", fetch = FetchType.LAZY)
     private Reputation reputation;
 
+    @OneToMany(mappedBy = "member", fetch = FetchType.LAZY )
+    private List<ReputationEvent> reputationEvents;
+
     @Setter
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)

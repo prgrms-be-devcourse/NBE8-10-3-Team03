@@ -1,6 +1,7 @@
 package com.back.domain.member.member.controller;
 
 import com.back.domain.member.member.entity.Member;
+import com.back.domain.member.member.entity.Reputation;
 import com.back.domain.member.member.service.MemberService;
 import jakarta.servlet.http.Cookie;
 import org.hamcrest.Matchers;
@@ -279,6 +280,56 @@ public class ApiV1MemberControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.resultCode").value("200-1"))
                 .andExpect(jsonPath("$.msg").value("수정이 완료되었습니다."));
+    }
+
+    @Test
+    @DisplayName("신고 처리")
+    void t11() throws Exception {
+        Member user1 = memberService.findByUsername("user1").get();
+        int userId = user1.getId();
+
+        ResultActions resultActions = mvc
+                .perform(
+                        patch("/api/v1/members/%d/credit".formatted(userId))
+                )
+                .andDo(print());
+
+        resultActions
+                .andExpect(handler().handlerType(ApiV1MemberController.class))
+                .andExpect(handler().methodName("decrease"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.resultCode").value("200-1"))
+                .andExpect(jsonPath("$.msg").value("신고 완료 처리되었습니다."));
+    }
+
+    @Test
+    @DisplayName("신고 10번 처리 => 신용도 1번 감소")
+    void t12() throws Exception {
+        Member user1 = memberService.findByUsername("user1").get();
+        int userId = user1.getId();
+
+        ResultActions resultActions = null;
+
+        // 10번 반복
+        for (int i = 0; i < 10; i++) {
+            resultActions = mvc
+                    .perform(
+                            patch("/api/v1/members/%d/credit".formatted(userId))
+                    )
+                    .andDo(print());
+        }
+
+        // 마지막 결과만 검증
+        resultActions
+                .andExpect(handler().handlerType(ApiV1MemberController.class))
+                .andExpect(handler().methodName("decrease"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.resultCode").value("200-1"))
+                .andExpect(jsonPath("$.msg").value("신고 완료 처리되었습니다."));
+
+        assertThat(user1.getReputationEvents()).hasSize(10);
+        assertThat(user1.getReputation().getCaution()).isEqualTo(1);
+        assertThat(user1.getReputation().getScore()).isEqualTo(45.0);
     }
 
 }
