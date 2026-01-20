@@ -1,4 +1,4 @@
-package com.back.domain.chat.dto;
+package com.back.domain.chat.chat.dto;
 
 import java.time.LocalDateTime;
 

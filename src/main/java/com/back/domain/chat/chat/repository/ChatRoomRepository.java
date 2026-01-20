@@ -1,7 +1,7 @@
-package com.back.domain.chat.repository;
+package com.back.domain.chat.chat.repository;
 
 import com.back.domain.auction.auction.entity.Auction;
-import com.back.domain.chat.entity.ChatRoom;
+import com.back.domain.chat.chat.entity.ChatRoom;
 import com.back.domain.post.post.entity.Post;
 import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.Optional;

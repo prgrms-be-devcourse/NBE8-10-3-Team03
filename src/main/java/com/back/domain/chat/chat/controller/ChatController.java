@@ -1,7 +1,7 @@
-package com.back.domain.chat.controller;
+package com.back.domain.chat.chat.controller;
 
-import com.back.domain.chat.dto.ChatDto;
-import com.back.domain.chat.service.ChatService;
+import com.back.domain.chat.chat.dto.ChatDto;
+import com.back.domain.chat.chat.service.ChatService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 

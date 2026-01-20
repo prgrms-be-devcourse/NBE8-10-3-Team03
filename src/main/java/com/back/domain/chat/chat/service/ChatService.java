@@ -1,13 +1,13 @@
-package com.back.domain.chat.service;
+package com.back.domain.chat.chat.service;
 
 import com.back.domain.auction.auction.entity.Auction;
 import com.back.domain.auction.auction.repository.AuctionRepository;
-import com.back.domain.chat.dto.ChatDto;
-import com.back.domain.chat.entity.Chat;
-import com.back.domain.chat.entity.ChatRoom;
-import com.back.domain.chat.entity.ChatRoomType;
-import com.back.domain.chat.repository.ChatRepository;
-import com.back.domain.chat.repository.ChatRoomRepository;
+import com.back.domain.chat.chat.dto.ChatDto;
+import com.back.domain.chat.chat.entity.Chat;
+import com.back.domain.chat.chat.entity.ChatRoom;
+import com.back.domain.chat.chat.entity.ChatRoomType;
+import com.back.domain.chat.chat.repository.ChatRepository;
+import com.back.domain.chat.chat.repository.ChatRoomRepository;
 import com.back.domain.member.member.entity.Member;
 import com.back.domain.member.member.repository.MemberRepository;
 import com.back.domain.post.post.entity.Post;
