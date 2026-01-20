@@ -1,9 +1,11 @@
 package com.back.domain.auction.auction.controller;
 
 import com.back.domain.auction.auction.dto.request.AuctionCreateRequest;
+import com.back.domain.auction.auction.dto.request.AuctionUpdateRequest;
 import com.back.domain.auction.auction.dto.response.AuctionDetailResponse;
 import com.back.domain.auction.auction.dto.response.AuctionIdResponse;
 import com.back.domain.auction.auction.dto.response.AuctionPageResponse;
+import com.back.domain.auction.auction.dto.response.AuctionUpdateResponse;
 import com.back.domain.auction.auction.service.AuctionService;
 import com.back.domain.member.member.entity.Member;
 import com.back.global.exception.ServiceException;
@@ -51,5 +53,19 @@ public class AuctionController {
             @PathVariable Integer auctionId
     ) {
         return auctionService.getAuctionDetail(auctionId);
+    }
+
+    @PatchMapping(value = "/{auctionId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public RsData<AuctionUpdateResponse> updateAuction(
+            @PathVariable Integer auctionId,
+            @Valid @ModelAttribute AuctionUpdateRequest request
+    ) {
+        Member actor = rq.getActor();
+
+        if (actor == null) {
+            throw new ServiceException("401-1", "로그인이 필요합니다.");
+        }
+
+        return auctionService.updateAuction(auctionId, request, actor.getId());
     }
 }
