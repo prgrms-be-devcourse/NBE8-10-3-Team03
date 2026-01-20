@@ -24,6 +24,7 @@ import com.back.domain.post.post.repository.PostRepository;
 import com.back.global.rsData.RsData;
 import com.back.global.exception.ServiceException; // ServiceException이 있다고 가정
 import lombok.RequiredArgsConstructor;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -44,6 +45,7 @@ public class ChatService {
     private final ImageRepository imageRepository;
     private final ChatImageRepository chatImageRepository;
     private final FileStorageService fileStorageService;
+    private final SimpMessagingTemplate messagingTemplate;
 
     /**
      * * 채팅방 생성
@@ -113,6 +115,7 @@ public class ChatService {
         ChatRoom room = chatRoomRepository.findByRoomId(req.getRoomId())
                 .orElseThrow(() -> new ServiceException("404-1", "존재하지 않는 채팅방입니다."));
 
+        // 메세지 저장
         Chat chatMessage = Chat.builder()
                 .chatRoom(room)
                 .sender(req.getSender())
@@ -122,6 +125,7 @@ public class ChatService {
 
         chatRepository.save(chatMessage);
 
+        // 이미지 파일 처리
         if (req.getImages() != null) {
             for (MultipartFile file : req.getImages()) {
                 if (file.isEmpty()) continue;
@@ -133,6 +137,11 @@ public class ChatService {
                 chatMessage.addChatImage(chatImage);
             }
         }
+
+        ChatResponse chatResponse = new ChatResponse(chatMessage);
+
+        // /sub/chat/room/{roomId} 를 구독(Sub) 중인 모든 클라이언트에게 전송
+        messagingTemplate.convertAndSend("/sub/chat/room/" + req.getRoomId(), chatResponse);
 
         return new RsData<>("200-1", "메시지가 전송되었습니다.", new ChatIdResponse(chatMessage.getId()));
     }
