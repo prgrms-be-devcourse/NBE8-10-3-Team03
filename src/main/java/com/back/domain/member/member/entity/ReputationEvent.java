@@ -29,11 +29,7 @@ public class ReputationEvent extends BaseEntity {
     private double delta;
 
     public ReputationEvent(Member member, EventType eventType, RefType refType) {
-        this.member = member;
-        this.eventType = eventType;
-        this.refType = refType;
-        this.refId = 0;
-        this.delta = 0;
+        this(member, eventType, refType, 0, 0);
     }
 
     public ReputationEvent(Member member, EventType eventType, RefType refType, int refId, double delta) {
