@@ -1,8 +1,7 @@
 package com.back.domain.post.post.controller;
 
 import com.back.domain.member.member.entity.Member;
-import com.back.domain.post.post.dto.PostDto;
-import com.back.domain.post.post.dto.PostSaveRequest;
+import com.back.domain.post.post.dto.*;
 import com.back.domain.post.post.entity.Post;
 import com.back.domain.post.post.service.PostService;
 import com.back.global.exception.ServiceException;
@@ -21,40 +20,43 @@ public class PostController {
     private final PostService postService;
     private final Rq rq;
 
-
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public RsData<PostDto> write(@Valid @ModelAttribute PostSaveRequest request) {
+    public RsData<PostIdResponse> create(@Valid @ModelAttribute PostCreateRequest req) {
         Member actor = rq.getActor();
-
         if (actor == null) {
-            throw new ServiceException("401-1", "로그인 후 이용해주세요.");
+            throw new ServiceException("401-1", "로그인이 필요합니다.");
         }
 
-        Post post = postService.write(actor, request);
+        int id = postService.create(actor, req);
 
-        return new RsData<>("201-1", "게시글이 등록되었습니다.", new PostDto(post));
+        return new RsData<>("201-1", "게시글 등록이 완료되었습니다", new PostIdResponse(id, "등록 완료"));
     }
 
+    @PatchMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public RsData<PostIdResponse> modify(@PathVariable int id, @Valid @ModelAttribute PostUpdateRequest req) {
+        Member actor = rq.getActor();
+        if (actor == null) throw new ServiceException("401-1", "로그인이 필요합니다.");
 
-    @PatchMapping("/{id}")
-    public RsData<Void> modify(@PathVariable int id, @Valid @RequestBody PostSaveRequest req) {
-        postService.modify(id, req);
-        return new RsData<>("200-1", "수정 성공");
+        postService.modify(actor, id, req);
+        return new RsData<>("200-1", "수정 성공", new PostIdResponse(id, "수정 완료"));
     }
 
     @DeleteMapping("/{id}")
-    public RsData<Void> delete(@PathVariable int id) {
-        postService.delete(id);
-        return new RsData<>("200-2", "삭제 성공");
+    public RsData<PostIdResponse> delete(@PathVariable int id) {
+        Member actor = rq.getActor();
+        if (actor == null) throw new ServiceException("401-1", "로그인이 필요합니다.");
+
+        postService.delete(actor, id);
+        return new RsData<>("200-2", "삭제 성공", new PostIdResponse(id, "삭제 완료"));
     }
 
     @GetMapping("/{id}")
-    public RsData<PostDto> getDetail(@PathVariable int id) {
+    public RsData<PostDetailResponse> getDetail(@PathVariable int id) {
         return new RsData<>("200-3", "상세 조회 성공", postService.getDetail(id));
     }
 
     @GetMapping
-    public RsData<Page<PostDto>> getList(@RequestParam(defaultValue = "0") int page) {
+    public RsData<Page<PostListResponse>> getList(@RequestParam(defaultValue = "0") int page) {
         return new RsData<>("200-4", "목록 조회 성공", postService.getList(page));
     }
 }
