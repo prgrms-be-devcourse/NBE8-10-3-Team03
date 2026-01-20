@@ -15,7 +15,7 @@ public class ChatController {
 
     // 채팅방 생성 및 입장 (UUID 반환)
     @PostMapping("/room")
-    public String createRoom(@RequestParam Long itemId,
+    public String createRoom(@RequestParam int itemId,
                              @RequestParam String sellerId,
                              @RequestParam String buyerId) {
         return chatService.createChatRoom(itemId, sellerId, buyerId);

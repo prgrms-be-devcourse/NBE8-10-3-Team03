@@ -18,7 +18,7 @@ public class ChatRoom extends BaseEntity {
     // 거래의 종류 (AUCTION or POST)
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private ChatRoomType type;
+    private ChatRoomType txType;
 
     // 경매 상품일 경우 참조하고 일반 상품일 경우 NULL
     @ManyToOne(fetch = FetchType.LAZY)
@@ -38,13 +38,13 @@ public class ChatRoom extends BaseEntity {
 
     @Builder
     private ChatRoom(String roomId,
-                     ChatRoomType type,
+                     ChatRoomType txType,
                      Auction auction,
                      Post post,
                      String sellerId,
                      String buyerId) {
         this.roomId = roomId;
-        this.type = type;
+        this.txType = txType;
         this.auction = auction;
         this.post = post;
         this.sellerId = sellerId;
@@ -55,7 +55,7 @@ public class ChatRoom extends BaseEntity {
     public static ChatRoom createForAuction(Auction auction, Member buyer) {
         return ChatRoom.builder()
                 .roomId(UUID.randomUUID().toString())
-                .type(ChatRoomType.AUCTION)
+                .txType(ChatRoomType.AUCTION)
                 .auction(auction)
                 .post(null)
                 .sellerId(auction.getSeller().getApiKey())
@@ -67,7 +67,7 @@ public class ChatRoom extends BaseEntity {
     public static ChatRoom createForPost(Post post, Member buyer) {
         return ChatRoom.builder()
                 .roomId(UUID.randomUUID().toString())
-                .type(ChatRoomType.POST)
+                .txType(ChatRoomType.POST)
                 .auction(null)
                 .post(post)
                 .sellerId(post.getSeller().getApiKey())
