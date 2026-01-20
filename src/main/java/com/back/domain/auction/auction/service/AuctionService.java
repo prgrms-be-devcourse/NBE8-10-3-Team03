@@ -2,6 +2,7 @@ package com.back.domain.auction.auction.service;
 
 import com.back.domain.auction.auction.dto.request.AuctionCreateRequest;
 import com.back.domain.auction.auction.dto.request.AuctionUpdateRequest;
+import com.back.domain.auction.auction.dto.response.AuctionDeleteResponse;
 import com.back.domain.auction.auction.dto.response.AuctionDetailResponse;
 import com.back.domain.auction.auction.dto.response.AuctionIdResponse;
 import com.back.domain.auction.auction.dto.response.AuctionListItemDto;
@@ -304,5 +305,24 @@ public class AuctionService {
                 throw new ServiceException("500-1", "이미지 저장에 실패했습니다: " + e.getMessage());
             }
         }
+    }
+
+    @Transactional
+    public RsData<AuctionDeleteResponse> deleteAuction(Integer auctionId, Integer memberId) {
+        // 1. 경매 조회
+        Auction auction = auctionRepository.findById(auctionId)
+                .orElseThrow(() -> new ServiceException("404-1", "존재하지 않는 경매입니다."));
+
+        // 2. 판매자 권한 확인
+        if (!auction.isSeller(memberId)) {
+            throw new ServiceException("403-1", "경매를 삭제할 권한이 없습니다.");
+        }
+
+        // 3. 경매 삭제
+        auctionRepository.delete(auction);
+
+        AuctionDeleteResponse response = new AuctionDeleteResponse("경매가 정상적으로 취소되었습니다.");
+
+        return new RsData<>("200-1", "경매가 정상적으로 취소되었습니다.", response);
     }
 }
