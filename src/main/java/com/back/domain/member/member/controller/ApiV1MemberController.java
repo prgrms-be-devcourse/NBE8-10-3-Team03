@@ -12,8 +12,15 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
+import lombok.SneakyThrows;
+import org.springframework.data.jpa.repository.query.PreprocessedQuery;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
+
+import java.net.InetAddress;
+
+import static java.net.InetAddress.getLocalHost;
+import static org.springframework.util.MimeTypeUtils.TEXT_HTML_VALUE;
 
 @RestController
 @RequestMapping("/api/v1/members")
@@ -21,6 +28,22 @@ import org.springframework.web.bind.annotation.*;
 public class ApiV1MemberController {
     private final MemberService memberService;
     private final Rq rq;
+
+    @SneakyThrows
+    @GetMapping(produces = TEXT_HTML_VALUE)
+    @Operation(summary = "확인 페이지")
+    public String main() {
+        InetAddress localHost = getLocalHost();
+
+        return """
+                <h1>API 서버</h1>
+                <p>Host Name: %s</p>
+                <p>Host Address: %s</p>
+                <div>
+                    <a href="/swagger-ui/index.html">API 문서로 이동</a>
+                </div>
+                """.formatted(localHost.getHostName(), localHost.getHostAddress());
+    }
 
     record MemberJoinReqBody(
             @NotBlank
@@ -44,7 +67,8 @@ public class ApiV1MemberController {
         Member member = memberService.join(
                 reqBody.username(),
                 reqBody.password(),
-                reqBody.nickname()
+                reqBody.nickname(),
+                null
         );
 
         return new RsData<>(
@@ -87,6 +111,8 @@ public class ApiV1MemberController {
 
         String accessToken = memberService.genAccessToken(member);
 
+
+        rq.setHeader("Authorization", "Bearer " + member.getApiKey() + " " + accessToken);
         rq.setCookie("apiKey", member.getApiKey());
         rq.setCookie("accessToken", accessToken);
 
@@ -118,9 +144,7 @@ public class ApiV1MemberController {
     @Transactional(readOnly = true)
     @Operation(summary = "내 정보 조회")
     public MemberWithUsernameDto me() {
-        Member actor = memberService
-                .findById(rq.getActor().getId())
-                .get();
+        Member actor = rq.getActorFromDb();
 
         return new MemberWithUsernameDto(actor);
     }
@@ -180,6 +204,7 @@ public class ApiV1MemberController {
                 "수정이 완료되었습니다."
         );
     }
+
 
     @Operation(summary = "신고 시 사용자 신용도 감소")
     @Transactional
