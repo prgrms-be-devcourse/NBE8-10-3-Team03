@@ -46,8 +46,12 @@ public class ChatService {
     private final FileStorageService fileStorageService;
 
     /**
-     * 채팅방 생성 및 입장
-     */
+     * * 채팅방 생성
+     * @param itemId 상품 ID (Post ID or Auction ID)
+     * @param txType POST or AUCTION
+     * @param buyerApiKey 구매자 API Key
+     * @return roomId (UUID)
+     **/
     @Transactional
     public RsData<ChatRoomIdResponse> createChatRoom(int itemId, String txType, String buyerApiKey) {
         ChatRoomType type = ChatRoomType.valueOf(txType.toUpperCase());
