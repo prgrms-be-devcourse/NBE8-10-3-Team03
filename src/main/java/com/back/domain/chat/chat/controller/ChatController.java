@@ -5,6 +5,7 @@ import com.back.domain.chat.chat.dto.response.ChatIdResponse;
 import com.back.domain.chat.chat.dto.response.ChatResponse;
 import com.back.domain.chat.chat.dto.response.ChatRoomIdResponse;
 import com.back.domain.chat.chat.service.ChatService;
+import com.back.global.rq.Rq;
 import com.back.global.rsData.RsData;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -19,11 +20,12 @@ import java.util.List;
 public class ChatController {
 
     private final ChatService chatService;
+    private final Rq rq;
 
     @PostMapping("/room")
     public RsData<ChatRoomIdResponse> createRoom(@RequestParam int itemId,
-                                                 @RequestParam String txType,
-                                                 @RequestParam String buyerApiKey) {
+                                                 @RequestParam String txType) {
+        String buyerApiKey = rq.getActor().getApiKey();
         return chatService.createChatRoom(itemId, txType, buyerApiKey);
     }
 
@@ -37,7 +39,7 @@ public class ChatController {
             @PathVariable String roomId,
             @RequestParam(value = "lastChatId", required = false) Integer lastChatId,
             @RequestParam(required = false) String readerName) {
-        return chatService.getMessages(roomId, lastChatId, readerName);
+        return chatService.getMessages(roomId, lastChatId);
     }
 
     @GetMapping("/list")

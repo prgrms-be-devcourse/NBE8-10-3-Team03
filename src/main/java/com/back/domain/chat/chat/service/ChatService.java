@@ -21,6 +21,7 @@ import com.back.domain.member.member.repository.MemberRepository;
 import com.back.domain.post.post.entity.Post;
 import com.back.domain.post.post.entity.PostStatus;
 import com.back.domain.post.post.repository.PostRepository;
+import com.back.global.rq.Rq;
 import com.back.global.rsData.RsData;
 import com.back.global.exception.ServiceException; // ServiceException이 있다고 가정
 import lombok.RequiredArgsConstructor;
@@ -46,6 +47,7 @@ public class ChatService {
     private final ChatImageRepository chatImageRepository;
     private final FileStorageService fileStorageService;
     private final SimpMessagingTemplate messagingTemplate;
+    private final Rq rq;
 
     /**
      * * 채팅방 생성
@@ -115,10 +117,16 @@ public class ChatService {
         ChatRoom room = chatRoomRepository.findByRoomId(req.getRoomId())
                 .orElseThrow(() -> new ServiceException("404-1", "존재하지 않는 채팅방입니다."));
 
+        // 참여자 권한체크
+        String currentApiKey = rq.getActor().getApiKey();
+        if (!room.getSellerId().equals(currentApiKey) && !room.getBuyerId().equals(currentApiKey)) {
+            throw new ServiceException("403-1", "해당 채팅방에 메세지를 보낼 권한이 없습니다.");
+        }
+
         // 메세지 저장
         Chat chatMessage = Chat.builder()
                 .chatRoom(room)
-                .sender(req.getSender())
+                .sender(rq.getActor().getNickname())
                 .message(req.getMessage())
                 .isRead(false)
                 .build();
@@ -147,10 +155,17 @@ public class ChatService {
     }
 
     @Transactional
-    public RsData<List<ChatResponse>> getMessages(String roomId, Integer lastChatId, String readerName) {
-        if (readerName != null) {
-            chatRepository.markMessagesAsRead(roomId, readerName);
+    public RsData<List<ChatResponse>> getMessages(String roomId, Integer lastChatId) {
+        ChatRoom room = chatRoomRepository.findByRoomId(roomId)
+                .orElseThrow(() -> new ServiceException("404-1", "존재하지 않는 채팅방입니다."));
+
+        // 참여자만 메시지 조회 가능
+        String currentApiKey = rq.getActor().getApiKey();
+        if (!room.getSellerId().equals(currentApiKey) && !room.getBuyerId().equals(currentApiKey)) {
+            throw new ServiceException("403-1", "해당 채팅방에 접근 권한이 없습니다.");
         }
+
+        chatRepository.markMessagesAsRead(roomId, rq.getActor().getNickname());
 
         List<Chat> chats;
         if (lastChatId == null || lastChatId <= 0) {
@@ -167,7 +182,9 @@ public class ChatService {
     }
 
     public RsData<List<ChatResponse>> getChatList() {
-        List<ChatResponse> responses = chatRepository.findAllLatestMessages().stream()
+        String currentApiKey = rq.getActor().getApiKey();
+
+        List<ChatResponse> responses = chatRepository.findAllLatestMessagesByMember(currentApiKey).stream()
                 .map(ChatResponse::new)
                 .collect(Collectors.toList());
 

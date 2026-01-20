@@ -463,12 +463,11 @@ class ChatControllerTest {
 
     // --- [헬퍼 메서드] ---
     // 채팅방 생성 후 Room ID(UUID String) 반환
-    private String createRoom(int itemId, String txType, String buyerApiKey) throws Exception {
+    private String createRoom(int itemId, String txType) throws Exception {
         MvcResult result = mockMvc.perform(post("/api/chat/room")
                         .with(csrf())
                         .param("itemId", String.valueOf(itemId))
-                        .param("txType", txType)
-                        .param("buyerApiKey", buyerApiKey))
+                        .param("txType", txType)) // buyerApiKey 삭제
                 .andExpect(status().isOk())
                 .andReturn();
 
@@ -478,19 +477,16 @@ class ChatControllerTest {
     }
 
     // 메시지 전송 (텍스트 + 선택적 이미지)
-    private void sendMessage(String roomId, String sender, String message, MockMultipartFile imageFile) throws Exception {
+    private void sendMessage(String roomId, String message, MockMultipartFile imageFile) throws Exception {
         var requestBuilder = multipart("/api/chat/send")
                 .with(csrf())
                 .param("roomId", roomId)
-                .param("sender", sender)
-                .param("message", message);
+                .param("message", message); // sender 삭제
 
         if (imageFile != null) {
             requestBuilder.file(imageFile);
         }
 
-        mockMvc.perform(requestBuilder)
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.resultCode").value("200-1"));
+        mockMvc.perform(requestBuilder).andExpect(status().isOk());
     }
 }

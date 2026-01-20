@@ -16,9 +16,6 @@ public class ChatMessageRequest {
     @NotBlank(message = "채팅방 ID는 필수입니다.")
     private String roomId;
 
-    @NotBlank(message = "보내는 사람 이름은 필수입니다.")
-    private String sender;
-
     private String message;
 
     private List<MultipartFile> images;
