@@ -4,7 +4,9 @@ import com.back.domain.chat.chat.dto.ChatDto;
 import com.back.domain.chat.chat.service.ChatService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.List;
 
 @RestController
@@ -22,8 +24,10 @@ public class ChatController {
     }
 
     @PostMapping("/send")
-    public void sendMessage(@RequestBody ChatDto chatDto) {
-        chatService.saveMessage(chatDto);
+    public void sendMessage(@RequestPart("chatDto") ChatDto chatDto,
+                            @RequestPart(value = "images", required = false) List<MultipartFile> images
+                            ) throws IOException {
+        chatService.saveMessage(chatDto, images);
     }
 
     @GetMapping("/room/{roomId}")
