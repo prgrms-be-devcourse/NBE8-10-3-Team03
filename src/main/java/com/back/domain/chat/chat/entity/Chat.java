@@ -1,8 +1,12 @@
 package com.back.domain.chat.chat.entity;
 
+import com.back.domain.post.post.entity.PostImage;
 import com.back.global.jpa.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.*;
+
+import java.util.ArrayList;
+import java.util.List;
 
 
 @Table(name = "chat")
@@ -17,7 +21,7 @@ public class Chat extends BaseEntity {
     @Column(nullable = false)
     private String sender;
 
-    @Column(columnDefinition = "TEXT", nullable = false)
+    @Column(columnDefinition = "TEXT")
     private String message;
 
     @Column(name = "is_read", nullable = false)
@@ -29,5 +33,12 @@ public class Chat extends BaseEntity {
         this.sender = sender;
         this.message = message;
         this.isRead = isRead;
+    }
+
+    @OneToMany(mappedBy = "chat", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<ChatImage> chatImages = new ArrayList<>();
+
+    public void addChatImage(ChatImage chatImage) {
+        this.chatImages.add(chatImage);
     }
 }

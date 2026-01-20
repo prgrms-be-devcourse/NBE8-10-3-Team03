@@ -3,10 +3,9 @@ package com.back.domain.chat.chat.controller;
 import com.back.domain.chat.chat.dto.ChatDto;
 import com.back.domain.chat.chat.service.ChatService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
 
-import java.io.IOException;
 import java.util.List;
 
 @RestController
@@ -23,11 +22,9 @@ public class ChatController {
         return chatService.createChatRoom(itemId, txType, buyerApiKey);
     }
 
-    @PostMapping("/send")
-    public void sendMessage(@RequestPart("chatDto") ChatDto chatDto,
-                            @RequestPart(value = "images", required = false) List<MultipartFile> images
-                            ) throws IOException {
-        chatService.saveMessage(chatDto, images);
+    @PostMapping(value = "/send", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public void sendMessage(@RequestPart("chatDto") ChatDto chatDto) {
+        chatService.saveMessage(chatDto);
     }
 
     @GetMapping("/room/{roomId}")

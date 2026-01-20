@@ -2,12 +2,17 @@ package com.back.domain.chat.chat.service;
 
 import com.back.domain.auction.auction.entity.Auction;
 import com.back.domain.auction.auction.repository.AuctionRepository;
+import com.back.domain.auction.auction.service.FileStorageService;
 import com.back.domain.chat.chat.dto.ChatDto;
 import com.back.domain.chat.chat.entity.Chat;
+import com.back.domain.chat.chat.entity.ChatImage;
 import com.back.domain.chat.chat.entity.ChatRoom;
 import com.back.domain.chat.chat.entity.ChatRoomType;
+import com.back.domain.chat.chat.repository.ChatImageRepository;
 import com.back.domain.chat.chat.repository.ChatRepository;
 import com.back.domain.chat.chat.repository.ChatRoomRepository;
+import com.back.domain.image.image.entity.Image;
+import com.back.domain.image.image.repository.ImageRepository;
 import com.back.domain.member.member.entity.Member;
 import com.back.domain.member.member.repository.MemberRepository;
 import com.back.domain.post.post.entity.Post;
@@ -16,6 +21,7 @@ import com.back.domain.post.post.repository.PostRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -30,6 +36,9 @@ public class ChatService {
     private final PostRepository postRepository;
     private final AuctionRepository auctionRepository;
     private final MemberRepository memberRepository;
+    private final ImageRepository imageRepository;
+    private final ChatImageRepository chatImageRepository;
+    private final FileStorageService fileStorageService;
 
     /**
      * 채팅방 생성
@@ -106,6 +115,20 @@ public class ChatService {
                 .build();
 
         chatRepository.save(chatMessage);
+
+        // 이미지 처리
+        if (chatDto.images() != null) {
+            for (MultipartFile file : chatDto.images()) {
+                if (file.isEmpty()) continue;
+
+                String imageUrl = fileStorageService.storeFile(file);
+
+                Image savedImage = imageRepository.save(new Image(imageUrl));
+
+                chatMessage.addChatImage(new ChatImage(chatMessage, savedImage));
+                chatImageRepository.save(new ChatImage(chatMessage, savedImage));
+            }
+        }
     }
 
     @Transactional
@@ -144,11 +167,12 @@ public class ChatService {
 
         return new ChatDto(
                 chat.getId(),
-                itemId,
+                itemId != null ? itemId : 0,
                 room.getRoomId(),
                 chat.getSender(),
                 chat.getMessage(),
                 chat.getCreateDate(),
+                null,
                 chat.isRead());
     }
 }
