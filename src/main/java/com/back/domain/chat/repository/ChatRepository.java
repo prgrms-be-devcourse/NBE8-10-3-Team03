@@ -13,13 +13,13 @@ public interface ChatRepository extends JpaRepository<Chat, Integer> {
 
     List<Chat> findByRoomIdAndIdGreaterThanOrderByCreateDateAsc(String roomId, int lastId);
 
-    // 읽음 처리
+    // 읽음 처리 (JPQL)
     @Modifying(clearAutomatically = true)
     @Query("UPDATE Chat c SET c.isRead = true WHERE c.roomId = :roomId AND c.sender != :readerName AND c.isRead = false")
     void markMessagesAsRead(@Param("roomId") String roomId,
                             @Param("readerName") String readerName);
 
-    // 맨 마지막 대화들
+    // 맨 마지막 대화들 (Native Query)
     @Query(value = "SELECT * FROM chat WHERE id IN (SELECT MAX(id) FROM chat GROUP BY room_id) ORDER BY create_date DESC", nativeQuery = true)
     List<Chat> findAllLatestMessages();
 }
