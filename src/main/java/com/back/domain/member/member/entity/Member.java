@@ -1,11 +1,13 @@
 package com.back.domain.member.member.entity;
 
 import com.back.domain.member.member.enums.Role;
+import com.back.global.exception.ServiceException;
 import com.back.global.jpa.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.jspecify.annotations.Nullable;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
@@ -90,5 +92,23 @@ public class Member extends BaseEntity {
         }
 
         return authorities;
+    }
+
+    public void checkActorCanModify(Member actor) {
+        if (!actor.equals(this))
+            throw new ServiceException("403-1", "수정권한이 없습니다.".formatted(getId()));
+    }
+
+    public void modify(String nickname, String password) {
+        this.nickname = nickname;
+        this.password = password;
+    }
+
+    public void modifyName(String nickname) {
+        this.nickname = nickname;
+    }
+
+    public void modifyPassword(String password) {
+        this.password = password;
     }
 }
