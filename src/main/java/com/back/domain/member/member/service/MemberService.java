@@ -2,6 +2,7 @@ package com.back.domain.member.member.service;
 
 import com.back.domain.member.member.entity.Member;
 import com.back.domain.member.member.entity.Reputation;
+import com.back.domain.member.member.enums.Role;
 import com.back.domain.member.member.repository.MemberRepository;
 import com.back.domain.member.member.repository.ReputationRepository;
 import com.back.domain.member.member.service.AuthTokenService;
@@ -35,6 +36,10 @@ public class MemberService {
         password = passwordEncoder.encode(password);
 
         Member member = new Member(username, password, nickname);
+        if (username.startsWith("system") || username.startsWith("admin"))
+            member.setRole(Role.ADMIN);
+        else member.setRole(Role.USER);
+
         Reputation reputation = new Reputation(member, 50.0);
         reputationRepository.save(reputation);
 
