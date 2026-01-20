@@ -7,6 +7,7 @@ import com.back.domain.member.member.service.MemberService;
 import com.back.global.exception.ServiceException;
 import com.back.global.rq.Rq;
 import com.back.global.rsData.RsData;
+import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -36,6 +37,7 @@ public class ApiV1MemberController {
 
     @PostMapping
     @Transactional
+    @Operation(summary = "회원가입")
     public RsData<MemberDto> join(
             @Valid @RequestBody MemberJoinReqBody reqBody
     ) {
@@ -71,6 +73,7 @@ public class ApiV1MemberController {
 
     @PostMapping("/login")
     @Transactional(readOnly = true)
+    @Operation(summary = "로그인")
     public RsData<MemberLoginResBody> login(
             @Valid @RequestBody MemberLoginReqBody reqBody
     ) {
@@ -98,6 +101,7 @@ public class ApiV1MemberController {
         );
     }
 
+    @Operation(summary = "로그아웃")
     @DeleteMapping("/logout")
     public RsData<Void> logout() {
         rq.deleteCookie("apiKey");
@@ -112,6 +116,7 @@ public class ApiV1MemberController {
 
     @GetMapping("/me")
     @Transactional(readOnly = true)
+    @Operation(summary = "내 정보 조회")
     public MemberWithUsernameDto me() {
         Member actor = memberService
                 .findById(rq.getActor().getId())
@@ -129,6 +134,7 @@ public class ApiV1MemberController {
 
     @PatchMapping("/me/nickname")
     @Transactional
+    @Operation(summary = "닉네임 수정")
     public RsData<Void> modifyNickname(@Valid @RequestBody MemberNameModifyReqBody reqBody) {
         Member member = memberService
                 .findById(rq.getActor().getId())
@@ -159,6 +165,7 @@ public class ApiV1MemberController {
 
     @PatchMapping("/me/password")
     @Transactional
+    @Operation(summary = "비밀번호 수정")
     public RsData<Void> modifyPassword(@Valid @RequestBody MemberPwModifyReqBody reqBody) {
         Member member = memberService
                 .findById(rq.getActor().getId())
@@ -171,6 +178,20 @@ public class ApiV1MemberController {
         return new RsData<>(
                 "200-1",
                 "수정이 완료되었습니다."
+        );
+    }
+
+    @Operation(summary = "신고 시 사용자 신용도 감소")
+    @Transactional
+    @PatchMapping("/{userId}/credit")
+    public RsData<Void> decrease(@PathVariable int userId) {
+        Member member = memberService.findById(userId).get();
+
+        memberService.decreaseByNofiy(member);
+
+        return new RsData<>(
+                "200-1",
+                "신고 완료 처리되었습니다."
         );
     }
 
