@@ -10,7 +10,7 @@ import lombok.NoArgsConstructor;
 @Table(name = "chat_images")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@IdClass(chatImageId.class)
+@IdClass(ChatImageId.class)
 public class ChatImage {
     @Id
     @ManyToOne(fetch = FetchType.LAZY)
