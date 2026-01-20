@@ -81,4 +81,54 @@ public class Auction extends BaseEntity {
         this.auctionImages.add(auctionImage);
         auctionImage.setAuction(this);
     }
+
+    // 판매자 확인
+    public boolean isSeller(Integer memberId) {
+        return this.seller.getId() == memberId;
+    }
+
+    // 입찰 발생 여부 확인
+    public boolean hasBids() {
+        return this.bidCount > 0;
+    }
+
+    // 경매 수정 (입찰 전)
+    public void updateBeforeBid(String name, String description, Integer startPrice,
+                                 Integer buyNowPrice, LocalDateTime endAt) {
+        if (name != null && !name.isBlank()) {
+            this.name = name;
+        }
+        if (description != null) {
+            this.description = description;
+        }
+        if (startPrice != null) {
+            this.startPrice = startPrice;
+        }
+        if (buyNowPrice != null) {
+            this.buyNowPrice = buyNowPrice;
+        }
+        if (endAt != null) {
+            this.endAt = endAt;
+        }
+    }
+
+    // 경매 수정 (입찰 후 - 제한적)
+    public void updateAfterBid(String name, String description) {
+        if (name != null && !name.isBlank()) {
+            this.name = name;
+        }
+        if (description != null) {
+            this.description = description;
+        }
+    }
+
+    // 이미지 제거
+    public void removeAuctionImage(AuctionImage auctionImage) {
+        this.auctionImages.remove(auctionImage);
+    }
+
+    // 모든 이미지 제거
+    public void clearAuctionImages() {
+        this.auctionImages.clear();
+    }
 }

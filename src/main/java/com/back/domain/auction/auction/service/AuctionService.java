@@ -1,10 +1,12 @@
 package com.back.domain.auction.auction.service;
 
 import com.back.domain.auction.auction.dto.request.AuctionCreateRequest;
+import com.back.domain.auction.auction.dto.request.AuctionUpdateRequest;
 import com.back.domain.auction.auction.dto.response.AuctionDetailResponse;
 import com.back.domain.auction.auction.dto.response.AuctionIdResponse;
 import com.back.domain.auction.auction.dto.response.AuctionListItemDto;
 import com.back.domain.auction.auction.dto.response.AuctionPageResponse;
+import com.back.domain.auction.auction.dto.response.AuctionUpdateResponse;
 import com.back.domain.auction.auction.entity.Auction;
 import com.back.domain.auction.auction.entity.AuctionImage;
 import com.back.domain.auction.auction.entity.AuctionStatus;
@@ -207,5 +209,100 @@ public class AuctionService {
         AuctionDetailResponse response = new AuctionDetailResponse(auction);
 
         return new RsData<>("200-1", "경매 상세 조회 성공", response);
+    }
+
+    @Transactional
+    public RsData<AuctionUpdateResponse> updateAuction(Integer auctionId, AuctionUpdateRequest request, Integer memberId) {
+        // 1. 경매 조회
+        Auction auction = auctionRepository.findWithDetailsById(auctionId)
+                .orElseThrow(() -> new ServiceException("404-1", "존재하지 않는 경매입니다."));
+
+        // 2. 판매자 권한 확인
+        if (!auction.isSeller(memberId)) {
+            throw new ServiceException("403-1", "경매를 수정할 권한이 없습니다.");
+        }
+
+        // 3. 입찰 여부에 따른 수정 제한
+        if (auction.hasBids()) {
+            // 입찰이 있는 경우: 모든 수정 불가
+            throw new ServiceException("400-1", "입찰이 발생한 경매는 수정할 수 없습니다.");
+        }
+
+        // 입찰이 없는 경우: 모든 필드 수정 가능
+        validateUpdateRequest(request, auction);
+        auction.updateBeforeBid(
+                request.getName(),
+                request.getDescription(),
+                request.getStartPrice(),
+                request.getBuyNowPrice(),
+                request.getEndAt()
+        );
+
+        // 4. 이미지 처리
+        if (request.getImages() != null && !request.getImages().isEmpty()) {
+            updateAuctionImages(request, auction);
+        }
+
+        // 5. 저장
+        auctionRepository.save(auction);
+
+        AuctionUpdateResponse response = new AuctionUpdateResponse(
+                auction.getId(),
+                "경매 물품이 수정되었습니다."
+        );
+
+        return new RsData<>("200-1", "경매 물품이 수정되었습니다.", response);
+    }
+
+    private void validateUpdateRequest(AuctionUpdateRequest request, Auction auction) {
+        // 종료 시간 검증
+        if (request.getEndAt() != null) {
+            if (request.getEndAt().isBefore(LocalDateTime.now())) {
+                throw new ServiceException("400-4", "종료 시간은 현재 시간 이후여야 합니다.");
+            }
+            if (request.getEndAt().isBefore(auction.getStartAt())) {
+                throw new ServiceException("400-5", "종료 시간은 시작 시간 이후여야 합니다.");
+            }
+        }
+
+        // 가격 검증
+        Integer newStartPrice = request.getStartPrice() != null ? request.getStartPrice() : auction.getStartPrice();
+        Integer newBuyNowPrice = request.getBuyNowPrice() != null ? request.getBuyNowPrice() : auction.getBuyNowPrice();
+
+        if (newBuyNowPrice != null && newBuyNowPrice < newStartPrice) {
+            throw new ServiceException("400-6", "즉시구매가는 시작가보다 높아야 합니다.");
+        }
+    }
+
+    private void updateAuctionImages(AuctionUpdateRequest request, Auction auction) {
+        // 기존 이미지 중 유지할 이미지 확인
+        List<String> keepUrls = request.getKeepImageUrls();
+
+        if (keepUrls == null || keepUrls.isEmpty()) {
+            // 모든 이미지 삭제
+            auction.clearAuctionImages();
+        } else {
+            // 유지하지 않을 이미지만 삭제
+            auction.getAuctionImages().removeIf(auctionImage ->
+                !keepUrls.contains(auctionImage.getImage().getUrl())
+            );
+        }
+
+        // 새 이미지 추가
+        for (MultipartFile file : request.getImages()) {
+            if (file.isEmpty()) {
+                continue;
+            }
+
+            try {
+                String imageUrl = fileStorageService.storeFile(file);
+                Image image = new Image(imageUrl);
+                Image savedImage = imageRepository.save(image);
+                AuctionImage auctionImage = new AuctionImage(auction, savedImage);
+                auction.addAuctionImage(auctionImage);
+            } catch (Exception e) {
+                throw new ServiceException("500-1", "이미지 저장에 실패했습니다: " + e.getMessage());
+            }
+        }
     }
 }
