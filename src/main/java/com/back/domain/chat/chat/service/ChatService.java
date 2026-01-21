@@ -214,12 +214,20 @@ public class ChatService {
         return new RsData<>("200-1", "채팅 목록 조회 성공", responses);
     }
 
+    @Transactional
     public RsData<Void> exitChatRoom(String roomId) {
         ChatRoom room = chatRoomRepository.findByRoomId(roomId)
                 .orElseThrow(() -> new ServiceException("404-1", "존재하지 않는 채팅방입니다."));
 
         Member actor = rq.getActor();
-        String currentApiKey = actor.getApiKey();
+        Member me = memberRepository.findById(actor.getId())
+                .orElseThrow(() -> new ServiceException("404-1", "존재하지 않는 회원입니다."));
+
+        String currentApiKey = me.getApiKey();
+
+        if (!room.getSellerId().equals(currentApiKey) && !room.getBuyerId().equals(currentApiKey)) {
+            throw new ServiceException("403-1", "해당 채팅방에 접근 권한이 없습니다.");
+        }
 
         room.exit(currentApiKey);
 

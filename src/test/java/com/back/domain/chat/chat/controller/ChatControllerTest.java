@@ -5,6 +5,8 @@ import com.back.domain.auction.auction.repository.AuctionRepository;
 import com.back.domain.category.category.entity.Category;
 import com.back.domain.category.category.repository.CategoryRepository;
 import com.back.domain.chat.chat.dto.response.ChatResponse;
+import com.back.domain.chat.chat.repository.ChatRepository;
+import com.back.domain.chat.chat.repository.ChatRoomRepository;
 import com.back.domain.member.member.entity.Member;
 import com.back.domain.member.member.enums.Role;
 import com.back.domain.member.member.repository.MemberRepository;
@@ -66,6 +68,8 @@ class ChatControllerTest {
     private AuctionRepository auctionRepository;
     @Autowired
     private CategoryRepository categoryRepository;
+    @Autowired
+    private ChatRoomRepository chatRoomRepository;
 
     @MockitoBean
     private SimpMessagingTemplate messagingTemplate;
@@ -491,6 +495,56 @@ class ChatControllerTest {
                 .andExpect(jsonPath("$.data[?(@.isRead == false)]").doesNotExist());
     }
 
+    @Test
+    @DisplayName("24. 채팅방 나가기 요청 성공")
+    void t24() throws Exception {
+        String roomId = createRoomAsUser(salePostId, "POST", buyer);
+
+        Member latestBuyer = memberRepository.findById(buyer.getId()).get();
+
+        mockMvc.perform(patch("/api/chat/room/" + roomId + "/exit")
+                        .with(csrf())
+                        .with(user(makeSecurityUser(latestBuyer))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.resultCode").value("200-1"));
+    }
+
+    @Test
+    @DisplayName("25. 채팅방 나가기 후 목록 조회 시 필터링 확인")
+    void t25() throws Exception {
+        String roomId = createRoomAsUser(salePostId, "POST", buyer);
+        sendMessageAsUser(roomId, "안녕하세요", seller, null);
+
+        Member latestBuyer = memberRepository.findById(buyer.getId()).orElse(buyer);
+        Member latestSeller = memberRepository.findById(seller.getId()).orElse(seller);
+
+        mockMvc.perform(patch("/api/chat/room/" + roomId + "/exit")
+                        .with(csrf())
+                        .with(user(makeSecurityUser(latestBuyer))))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/chat/list")
+                        .with(user(makeSecurityUser(latestBuyer))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(0));
+
+        mockMvc.perform(get("/api/chat/list")
+                        .with(user(makeSecurityUser(latestSeller))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(1));
+    }
+
+    @Test
+    @DisplayName("26. 참여자가 아닌 제3자가 채팅방 나가기를 시도하면 차단(403) 되어야 한다")
+    void t26() throws Exception {
+        String roomId = createRoomAsUser(salePostId, "POST", buyer);
+
+        mockMvc.perform(patch("/api/chat/room/" + roomId + "/exit")
+                        .with(csrf())
+                        .with(user(makeSecurityUser(anotherUser))))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.resultCode").value("403-1"));
+    }
 
     // --- [헬퍼 메서드] ---
     // 채팅방 생성 후 Room ID(UUID String) 반환
