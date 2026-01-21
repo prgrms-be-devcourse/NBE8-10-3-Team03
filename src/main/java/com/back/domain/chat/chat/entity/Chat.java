@@ -18,8 +18,8 @@ public class Chat extends BaseEntity {
     @JoinColumn(name = "room_id", referencedColumnName = "roomId", nullable = false)
     private ChatRoom chatRoom;
 
-    @Column(nullable = false)
-    private String sender;
+    @Column(name = "sender_id", nullable = false)
+    private Integer senderId;
 
     @Column(columnDefinition = "TEXT")
     private String message;
@@ -28,9 +28,9 @@ public class Chat extends BaseEntity {
     private boolean isRead = false; // 읽음 여부
 
     @Builder
-    public Chat(ChatRoom chatRoom, String sender, String message, boolean isRead) {
+    public Chat(ChatRoom chatRoom, Integer senderId, String message, boolean isRead) {
         this.chatRoom = chatRoom;
-        this.sender = sender;
+        this.senderId = senderId;
         this.message = message;
         this.isRead = isRead;
     }
