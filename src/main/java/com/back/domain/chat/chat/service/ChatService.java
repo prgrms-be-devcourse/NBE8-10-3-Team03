@@ -222,7 +222,7 @@ public class ChatService {
                     .orElseThrow(() -> new ServiceException("404-1", "상대방 정보를 찾을 수 없습니다."));
 
             // 안 읽은 메세지 수
-            int unreadCount = chatRepository.countByChatRoom_RoomIdAndIsReadFalseAndSenderIdNot(room.getRoomId(), me.getId());
+            Integer unreadCount = chatRepository.countByChatRoom_RoomIdAndIsReadFalseAndSenderIdNot(room.getRoomId(), me.getId());
 
             // 상품 정보
             String itemName = "";

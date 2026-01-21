@@ -19,12 +19,12 @@ public class ChatRoomListResponse {
     // 마지막 메세지 정보
     private String lastMessage;
     private LocalDateTime lastMessageDate;
-    private int unreadCount; // 안 읽은 메세지 수
+    private Integer unreadCount; // 안 읽은 메세지 수
 
     // 상품 정보
     private Integer itemId;
     private String itemName;
     private String itemImageUrl; // 상품 썸네일
-    private int itemPrice; // 물품 가격
+    private Integer itemPrice; // 물품 가격
     private ChatRoomType txType; // Auction or Post
 }

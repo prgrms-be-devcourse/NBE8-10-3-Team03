@@ -5,7 +5,6 @@ import com.back.domain.auction.auction.repository.AuctionRepository;
 import com.back.domain.category.category.entity.Category;
 import com.back.domain.category.category.repository.CategoryRepository;
 import com.back.domain.chat.chat.dto.response.ChatResponse;
-import com.back.domain.chat.chat.repository.ChatRepository;
 import com.back.domain.chat.chat.repository.ChatRoomRepository;
 import com.back.domain.member.member.entity.Member;
 import com.back.domain.member.member.enums.Role;

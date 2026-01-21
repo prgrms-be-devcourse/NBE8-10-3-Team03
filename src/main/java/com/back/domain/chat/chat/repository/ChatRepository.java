@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Set;
 
 public interface ChatRepository extends JpaRepository<Chat, Integer> {
     @EntityGraph(attributePaths = {"chatRoom", "chatRoom.post", "chatRoom.auction"})
@@ -29,5 +30,14 @@ public interface ChatRepository extends JpaRepository<Chat, Integer> {
     List<Chat> findAllLatestMessagesByMember(@Param("apiKey") String apiKey);
 
     // 안 읽은 메세지 개수 조회
-    int countByChatRoom_RoomIdAndIsReadFalseAndSenderIdNot(String roomId, Integer readerId);
+    Integer countByChatRoom_RoomIdAndIsReadFalseAndSenderIdNot(String roomId, Integer readerId);
+
+    // 안 읽은 메시지 개수 일괄 조회
+    @Query("SELECT c.chatRoom.roomId, COUNT(c) " +
+            "FROM Chat c " +
+            "WHERE c.chatRoom.roomId IN :roomIds " +
+            "AND c.isRead = false " +
+            "AND c.senderId != :myId " +
+            "GROUP BY c.chatRoom.roomId")
+    List<Object[]> countUnreadMessagesByRoomIds(@Param("roomIds") Set<String> roomIds, @Param("myId") Integer myId);
 }
