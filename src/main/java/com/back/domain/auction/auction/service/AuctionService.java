@@ -19,6 +19,7 @@ import com.back.domain.image.image.entity.Image;
 import com.back.domain.image.image.repository.ImageRepository;
 import com.back.domain.member.member.entity.Member;
 import com.back.domain.member.member.repository.MemberRepository;
+import com.back.domain.member.member.service.MemberService;
 import com.back.global.exception.ServiceException;
 import com.back.global.rsData.RsData;
 import lombok.RequiredArgsConstructor;
@@ -44,6 +45,7 @@ public class AuctionService {
     private final ImageRepository imageRepository;
     private final AuctionImageRepository auctionImageRepository;
     private final FileStorageService fileStorageService;
+    private final MemberService memberService;
 
     @Transactional
     public RsData<AuctionIdResponse> createAuction(AuctionCreateRequest request, Integer sellerId) {
@@ -318,7 +320,10 @@ public class AuctionService {
             throw new ServiceException("403-1", "경매를 삭제할 권한이 없습니다.");
         }
 
-        // 3. 경매 삭제
+        // 3. 입찰 O -> 판매자 신용도 감소
+        memberService.decreaseByCancel(auctionId, memberId);
+
+        // 4. 경매 삭제
         auctionRepository.delete(auction);
 
         AuctionDeleteResponse response = new AuctionDeleteResponse("경매가 정상적으로 취소되었습니다.");
