@@ -157,6 +157,7 @@ class ChatControllerTest {
                 member.getUsername(),
                 "",
                 member.getNickname(),
+                member.getRole(),
                 member.getAuthorities()
         );
     }
@@ -211,7 +212,7 @@ class ChatControllerTest {
     @DisplayName("5. 존재하지 않는 회원(DB에 없는 ID) 요청 시 예외 발생")
     void t5() throws Exception {
         SecurityUser unknownUser = new SecurityUser(
-                999999, "unknown", "", "unknown", List.of(new SimpleGrantedAuthority("ROLE_USER"))
+                999999, "unknown", "", "unknown", Role.USER, List.of(new SimpleGrantedAuthority("ROLE_USER"))
         );
 
         mockMvc.perform(post("/api/chat/room")
