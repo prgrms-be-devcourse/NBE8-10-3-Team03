@@ -2,6 +2,8 @@ server:
   forward-headers-strategy: native
 
 spring:
+  profiles:
+    active: dev
   application:
     name: back
   config:

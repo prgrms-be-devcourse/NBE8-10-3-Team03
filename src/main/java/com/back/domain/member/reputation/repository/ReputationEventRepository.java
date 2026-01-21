@@ -1,8 +1,7 @@
-package com.back.domain.member.member.repository;
+package com.back.domain.member.reputation.repository;
 
-import com.back.domain.member.member.entity.Reputation;
-import com.back.domain.member.member.entity.ReputationEvent;
-import com.back.domain.member.member.enums.EventType;
+import com.back.domain.member.reputation.entity.ReputationEvent;
+import com.back.domain.member.reputation.enums.EventType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
