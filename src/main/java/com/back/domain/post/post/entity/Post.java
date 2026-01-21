@@ -39,6 +39,10 @@ public class Post extends BaseEntity {
     @Builder.Default
     private List<PostImage> postImages = new ArrayList<>();
 
+    @Column(columnDefinition = "BIGINT DEFAULT 0")
+    @Builder.Default
+    private long viewCount = 0L;
+
     public void addPostImage(PostImage postImage) {
         this.postImages.add(postImage);
     }
@@ -49,5 +53,13 @@ public class Post extends BaseEntity {
         this.content = content;
         this.price = price;
         this.category = category;
+    }
+
+    public void increaseViewCount() {
+        this.viewCount++;
+    }
+
+    public void updateStatus(PostStatus status) {
+        this.status = status;
     }
 }

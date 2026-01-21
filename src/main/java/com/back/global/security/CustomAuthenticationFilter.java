@@ -1,6 +1,7 @@
 package com.back.global.security;
 
 import com.back.domain.member.member.entity.Member;
+import com.back.domain.member.member.enums.Role;
 import com.back.domain.member.member.service.MemberService;
 import com.back.global.exception.ServiceException;
 import com.back.global.rq.Rq;
@@ -36,7 +37,7 @@ public class CustomAuthenticationFilter extends OncePerRequestFilter {
             work(request, response, filterChain);
         } catch (ServiceException e) {
             RsData<Void> rsData = e.getRsData();
-            response.setContentType("application/json");
+            response.setContentType("application/json;charset=UTF-8");
             response.setStatus(rsData.statusCode());
             response.getWriter().write(
                     Ut.json.toString(rsData)
@@ -74,6 +75,12 @@ public class CustomAuthenticationFilter extends OncePerRequestFilter {
 
             apiKey = headerAuthorizationBits[1];
             accessToken = headerAuthorizationBits.length == 3 ? headerAuthorizationBits[2] : "";
+
+            if (headerAuthorizationBits.length == 2) {
+                accessToken = headerAuthorizationBits[1];
+                apiKey = "";
+            }
+
         } else {
             // 헤더가 없으면 쿠키에서 조회
             apiKey = rq.getCookieValue("apiKey", "");
@@ -103,7 +110,8 @@ public class CustomAuthenticationFilter extends OncePerRequestFilter {
                 int id = (int) payload.get("id");
                 String username = (String) payload.get("username");
                 String name = (String) payload.get("name");
-                member = new Member(id, username, name);
+                String role = (String) payload.get("role");
+                member = new Member(id, username, name, Role.from(role));
 
                 isAccessTokenValid = true;
             }
@@ -132,6 +140,7 @@ public class CustomAuthenticationFilter extends OncePerRequestFilter {
                 member.getUsername(),
                 "",
                 member.getName(),
+                member.getRole(),
                 member.getAuthorities()
         );
 

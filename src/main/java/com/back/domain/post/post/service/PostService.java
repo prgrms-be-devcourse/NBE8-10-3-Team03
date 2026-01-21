@@ -32,7 +32,6 @@ public class PostService {
 
     @Transactional
     public int create(Member actor, PostCreateRequest req) {
-
         Category category = categoryRepository.findById(req.getCategoryId())
                 .orElseThrow(() -> new ServiceException("404-2", "존재하지 않는 카테고리입니다."));
 
@@ -50,12 +49,9 @@ public class PostService {
         if (req.getImages() != null && !req.getImages().isEmpty()) {
             for (MultipartFile file : req.getImages()) {
                 if (file.isEmpty()) continue;
-
                 try {
                     String imageUrl = fileStorageService.storeFile(file);
-
                     Image image = imageRepository.save(new Image(imageUrl));
-
                     PostImage postImage = new PostImage(post, image);
                     post.addPostImage(postImage);
                 } catch (Exception e) {
@@ -63,7 +59,6 @@ public class PostService {
                 }
             }
         }
-
         return post.getId();
     }
 
@@ -80,7 +75,6 @@ public class PostService {
                 .orElseThrow(() -> new ServiceException("404-2", "카테고리 오류"));
 
         post.update(req.getTitle(), req.getContent(), req.getPrice(), category);
-
         updateImages(req, post);
     }
 
@@ -113,14 +107,29 @@ public class PostService {
         post.setDeleted(true);
     }
 
+    @Transactional
     public PostDetailResponse getDetail(int id) {
         Post post = postRepository.findByIdAndDeletedFalse(id)
                 .orElseThrow(() -> new ServiceException("404-1", "존재하지 않는 글입니다."));
+
+        post.increaseViewCount();
         return new PostDetailResponse(post);
     }
 
-    public Page<PostListResponse> getList(int page) {
-        Pageable pageable = PageRequest.of(page, 20, Sort.by("createDate").descending());
-        return postRepository.findAllByDeletedFalse(pageable).map(PostListResponse::new);
+    public Page<PostListResponse> getList(Pageable pageable) {
+        return postRepository.findAllByDeletedFalse(pageable)
+                .map(PostListResponse::new);
+    }
+
+    @Transactional
+    public void updatePostStatus(Member actor, int id, PostStatus status) {
+        Post post = postRepository.findByIdAndDeletedFalse(id)
+                .orElseThrow(() -> new ServiceException("404-1", "존재하지 않는 글입니다."));
+
+        if (post.getSeller().getId() != actor.getId()) {
+            throw new ServiceException("403-1", "자신의 글만 상태를 수정할 수 있습니다.");
+        }
+
+        post.updateStatus(status);
     }
 }

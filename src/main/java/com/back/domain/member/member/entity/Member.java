@@ -34,10 +34,12 @@ public class Member extends BaseEntity {
     @Column(unique = true)
     private String apiKey;
 
+    private String profileImgUrl;
+
     @OneToOne(mappedBy = "member", fetch = FetchType.LAZY)
     private Reputation reputation;
 
-    @OneToMany(mappedBy = "member", fetch = FetchType.LAZY )
+    @OneToMany(mappedBy = "member", fetch = FetchType.LAZY)
     private List<ReputationEvent> reputationEvents;
 
     @Setter
@@ -45,18 +47,25 @@ public class Member extends BaseEntity {
     @Column(nullable = false)
     private Role role;
 
-    public Member(int id, String username, String name) {
+    public Member(int id, String username, String name, Role role) {
         setId(id);
         this.username = username;
-        setName(name);
+        this.nickname = name;
+        this.role = role;
     }
 
     public Member(String username, String password, String nickname) {
+        this(username, password, nickname, null);
+    }
+
+    public Member(String username, String password, String nickname, String profileImgUrl) {
         this.username = username;
         this.password = password;
         this.nickname = nickname;
         this.isActive = true;
         this.apiKey = UUID.randomUUID().toString();
+        this.profileImgUrl = profileImgUrl;
+        setRole(Role.USER);
     }
 
     public String getName() {
@@ -72,7 +81,7 @@ public class Member extends BaseEntity {
     }
 
     public boolean isAdmin() {
-        if(this.role == Role.ADMIN) return true;
+        if (this.role == Role.ADMIN) return true;
 
         return false;
     }
@@ -102,16 +111,16 @@ public class Member extends BaseEntity {
             throw new ServiceException("403-1", "수정권한이 없습니다.".formatted(getId()));
     }
 
-    public void modify(String nickname, String password) {
-        this.nickname = nickname;
-        this.password = password;
-    }
-
     public void modifyName(String nickname) {
         this.nickname = nickname;
     }
 
     public void modifyPassword(String password) {
         this.password = password;
+    }
+
+    public void modify(String nickname, String profileImgUrl) {
+        this.nickname = nickname;
+        this.profileImgUrl = profileImgUrl;
     }
 }
