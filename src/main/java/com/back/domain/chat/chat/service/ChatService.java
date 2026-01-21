@@ -31,8 +31,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
@@ -208,48 +208,80 @@ public class ChatService {
                 .orElseThrow(() -> new ServiceException("404-1", "존재하지 않는 회원입니다."));
 
         String myApiKey = me.getApiKey();
+        Integer myId = me.getId();
 
         List<Chat> latestChats = chatRepository.findAllLatestMessagesByMember(myApiKey);
 
-        List<ChatRoomListResponse> responseList = new ArrayList<>();
+        if (latestChats.isEmpty()) {
+            return new RsData<>("200-1", "채팅 목록 조회 성공", new ArrayList<>());
+        }
+
+        // 채팅방 ID 및 상대방 API Key 수집
+        // roomIds: 안 읽은 메시지 개수 일괄 조회용
+        // opponentApiKeys: 상대방 프로필 정보 일괄 조회용
+        Set<String> roomIds = new HashSet<>();
+        Set<String> opponentApiKeys = new HashSet<>();
 
         for (Chat chat : latestChats) {
             ChatRoom room = chat.getChatRoom();
+            roomIds.add(room.getRoomId());
 
-            // 상대방 찾기 (myApiKey와 apiKey가 다른 사람이 상대방)
-            String opponentApiKey = room.getSellerId().equals(myApiKey) ? room.getBuyerId() : room.getSellerId();
-            Member opponent = memberRepository.findByApiKey(opponentApiKey)
-                    .orElseThrow(() -> new ServiceException("404-1", "상대방 정보를 찾을 수 없습니다."));
+            // 상대방 찾기 (내가 구매자면 상대방은 판매자 => 반대)
+            String opponentKey = room.getSellerId().equals(myApiKey) ? room.getBuyerId() : room.getSellerId();
+            opponentApiKeys.add(opponentKey);
+        }
 
-            // 안 읽은 메세지 수
-            Integer unreadCount = chatRepository.countByChatRoom_RoomIdAndIsReadFalseAndSenderIdNot(room.getRoomId(), me.getId());
+        // 상대방 정보 일괄 조회 & Map 변환
+        Map<String, Member> opponentMap = memberRepository.findByApiKeyIn(opponentApiKeys).stream()
+                .collect(Collectors.toMap(Member::getApiKey, Function.identity()));
 
-            // 상품 정보
+        // 안 읽은 메시지 개수 일괄 조회하고 Map으로 변환
+        Map<String, Integer> unreadCountMap = chatRepository.countUnreadMessagesByRoomIds(roomIds, myId).stream()
+                .collect(Collectors.toMap(
+                        result -> (String) result[0], // 키 : roomId
+                        result -> (Integer) result[1] // 값 : count
+                ));
+
+        List<ChatRoomListResponse> responseList = new ArrayList<>();
+
+        // 응답 DTO 조립
+        for (Chat chat : latestChats) {
+            ChatRoom room = chat.getChatRoom();
+            String currentRoomId = room.getRoomId();
+
+            // 상대방 정보 가져오기
+            String opponentKey = room.getSellerId().equals(myApiKey) ? room.getBuyerId() : room.getSellerId();
+            Member opponent = opponentMap.get(opponentKey);
+
+            if (opponent == null) continue;
+
+            // 안 읽은 메시지 수 가져오기 없으면 0
+            int unreadCount = unreadCountMap.getOrDefault(currentRoomId, 0);
+
+            // 상품 정보 추출
             String itemName = "";
             String itemImageUrl = "";
             int itemPrice = 0;
             Integer itemId = 0;
 
-            // 거래 종류가 일반 거래 일 경우
             if (room.getTxType() == ChatRoomType.POST && room.getPost() != null) {
                 Post post = room.getPost();
                 itemId = post.getId();
                 itemName = post.getTitle();
                 itemPrice = post.getPrice();
-                // TODO: Post에 대표 이미지 필드가 있다면 가져오기 (예: post.getThumbnailUrl())
+                // TODO: Post에 대표 이미지 필드가 있다면 가져오기
             }
-            // 거래 종류가 경매 일 경우
             else if (room.getTxType() == ChatRoomType.AUCTION && room.getAuction() != null) {
                 Auction auction = room.getAuction();
                 itemId = auction.getId();
                 itemName = auction.getName();
                 itemPrice = auction.getCurrentHighestBid();
-                // TODO: Post에 대표 이미지 필드가 있다면 가져오기 (예: auction.getThumbnailUrl())
+                // TODO: Auction에 대표 이미지 필드가 있다면 가져오기
             }
 
             // DTO 조립
             responseList.add(ChatRoomListResponse.builder()
-                    .roomId(room.getRoomId())
+                    .roomId(currentRoomId)
                     .opponentId(opponent.getId())
                     .opponentNickname(opponent.getNickname())
                     .opponentProfileImageUrl(opponent.getProfileImgUrl())
@@ -263,8 +295,10 @@ public class ChatService {
                     .txType(room.getTxType())
                     .build());
         }
+
         return new RsData<>("200-1", "채팅 목록 조회 성공", responseList);
     }
+
 
     @Transactional
     public RsData<Void> exitChatRoom(String roomId) {
