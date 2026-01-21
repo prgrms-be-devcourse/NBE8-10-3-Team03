@@ -1,13 +1,12 @@
-package com.back.domain.member.member.entity;
+package com.back.domain.member.reputation.entity;
 
-import com.back.domain.member.member.enums.EventType;
-import com.back.domain.member.member.enums.RefType;
+import com.back.domain.member.member.entity.Member;
+import com.back.domain.member.reputation.enums.EventType;
+import com.back.domain.member.reputation.enums.RefType;
 import com.back.global.jpa.entity.BaseEntity;
 import jakarta.persistence.*;
-import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.ColumnDefault;
 
 @Getter
 @Entity

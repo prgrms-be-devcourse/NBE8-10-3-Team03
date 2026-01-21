@@ -1,4 +1,4 @@
-package com.back.domain.member.member.enums;
+package com.back.domain.member.reputation.enums;
 
 public enum RefType {
     DEAL,
