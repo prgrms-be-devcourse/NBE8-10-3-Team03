@@ -1,7 +1,7 @@
 package com.back.domain.member.member.controller;
 
+import com.back.domain.auction.auction.controller.AuctionController;
 import com.back.domain.member.member.entity.Member;
-import com.back.domain.member.member.entity.Reputation;
 import com.back.domain.member.member.service.MemberService;
 import jakarta.servlet.http.Cookie;
 import org.hamcrest.Matchers;
