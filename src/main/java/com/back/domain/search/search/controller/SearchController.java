@@ -1,5 +1,6 @@
 package com.back.domain.search.search.controller;
 
+import com.back.domain.search.search.dto.SearchResponse;
 import com.back.domain.search.search.dto.UnifiedSearchResponse;
 import com.back.domain.search.search.service.SearchService;
 import com.back.global.rsData.RsData;
@@ -20,7 +21,7 @@ public class SearchController {
     private final SearchService searchService;
 
     @GetMapping
-    public RsData<Page<UnifiedSearchResponse>> search(
+    public RsData<SearchResponse> search(
         @RequestParam String keyword,
         @PageableDefault(
             size = 10, 
@@ -30,10 +31,18 @@ public class SearchController {
     ) {
         Page<UnifiedSearchResponse> results = searchService.searchUnified(keyword, pageable);
         
+        SearchResponse response = SearchResponse.of(
+            results.getContent(),
+            results.getNumber(),
+            results.getSize(),
+            results.getTotalElements(),
+            results.getTotalPages()
+        );
+
         return new RsData<>(
             "200-1", 
             "검색이 완료되었습니다.", 
-            results
+            response
         );
     }
 }
