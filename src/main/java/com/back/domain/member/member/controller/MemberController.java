@@ -2,14 +2,17 @@ package com.back.domain.member.member.controller;
 
 import com.back.domain.member.member.dto.MemberDto;
 import com.back.domain.member.member.dto.MemberWithUsernameDto;
+import com.back.domain.member.review.dto.ReviewDto;
 import com.back.domain.member.member.entity.Member;
 import com.back.domain.member.member.service.MemberService;
 import com.back.global.exception.ServiceException;
 import com.back.global.rq.Rq;
 import com.back.global.rsData.RsData;
 import io.swagger.v3.oas.annotations.Operation;
+import jakarta.annotation.Nullable;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
@@ -17,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.net.InetAddress;
+import java.util.List;
 
 import static java.net.InetAddress.getLocalHost;
 import static org.springframework.util.MimeTypeUtils.TEXT_HTML_VALUE;
@@ -25,24 +29,9 @@ import static org.springframework.util.MimeTypeUtils.TEXT_HTML_VALUE;
 @RequestMapping("/api/v1/members")
 @RequiredArgsConstructor
 public class MemberController {
+
     private final MemberService memberService;
     private final Rq rq;
-
-    @SneakyThrows
-    @GetMapping(produces = TEXT_HTML_VALUE)
-    @Operation(summary = "확인 페이지")
-    public String main() {
-        InetAddress localHost = getLocalHost();
-
-        return """
-                <h1>API 서버</h1>
-                <p>Host Name: %s</p>
-                <p>Host Address: %s</p>
-                <div>
-                    <a href="/api/v1/members/me">내 정보 확인으로 이동</a>
-                </div>
-                """.formatted(localHost.getHostName(), localHost.getHostAddress());
-    }
 
     record MemberJoinReqBody(
             @NotBlank
@@ -217,6 +206,43 @@ public class MemberController {
                 "200-1",
                 "신고 완료 처리되었습니다."
         );
+    }
+
+    record MemberReviewReqBody(
+            @NotNull
+            int star,
+            @Nullable
+            String comment
+    ) {
+    }
+
+    @Operation(summary = "리뷰 남기기 (판매자 평가)")
+    @Transactional
+    @PostMapping("/{userId}/review")
+    public RsData<Void> review(@PathVariable int userId, @Valid @RequestBody MemberReviewReqBody request) {
+        Member member = memberService.findById(userId).get();
+        Member reviewer = rq.getActor();
+
+        // 별점 1 ~ 5
+        memberService.createReview(request.star(), request.comment(), member, reviewer.getId());
+
+        return new RsData<>(
+                "201-1",
+                "후기 작성이 완료되었습니다."
+        );
+    }
+
+    @Operation(summary = "리뷰(판매자 평가) 가져오기")
+    @Transactional
+    @GetMapping("/{userId}/review")
+    public List<ReviewDto> getReviews(@PathVariable int userId) {
+        Member member = memberService.findById(userId).get();
+
+        return member
+                .getReviews()
+                .stream()
+                .map(ReviewDto::new)
+                .toList();
     }
 
 
