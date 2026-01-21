@@ -82,4 +82,17 @@ public class AuctionController {
 
         return auctionService.deleteAuction(auctionId, actor.getId());
     }
+
+    @PostMapping("/{auctionId}/cancel")
+    public RsData<Void> cancelTrade(
+            @PathVariable Integer auctionId
+    ) {
+        Member actor = rq.getActor();
+
+        if (actor == null) {
+            throw new ServiceException("401-1", "로그인이 필요합니다.");
+        }
+
+        return auctionService.cancelTrade(auctionId, actor.getId());
+    }
 }
