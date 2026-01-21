@@ -11,6 +11,7 @@ public record PostDetailResponse(
     int price,
     String status,
     String categoryName,
+    int sellerId,
     String sellerNickname,
     List<String> imageUrls,
     LocalDateTime createDate,
@@ -25,6 +26,7 @@ public record PostDetailResponse(
                 post.getPrice(),
                 post.getStatus().name(),
                 post.getCategory().getName(),
+                post.getSeller().getId(),
                 post.getSeller().getNickname(),
                 post.getPostImages()
                         .stream()
