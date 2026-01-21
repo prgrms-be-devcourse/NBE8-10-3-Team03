@@ -2,10 +2,12 @@ package com.back.domain.auction.auction.repository;
 
 import com.back.domain.auction.auction.entity.Auction;
 import com.back.domain.auction.auction.entity.AuctionStatus;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -45,4 +47,9 @@ public interface AuctionRepository extends JpaRepository<Auction, Integer> {
     @EntityGraph(attributePaths = {"seller", "seller.reputation", "category", "auctionImages", "auctionImages.image"})
     @Query("SELECT a FROM Auction a WHERE a.name LIKE %:kw% OR a.description LIKE %:kw%")
     Page<Auction> search(@Param("kw") String kw, Pageable pageable);
+
+    // 비관적 락으로 경매 조회 (동시성 제어용)
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT a FROM Auction a WHERE a.id = :id")
+    Optional<Auction> findByIdWithLock(@Param("id") Integer id);
 }
