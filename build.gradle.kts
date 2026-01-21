@@ -48,6 +48,8 @@ dependencies {
 
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.0")
 
+    // 웹소켓
+    implementation("org.springframework.boot:spring-boot-starter-websocket")
     // OAuth
     implementation("org.springframework.boot:spring-boot-starter-oauth2-client")
 }

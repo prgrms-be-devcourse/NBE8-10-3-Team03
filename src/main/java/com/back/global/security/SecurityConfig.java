@@ -31,9 +31,11 @@ public class SecurityConfig {
         http
                 .authorizeHttpRequests(
                         auth -> auth
-                                .requestMatchers(
-                                        "/api/**"
-                                ).permitAll()
+                                .requestMatchers("/ws/**").permitAll()
+                                .requestMatchers(HttpMethod.POST, "/api/chat/send").authenticated()
+                                .requestMatchers(HttpMethod.POST, "/api/chat/room").authenticated()
+                                .requestMatchers("/api/chat/list").authenticated()
+                                .requestMatchers("/api/**").permitAll()
                                 .anyRequest().permitAll()
                 )
                 .headers(
