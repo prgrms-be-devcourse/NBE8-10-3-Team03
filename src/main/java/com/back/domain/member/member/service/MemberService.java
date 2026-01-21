@@ -13,6 +13,7 @@ import com.back.domain.member.member.repository.ReputationEventRepository;
 import com.back.domain.member.member.repository.ReputationRepository;
 import com.back.domain.member.member.service.AuthTokenService;
 import com.back.global.exception.ServiceException;
+import com.back.global.rsData.RsData;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
@@ -36,16 +37,16 @@ public class MemberService {
         return memberRepository.count();
     }
 
-    public Member join(String username, String password, String nickname) {
+    public Member join(String username, String password, String nickname, String profileImgUrl) {
         memberRepository
                 .findByUsername(username)
                 .ifPresent(_member -> {
                     throw new ServiceException("409-1", "이미 존재하는 아이디입니다.");
                 });
 
-        password = passwordEncoder.encode(password);
+        password = (password != null && !password.isBlank()) ? passwordEncoder.encode(password) : null;
 
-        Member member = new Member(username, password, nickname);
+        Member member = new Member(username, password, nickname, profileImgUrl);
         if (username.startsWith("system") || username.startsWith("admin"))
             member.setRole(Role.ADMIN);
         else member.setRole(Role.USER);
@@ -83,16 +84,6 @@ public class MemberService {
     public void checkPassword(Member member, String password) {
         if (!passwordEncoder.matches(password, member.getPassword()))
             throw new ServiceException("401-1", "비밀번호가 일치하지 않습니다.");
-    }
-
-    public void modify(Member member, String nickname, String password, String newPassword, String checkPassword) {
-        if (!passwordEncoder.matches(password, member.getPassword()))
-            throw new ServiceException("401-1", "현재 비밀번호와 일치하지 않습니다.");
-
-        if (!newPassword.equals(checkPassword))
-            throw new ServiceException("401-1", "비밀번호가 일치하지 않습니다.");
-
-        member.modify(nickname, passwordEncoder.encode(newPassword));
     }
 
     public void modifyNickname(Member member, String nickname) {
@@ -153,5 +144,22 @@ public class MemberService {
         double delta = Math.abs(before - after);
         ReputationEvent event = new ReputationEvent(seller, EventType.CANCEL, RefType.AUCTION, dealId, delta);
         eventRepository.save(event);
+    }
+
+    public RsData<Member> modifyOrJoin(String username, String password, String nickname, String profileImgUrl) {
+        Member member = findByUsername(username).orElse(null);
+
+        if ( member == null ) {
+            member = join(username, password, nickname, profileImgUrl);
+            return new RsData<>("201-1", "회원가입이 완료되었습니다.", member);
+        }
+
+        modify(member, nickname, profileImgUrl);
+
+        return new RsData<>("200-1", "회원 정보가 수정되었습니다.", member);
+    }
+
+    private void modify(Member member, String nickname, String profileImgUrl) {
+        member.modify(nickname, profileImgUrl);
     }
 }
