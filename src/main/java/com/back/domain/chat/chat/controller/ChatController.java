@@ -43,4 +43,9 @@ public class ChatController {
     public RsData<List<ChatResponse>> getChatList() {
         return chatService.getChatList();
     }
+
+    @PatchMapping("/room/{roomId}/exit")
+    public RsData<Void> exitRoom(@PathVariable String roomId) {
+        return chatService.exitChatRoom(roomId);
+    }
 }
