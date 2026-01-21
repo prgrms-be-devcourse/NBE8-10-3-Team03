@@ -58,6 +58,22 @@ public class Auction extends BaseEntity {
     @Column(name = "end_at", nullable = false)
     private LocalDateTime endAt;
 
+    @Column(name = "winner_id")
+    private Integer winnerId;
+
+    @Column(name = "winning_bid_id")
+    private Integer winningBidId;
+
+    @Column(name = "closed_at")
+    private LocalDateTime closedAt;
+
+    @Column(name = "cancelled_by")
+    private Integer cancelledBy;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "canceller_role", length = 20)
+    private CancellerRole cancellerRole;
+
     @OneToMany(mappedBy = "auction", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<AuctionImage> auctionImages = new ArrayList<>();
 
@@ -144,7 +160,54 @@ public class Auction extends BaseEntity {
         this.completed = true;
     }
 
-    // 경매 종료 여부 확인
+
+    // 낙찰 처리 (입찰이 있는 경우)
+    public void completeWithWinner(Integer winnerId, Integer winningBidId) {
+        this.winnerId = winnerId;
+        this.winningBidId = winningBidId;
+        this.status = AuctionStatus.COMPLETED;
+        this.completed = true;
+        this.closedAt = LocalDateTime.now();
+    }
+
+    // 경매 종료 (입찰이 없는 경우)
+    public void closeWithoutBid() {
+        this.status = AuctionStatus.CLOSED;
+        this.completed = false;
+        this.closedAt = LocalDateTime.now();
+    }
+
+    // 거래 취소
+    public void cancelTrade(Integer userId, CancellerRole role) {
+        this.status = AuctionStatus.CANCELLED;
+        this.cancelledBy = userId;
+        this.cancellerRole = role;
+        this.closedAt = LocalDateTime.now();
+    }
+
+    // 거래 취소 권한 및 역할 확인
+    public CancellerRole determineCancellerRole(Integer memberId) {
+        if (this.status != AuctionStatus.COMPLETED) {
+            throw new IllegalStateException("낙찰 완료된 경매만 취소할 수 있습니다.");
+        }
+
+        if (this.seller.getId() == memberId) {
+            return CancellerRole.SELLER;
+        } else if (this.winnerId != null && this.winnerId == memberId) {
+            return CancellerRole.BUYER;
+        }
+
+        throw new IllegalArgumentException("거래를 취소할 권한이 없습니다.");
+    }
+
+    // 거래 취소 권한 확인 (판매자 또는 낙찰자)
+    public boolean canCancelTrade(Integer memberId) {
+        if (this.status != AuctionStatus.COMPLETED) {
+            return false;
+        }
+        return this.seller.getId() == memberId || (this.winnerId != null && this.winnerId == memberId);
+    }
+
     public boolean isExpired() {
         return LocalDateTime.now().isAfter(this.endAt);
     }
@@ -154,3 +217,4 @@ public class Auction extends BaseEntity {
         return this.status == AuctionStatus.OPEN && !isExpired();
     }
 }
+

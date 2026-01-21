@@ -1,6 +1,7 @@
 package com.back.global.initData;
 
 import com.back.domain.auction.auction.dto.request.AuctionCreateRequest;
+import com.back.domain.auction.auction.entity.Auction;
 import com.back.domain.auction.auction.repository.AuctionRepository;
 import com.back.domain.auction.auction.service.AuctionService;
 import com.back.domain.bid.bid.dto.request.BidCreateRequest;
@@ -17,6 +18,9 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+import java.util.List;
 
 @Configuration
 @RequiredArgsConstructor
@@ -78,14 +82,45 @@ public class BaseInitData {
     public void work3() {
         if (auctionRepository.count() > 0) return;
 
-        Member seller1 = memberService.findByUsername("user1").get();
-        auctionService.createAuction(new AuctionCreateRequest("시집", "이성복 시집 팝니다.", 5000, 8000, 3, 168, null), seller1.getId());
+        List<Member> members = memberService.findAll();
+        List<Category> categories = categoryRepository.findAll();
 
+        if (members.size() < 3 || categories.isEmpty()) {
+            return;
+        }
+
+        // 경매 1: Service를 통한 경매 생성 (시집)
+        Member seller1 = memberService.findByUsername("user1").get();
+        auctionService.createAuction(
+                new AuctionCreateRequest("시집", "이성복 시집 팝니다.", 5000, 8000, 3, 168, null),
+                seller1.getId()
+        );
+
+        // 경매 1에 입찰
         Member bidder1 = memberService.findByUsername("user2").get();
         bidService.createBid(1, new BidCreateRequest(6000), bidder1.getId());
 
-
+        // 경매 2: Service를 통한 경매 생성 (아이폰)
         Member seller2 = memberService.findByUsername("user2").get();
-        auctionService.createAuction(new AuctionCreateRequest("아이폰13", "거의 새거입니다 ㅎ.", 150000, 180000, 1, 168, null), seller2.getId());
+        auctionService.createAuction(
+                new AuctionCreateRequest("아이폰13", "거의 새거입니다 ㅎ.", 150000, 180000, 1, 168, null),
+                seller2.getId()
+        );
+
+        // 경매 3: 엔티티 직접 생성 (낙찰 테스트용 - 1분 후 종료)
+        Category category = categories.get(0); // 전자기기
+        Auction auction3 = Auction.builder()
+                .seller(seller1)
+                .category(category)
+                .name("테스트 경매 (1분 후 종료)")
+                .description("낙찰 기능 테스트용 경매입니다.")
+                .startPrice(10000)
+                .buyNowPrice(50000)
+                .startAt(LocalDateTime.now())
+                .endAt(LocalDateTime.now().plusMinutes(1))
+                .build();
+        auctionRepository.save(auction3);
+
+        System.out.println("테스트 경매 생성 완료");
     }
 }
