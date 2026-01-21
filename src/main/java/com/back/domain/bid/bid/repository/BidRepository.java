@@ -18,7 +18,7 @@ public interface BidRepository extends JpaRepository<Bid, Integer> {
     Page<Bid> findByAuctionId(@Param("auctionId") Integer auctionId, Pageable pageable);
 
     // 특정 경매의 최고 입찰가 조회
-    @Query("SELECT b FROM Bid b WHERE b.auction.id = :auctionId ORDER BY b.price DESC")
+    @Query(value = "SELECT * FROM bids b WHERE b.auction_id = :auctionId ORDER BY b.price DESC LIMIT 1", nativeQuery = true)
     Optional<Bid> findTopByAuctionIdOrderByPriceDesc(@Param("auctionId") Integer auctionId);
 
     // 특정 사용자가 특정 경매에 입찰했는지 확인
