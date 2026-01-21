@@ -1,6 +1,5 @@
 package com.back.domain.member.member.controller;
 
-import com.back.domain.auction.auction.controller.AuctionController;
 import com.back.domain.member.member.entity.Member;
 import com.back.domain.member.member.service.MemberService;
 import jakarta.servlet.http.Cookie;
@@ -28,7 +27,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc
 @Transactional
-public class ApiV1MemberControllerTest {
+public class MemberControllerTest {
     @Autowired
     private MemberService memberService;
     @Autowired
@@ -54,7 +53,7 @@ public class ApiV1MemberControllerTest {
         Member member = memberService.findByUsername("usernew").get();
 
         resultActions
-                .andExpect(handler().handlerType(ApiV1MemberController.class))
+                .andExpect(handler().handlerType(MemberController.class))
                 .andExpect(handler().methodName("join"))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.resultCode").value("201-1"))
@@ -85,7 +84,7 @@ public class ApiV1MemberControllerTest {
         Member member = memberService.findByUsername("user1").get();
 
         resultActions
-                .andExpect(handler().handlerType(ApiV1MemberController.class))
+                .andExpect(handler().handlerType(MemberController.class))
                 .andExpect(handler().methodName("login"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.resultCode").value("200-1"))
@@ -128,7 +127,7 @@ public class ApiV1MemberControllerTest {
         Member member = memberService.findByUsername("user1").get();
 
         resultActions
-                .andExpect(handler().handlerType(ApiV1MemberController.class))
+                .andExpect(handler().handlerType(MemberController.class))
                 .andExpect(handler().methodName("me"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(member.getId()))
@@ -153,7 +152,7 @@ public class ApiV1MemberControllerTest {
                 .andDo(print());
 
         resultActions
-                .andExpect(handler().handlerType(ApiV1MemberController.class))
+                .andExpect(handler().handlerType(MemberController.class))
                 .andExpect(handler().methodName("me"))
                 .andExpect(status().isOk());
     }
@@ -169,7 +168,7 @@ public class ApiV1MemberControllerTest {
                 .andDo(print());
 
         resultActions
-                .andExpect(handler().handlerType(ApiV1MemberController.class))
+                .andExpect(handler().handlerType(MemberController.class))
                 .andExpect(handler().methodName("logout"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.resultCode").value("200-1"))
@@ -197,7 +196,7 @@ public class ApiV1MemberControllerTest {
                 .andDo(print());
 
         resultActions
-                .andExpect(handler().handlerType(ApiV1MemberController.class))
+                .andExpect(handler().handlerType(MemberController.class))
                 .andExpect(handler().methodName("me"))
                 .andExpect(status().isOk());
 
@@ -249,7 +248,7 @@ public class ApiV1MemberControllerTest {
                 .andDo(print());
 
         resultActions
-                .andExpect(handler().handlerType(ApiV1MemberController.class))
+                .andExpect(handler().handlerType(MemberController.class))
                 .andExpect(handler().methodName("modifyNickname"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.resultCode").value("200-1"))
@@ -275,7 +274,7 @@ public class ApiV1MemberControllerTest {
                 .andDo(print());
 
         resultActions
-                .andExpect(handler().handlerType(ApiV1MemberController.class))
+                .andExpect(handler().handlerType(MemberController.class))
                 .andExpect(handler().methodName("modifyPassword"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.resultCode").value("200-1"))
@@ -295,7 +294,7 @@ public class ApiV1MemberControllerTest {
                 .andDo(print());
 
         resultActions
-                .andExpect(handler().handlerType(ApiV1MemberController.class))
+                .andExpect(handler().handlerType(MemberController.class))
                 .andExpect(handler().methodName("decrease"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.resultCode").value("200-1"))
@@ -321,7 +320,7 @@ public class ApiV1MemberControllerTest {
 
         // 마지막 결과만 검증
         resultActions
-                .andExpect(handler().handlerType(ApiV1MemberController.class))
+                .andExpect(handler().handlerType(MemberController.class))
                 .andExpect(handler().methodName("decrease"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.resultCode").value("200-1"))
