@@ -7,6 +7,7 @@ import com.back.domain.chat.chat.dto.request.ChatMessageRequest;
 import com.back.domain.chat.chat.dto.response.ChatIdResponse;
 import com.back.domain.chat.chat.dto.response.ChatResponse;
 import com.back.domain.chat.chat.dto.response.ChatRoomIdResponse;
+import com.back.domain.chat.chat.dto.response.ChatRoomListResponse;
 import com.back.domain.chat.chat.entity.Chat;
 import com.back.domain.chat.chat.entity.ChatImage;
 import com.back.domain.chat.chat.entity.ChatRoom;
@@ -30,6 +31,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -123,7 +125,7 @@ public class ChatService {
         ChatRoom room = chatRoomRepository.findByRoomId(req.getRoomId())
                 .orElseThrow(() -> new ServiceException("404-1", "존재하지 않는 채팅방입니다."));
 
-        // [수정] Rq Actor ID로 완전한 Member 조회 후 API Key 확보
+        // Rq Actor ID로 완전한 Member 조회 후 API Key 확보
         Member actor = rq.getActor();
         Member sender = memberRepository.findById(actor.getId())
                 .orElseThrow(() -> new ServiceException("404-1", "존재하지 않는 회원입니다."));
@@ -138,7 +140,7 @@ public class ChatService {
         // 메세지 저장
         Chat chatMessage = Chat.builder()
                 .chatRoom(room)
-                .sender(rq.getActor().getNickname())
+                .senderId(sender.getId())
                 .message(req.getMessage())
                 .isRead(false)
                 .build();
@@ -184,7 +186,7 @@ public class ChatService {
             throw new ServiceException("403-1", "해당 채팅방에 접근 권한이 없습니다.");
         }
 
-        chatRepository.markMessagesAsRead(roomId, rq.getActor().getNickname());
+        chatRepository.markMessagesAsRead(roomId, actor.getId());
 
         List<Chat> chats;
         if (lastChatId == null || lastChatId <= 0) {
@@ -200,18 +202,68 @@ public class ChatService {
         return new RsData<>("200-1", "메시지 조회 성공", responses);
     }
 
-    public RsData<List<ChatResponse>> getChatList() {
+    public RsData<List<ChatRoomListResponse>> getChatList() {
         Member actor = rq.getActor();
         Member me = memberRepository.findById(actor.getId())
                 .orElseThrow(() -> new ServiceException("404-1", "존재하지 않는 회원입니다."));
 
-        String currentApiKey = me.getApiKey();
+        String myApiKey = me.getApiKey();
 
-        List<ChatResponse> responses = chatRepository.findAllLatestMessagesByMember(currentApiKey).stream()
-                .map(ChatResponse::new)
-                .collect(Collectors.toList());
+        List<Chat> latestChats = chatRepository.findAllLatestMessagesByMember(myApiKey);
 
-        return new RsData<>("200-1", "채팅 목록 조회 성공", responses);
+        List<ChatRoomListResponse> responseList = new ArrayList<>();
+
+        for (Chat chat : latestChats) {
+            ChatRoom room = chat.getChatRoom();
+
+            // 상대방 찾기 (myApiKey와 apiKey가 다른 사람이 상대방)
+            String opponentApiKey = room.getSellerId().equals(myApiKey) ? room.getBuyerId() : room.getSellerId();
+            Member opponent = memberRepository.findByApiKey(opponentApiKey)
+                    .orElseThrow(() -> new ServiceException("404-1", "상대방 정보를 찾을 수 없습니다."));
+
+            // 안 읽은 메세지 수
+            int unreadCount = chatRepository.countByChatRoom_RoomIdAndIsReadFalseAndSenderIdNot(room.getRoomId(), me.getId());
+
+            // 상품 정보
+            String itemName = "";
+            String itemImageUrl = "";
+            int itemPrice = 0;
+            Integer itemId = 0;
+
+            // 거래 종류가 일반 거래 일 경우
+            if (room.getTxType() == ChatRoomType.POST && room.getPost() != null) {
+                Post post = room.getPost();
+                itemId = post.getId();
+                itemName = post.getTitle();
+                itemPrice = post.getPrice();
+                // TODO: Post에 대표 이미지 필드가 있다면 가져오기 (예: post.getThumbnailUrl())
+            }
+            // 거래 종류가 경매 일 경우
+            else if (room.getTxType() == ChatRoomType.AUCTION && room.getAuction() != null) {
+                Auction auction = room.getAuction();
+                itemId = auction.getId();
+                itemName = auction.getName();
+                itemPrice = auction.getCurrentHighestBid();
+                // TODO: Post에 대표 이미지 필드가 있다면 가져오기 (예: auction.getThumbnailUrl())
+            }
+
+            // DTO 조립
+            responseList.add(ChatRoomListResponse.builder()
+                    .roomId(room.getRoomId())
+                    .opponentId(opponent.getId())
+                    .opponentNickname(opponent.getNickname())
+                    .opponentProfileImageUrl(opponent.getProfileImgUrl())
+                    .lastMessage(chat.getMessage())
+                    .lastMessageDate(chat.getCreateDate())
+                    .unreadCount(unreadCount)
+                    .itemId(itemId)
+                    .itemName(itemName)
+                    .itemImageUrl(itemImageUrl)
+                    .itemPrice(itemPrice)
+                    .txType(room.getTxType())
+                    .build());
+        }
+        return new RsData<>("200-1", "채팅 목록 조회 성공", responseList);
     }
 
     @Transactional

@@ -29,5 +29,5 @@ public interface ChatRepository extends JpaRepository<Chat, Integer> {
     List<Chat> findAllLatestMessagesByMember(@Param("apiKey") String apiKey);
 
     // 안 읽은 메세지 개수 조회
-    long countByChatRoom_RoomIdAndIsReadFalseAndSenderIdNot(String roomId, Integer readerId);
+    int countByChatRoom_RoomIdAndIsReadFalseAndSenderIdNot(String roomId, Integer readerId);
 }
