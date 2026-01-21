@@ -1,6 +1,7 @@
 package com.back.global.security;
 
 import com.back.domain.member.member.entity.Member;
+import com.back.domain.member.member.enums.Role;
 import com.back.domain.member.member.service.MemberService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.Message;
@@ -36,10 +37,12 @@ public class StompHandler implements ChannelInterceptor {
                     int id = (int) payload.get("id");
                     String username = (String) payload.get("username");
                     String name = (String) payload.get("name");
+                    String role = (String) payload.get("role");
 
-                    Member member = new Member(id, username, name);
+                    Member member = new Member(id, username, name, Role.from(role));
+
                     SecurityUser user = new SecurityUser(
-                            member.getId(), member.getUsername(), "", member.getName(), member.getAuthorities()
+                            member.getId(), member.getUsername(), "", member.getName(), member.getRole(), member.getAuthorities()
                     );
 
                     Authentication auth = new UsernamePasswordAuthenticationToken(user, "", user.getAuthorities() );
