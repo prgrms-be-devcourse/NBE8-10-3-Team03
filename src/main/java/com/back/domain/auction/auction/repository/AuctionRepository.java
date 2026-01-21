@@ -40,4 +40,9 @@ public interface AuctionRepository extends JpaRepository<Auction, Integer> {
     // 만료된 경매 조회 (낙찰 처리용)
     @Query("SELECT a FROM Auction a WHERE a.status = :status AND a.endAt < :now")
     List<Auction> findByStatusAndEndAtBefore(@Param("status") AuctionStatus status, @Param("now") LocalDateTime now);
+
+    // 검색 기능 (PostRepository의 search와 동일한 형태)
+    @EntityGraph(attributePaths = {"seller", "seller.reputation", "category", "auctionImages", "auctionImages.image"})
+    @Query("SELECT a FROM Auction a WHERE a.name LIKE %:kw% OR a.description LIKE %:kw%")
+    Page<Auction> search(@Param("kw") String kw, Pageable pageable);
 }
