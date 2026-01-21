@@ -3,19 +3,16 @@ package com.back.domain.member.member.service;
 import com.back.domain.auction.auction.entity.Auction;
 import com.back.domain.auction.auction.repository.AuctionRepository;
 import com.back.domain.member.member.entity.Member;
-import com.back.domain.member.member.entity.Reputation;
-import com.back.domain.member.member.entity.ReputationEvent;
-import com.back.domain.member.member.enums.EventType;
-import com.back.domain.member.member.enums.RefType;
+import com.back.domain.member.reputation.entity.Reputation;
+import com.back.domain.member.reputation.entity.ReputationEvent;
+import com.back.domain.member.reputation.enums.EventType;
+import com.back.domain.member.reputation.enums.RefType;
 import com.back.domain.member.member.enums.Role;
 import com.back.domain.member.member.repository.MemberRepository;
-import com.back.domain.member.member.repository.ReputationEventRepository;
-import com.back.domain.member.member.repository.ReputationRepository;
-import com.back.domain.member.member.service.AuthTokenService;
+import com.back.domain.member.reputation.repository.ReputationEventRepository;
+import com.back.domain.member.reputation.repository.ReputationRepository;
 import com.back.global.exception.ServiceException;
 import com.back.global.rsData.RsData;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -117,9 +114,9 @@ public class MemberService {
     }
 
     // 경매 취소 시 신용도 감소 (if 입찰 O)
-    public void decreaseByCancel(int auctionId) {
+    public void decreaseByCancel(int auctionId, int actorId) {
         Auction auction = auctionRepository.findById(auctionId).get();
-        Member seller = memberRepository.findById(auction.getSeller().getId()).get();
+        Member seller = memberRepository.findById(actorId).get();
 
         if (auction.getBidCount() > 0) {
             Reputation reputation = reputationRepository.findById(seller.getId()).get();
