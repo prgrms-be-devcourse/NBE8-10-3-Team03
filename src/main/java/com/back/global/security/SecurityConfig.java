@@ -31,6 +31,22 @@ public class SecurityConfig {
         http
                 .authorizeHttpRequests(
                         auth -> auth
+                                .requestMatchers(
+                                        "/api/*/members/login",
+                                        "/api/*/members/logout"
+                                ).permitAll()
+                                .requestMatchers(
+                                        HttpMethod.POST,
+                                        "/api/*/members"
+                                ).permitAll()
+                                .requestMatchers(
+                                        HttpMethod.GET,
+                                        "/api/auctions/**",
+                                        "/api/*/posts/**",
+                                        "/api/*/search"
+                                ).permitAll()
+                                .requestMatchers("/api/auctions/**").authenticated()
+                                .requestMatchers("/api/*/**").authenticated()
                                 .requestMatchers("/ws/**").permitAll()
                                 .requestMatchers(HttpMethod.POST, "/api/chat/send").authenticated()
                                 .requestMatchers(HttpMethod.POST, "/api/chat/room").authenticated()
