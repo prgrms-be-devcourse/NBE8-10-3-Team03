@@ -11,7 +11,9 @@ public record PostListResponse(
     String thumbnailUrl,
     LocalDateTime createDate,
     String status,
-    long viewCount
+    long viewCount,
+    int sellerId,
+    String sellerNickname
 ) {
     public PostListResponse(Post post) {
         this(
@@ -23,7 +25,9 @@ public record PostListResponse(
                         : post.getPostImages().get(0).getImage().getUrl(),
                 post.getCreateDate(),
                 post.getStatus().name(),
-                post.getViewCount()
+                post.getViewCount(),
+                post.getSeller().getId(),
+                post.getSeller().getNickname()
         );
     }
 }
