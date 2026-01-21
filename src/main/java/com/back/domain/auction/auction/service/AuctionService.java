@@ -11,6 +11,7 @@ import com.back.domain.auction.auction.dto.response.AuctionUpdateResponse;
 import com.back.domain.auction.auction.entity.Auction;
 import com.back.domain.auction.auction.entity.AuctionImage;
 import com.back.domain.auction.auction.entity.AuctionStatus;
+import com.back.domain.auction.auction.entity.CancellerRole;
 import com.back.domain.auction.auction.repository.AuctionImageRepository;
 import com.back.domain.auction.auction.repository.AuctionRepository;
 import com.back.domain.category.category.entity.Category;
@@ -149,7 +150,7 @@ public class AuctionService {
             try {
                 auctionStatus = AuctionStatus.valueOf(status.toUpperCase());
             } catch (IllegalArgumentException e) {
-                throw new ServiceException("400-1", "유효하지 않은 경매 상태입니다. (OPEN, CLOSED)");
+                throw new ServiceException("400-1", "유효하지 않은 경매 상태입니다. (OPEN, CLOSED, COMPLETED, CANCELLED)");
             }
         }
 
@@ -329,5 +330,28 @@ public class AuctionService {
         AuctionDeleteResponse response = new AuctionDeleteResponse("경매가 정상적으로 취소되었습니다.");
 
         return new RsData<>("200-1", "경매가 정상적으로 취소되었습니다.", response);
+    }
+
+    @Transactional
+    public RsData<Void> cancelTrade(Integer auctionId, Integer memberId) {
+        // 1. 경매 조회
+        Auction auction = auctionRepository.findById(auctionId)
+                .orElseThrow(() -> new ServiceException("404-1", "존재하지 않는 경매입니다."));
+
+        // 2. 낙찰 완료 상태 확인 및 역할 판별 (권한 체크 포함)
+        CancellerRole role;
+        try {
+            role = auction.determineCancellerRole(memberId);
+        } catch (IllegalStateException e) {
+            throw new ServiceException("400-1", e.getMessage());
+        } catch (IllegalArgumentException e) {
+            throw new ServiceException("403-1", e.getMessage());
+        }
+
+        // 3. 거래 취소 처리 (누가 취소했는지 기록)
+        auction.cancelTrade(memberId, role);
+        auctionRepository.save(auction);
+
+        return new RsData<>("200-1", "거래가 취소되었습니다.", null);
     }
 }
