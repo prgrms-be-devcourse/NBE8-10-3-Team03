@@ -13,7 +13,7 @@ public class ChatResponse {
     private final Integer id;
     private final Integer itemId;
     private final String roomId;
-    private final String sender;
+    private final Integer senderId;
     private final String message;
     private final LocalDateTime createDate;
     private final List<String> imageUrls;
@@ -23,7 +23,7 @@ public class ChatResponse {
     public ChatResponse(Chat chat) {
         this.id = chat.getId();
         this.roomId = chat.getChatRoom().getRoomId();
-        this.sender = chat.getSender();
+        this.senderId = chat.getSenderId();
         this.message = chat.getMessage();
         this.createDate = chat.getCreateDate();
         this.isRead = chat.isRead();
