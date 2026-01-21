@@ -4,6 +4,7 @@ import com.back.domain.chat.chat.dto.request.ChatMessageRequest;
 import com.back.domain.chat.chat.dto.response.ChatIdResponse;
 import com.back.domain.chat.chat.dto.response.ChatResponse;
 import com.back.domain.chat.chat.dto.response.ChatRoomIdResponse;
+import com.back.domain.chat.chat.dto.response.ChatRoomListResponse;
 import com.back.domain.chat.chat.service.ChatService;
 import com.back.global.rq.Rq;
 import com.back.global.rsData.RsData;
@@ -40,7 +41,7 @@ public class ChatController {
     }
 
     @GetMapping("/list")
-    public RsData<List<ChatResponse>> getChatList() {
+    public RsData<List<ChatRoomListResponse>> getChatList() {
         return chatService.getChatList();
     }
 

@@ -369,7 +369,9 @@ class ChatControllerTest {
                         .with(user(makeSecurityUser(buyer))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.length()").value(1))
-                .andExpect(jsonPath("$.data[0].message").value("구매자 메시지"));
+                .andExpect(jsonPath("$.data[0].lastMessage").value("구매자 메시지"))
+                .andExpect(jsonPath("$.data[0].opponentNickname").exists())
+                .andExpect(jsonPath("$.data[0].roomId").value(myRoomId));
     }
 
     @Test
@@ -383,7 +385,8 @@ class ChatControllerTest {
         mockMvc.perform(get("/api/chat/list")
                         .with(user(makeSecurityUser(buyer))))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data[0].message").value("New"));
+                .andExpect(jsonPath("$.data[0].lastMessage").value("New"))
+                .andExpect(jsonPath("$.data[0].unreadCount").exists());
     }
 
     @Test
