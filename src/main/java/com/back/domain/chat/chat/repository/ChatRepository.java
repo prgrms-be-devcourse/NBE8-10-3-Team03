@@ -24,12 +24,8 @@ public interface ChatRepository extends JpaRepository<Chat, Integer> {
 
     // 참여한 대화의 최신 메세지들 (JPQL)
     @Query("SELECT c FROM Chat c " +
-            "JOIN FETCH c.chatRoom cr " +
-            "WHERE c.id IN (" +
-            "  SELECT MAX(c2.id) FROM Chat c2 " +
-            "  WHERE c2.chatRoom.sellerId = :apiKey OR c2.chatRoom.buyerId = :apiKey " +
-            "  GROUP BY c2.chatRoom" +
-            ") " +
-            "ORDER BY c.createDate DESC")
+            "WHERE c.id IN (SELECT MAX(c2.id) FROM Chat c2 GROUP BY c2.chatRoom) " +
+            "AND ((c.chatRoom.sellerId = :apiKey AND c.chatRoom.sellerExited = false) " +
+            "OR (c.chatRoom.buyerId = :apiKey AND c.chatRoom.buyerExited = false))")
     List<Chat> findAllLatestMessagesByMember(@Param("apiKey") String apiKey);
 }
