@@ -4,15 +4,26 @@ import com.back.domain.post.post.entity.Post;
 import java.time.LocalDateTime;
 
 public record PostListResponse(
-    int id, String title, int price, String categoryName,
-    String thumbnailUrl, LocalDateTime createDate
+    int id,
+    String title,
+    int price,
+    String categoryName,
+    String thumbnailUrl,
+    LocalDateTime createDate,
+    String status,
+    long viewCount
 ) {
     public PostListResponse(Post post) {
         this(
-            post.getId(), post.getTitle(), post.getPrice(),
-            post.getCategory().getName(),
-            post.getPostImages().isEmpty() ? null : post.getPostImages().get(0).getImage().getUrl(),
-            post.getCreateDate()
+                post.getId(),
+                post.getTitle(),
+                post.getPrice(),
+                post.getCategory().getName(),
+                post.getPostImages().isEmpty() ? null
+                        : post.getPostImages().get(0).getImage().getUrl(),
+                post.getCreateDate(),
+                post.getStatus().name(),
+                post.getViewCount()
         );
     }
 }
