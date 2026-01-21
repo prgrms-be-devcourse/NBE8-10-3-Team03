@@ -1,13 +1,14 @@
 package com.back.domain.member.member.entity;
 
 import com.back.domain.member.member.enums.Role;
+import com.back.domain.member.reputation.entity.Reputation;
+import com.back.domain.member.reputation.entity.ReputationEvent;
 import com.back.global.exception.ServiceException;
 import com.back.global.jpa.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.jspecify.annotations.Nullable;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
