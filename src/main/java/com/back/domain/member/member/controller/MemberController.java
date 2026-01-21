@@ -13,7 +13,6 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
-import org.springframework.data.jpa.repository.query.PreprocessedQuery;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
@@ -25,7 +24,7 @@ import static org.springframework.util.MimeTypeUtils.TEXT_HTML_VALUE;
 @RestController
 @RequestMapping("/api/v1/members")
 @RequiredArgsConstructor
-public class ApiV1MemberController {
+public class MemberController {
     private final MemberService memberService;
     private final Rq rq;
 
