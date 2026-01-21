@@ -213,4 +213,20 @@ public class ChatService {
 
         return new RsData<>("200-1", "채팅 목록 조회 성공", responses);
     }
+
+    public RsData<Void> exitChatRoom(String roomId) {
+        ChatRoom room = chatRoomRepository.findByRoomId(roomId)
+                .orElseThrow(() -> new ServiceException("404-1", "존재하지 않는 채팅방입니다."));
+
+        Member actor = rq.getActor();
+        String currentApiKey = actor.getApiKey();
+
+        room.exit(currentApiKey);
+
+        if (room.isBothExited()) {
+            chatRoomRepository.delete(room);
+        }
+
+        return new RsData<>("200-1", "채팅방에서 퇴장하였습니다.", null);
+    }
 }
