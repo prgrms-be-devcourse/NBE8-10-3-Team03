@@ -33,15 +33,15 @@ public class BidService {
 
     @Transactional
     public RsData<BidResponse> createBid(Integer auctionId, BidCreateRequest request, Integer bidderId) {
-        // 1. 경매 조회
-        Auction auction = auctionRepository.findById(auctionId)
+        // 1. 경매 조회 (비관적 락 적용 - 동시 입찰 시 순차 처리)
+        Auction auction = auctionRepository.findByIdWithLock(auctionId)
                 .orElseThrow(() -> new ServiceException("404-1", "존재하지 않는 경매입니다."));
 
         // 2. 입찰자 조회
         Member bidder = memberRepository.findById(bidderId)
                 .orElseThrow(() -> new ServiceException("404-2", "존재하지 않는 사용자입니다."));
 
-        // 3. 입찰 검증
+        // 3. 입찰 검증 (락이 걸린 상태에서 안전하게 검증)
         validateBid(auction, bidder, request.getPrice());
 
         // 4. 입찰 생성 및 저장
