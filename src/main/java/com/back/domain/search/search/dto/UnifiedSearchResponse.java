@@ -19,4 +19,5 @@ public class UnifiedSearchResponse {
     private long viewCount;
     private int sellerId;
     private String sellerNickname;
+    private String sellerBadge;
 }

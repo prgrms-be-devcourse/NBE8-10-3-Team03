@@ -13,6 +13,8 @@ public record PostDetailResponse(
     String categoryName,
     int sellerId,
     String sellerNickname,
+    String sellerBadge,
+    Double sellerScore,
     List<String> imageUrls,
     LocalDateTime createDate,
     long viewCount
@@ -28,6 +30,8 @@ public record PostDetailResponse(
                 post.getCategory().getName(),
                 post.getSeller().getId(),
                 post.getSeller().getNickname(),
+                PostListResponse.calculateBadge(post.getSeller().getReputation().getScore()),
+                post.getSeller().getReputation().getScore(),
                 post.getPostImages()
                         .stream()
                         .map(pi -> pi.getImage().getUrl())
