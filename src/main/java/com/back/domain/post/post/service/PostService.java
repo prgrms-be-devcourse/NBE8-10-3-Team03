@@ -132,4 +132,21 @@ public class PostService {
 
         post.updateStatus(status);
     }
+
+    public PostPageResponse getList(Pageable pageable, String statusStr) {
+        PostStatus status = (statusStr != null && !"all".equalsIgnoreCase(statusStr))
+                ? PostStatus.valueOf(statusStr.toUpperCase()) : null;
+
+        Page<Post> postPage = postRepository.findPostsByStatus(status, pageable);
+
+        List<PostListResponse> dtoList = postPage.getContent().stream()
+                .map(PostListResponse::new)
+                .toList();
+
+        return new PostPageResponse(
+                dtoList, postPage.getNumber(), postPage.getSize(),
+                postPage.getTotalElements(), postPage.getTotalPages(),
+                statusStr != null ? statusStr : "all"
+        );
+    }
 }
