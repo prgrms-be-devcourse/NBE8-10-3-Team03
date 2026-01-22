@@ -187,6 +187,48 @@ public class AuctionService {
         return new RsData<>("200-1", "경매 목록 조회 성공", response);
     }
 
+    public RsData<AuctionPageResponse> getAuctionsByUserId(
+            int userId,
+            int page,
+            int size,
+            String sortBy,
+            String status
+    ) {
+        // 정렬 설정 및 페이징 생성
+        Sort sort = createSort(sortBy);
+        Pageable pageable = PageUtils.createPageable(page, size, sort);
+
+        // 상태 변환
+        AuctionStatus auctionStatus = null;
+        if (status != null && !status.isBlank()) {
+            try {
+                auctionStatus = AuctionStatus.valueOf(status.toUpperCase());
+            } catch (IllegalArgumentException e) {
+                throw new ServiceException("400-1", "유효하지 않은 경매 상태입니다. (OPEN, CLOSED, COMPLETED, CANCELLED)");
+            }
+        }
+
+        // 조건에 맞는 경매 조회
+        Page<Auction> auctionPage;
+
+        if (auctionStatus != null) {
+            auctionPage = auctionRepository.findBySellerIdAndStatus(userId, auctionStatus, pageable);
+        } else {
+            auctionPage = auctionRepository.findBySellerId(userId, pageable);
+        }
+
+        // DTO 변환
+        Page<AuctionListItemDto> dtoPage = auctionPage
+                .map(auction -> {
+            String thumbnailUrl = getThumbnailUrl(auction);
+            return new AuctionListItemDto(auction, thumbnailUrl);
+        });
+
+        AuctionPageResponse response = AuctionPageResponse.from(dtoPage);
+
+        return new RsData<>("200-1", "경매 목록 조회 성공", response);
+    }
+
     private Sort createSort(String sortBy) {
         if (sortBy == null || sortBy.isBlank()) {
             // 기본 정렬: 최신순

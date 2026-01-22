@@ -159,4 +159,26 @@ public class PostService {
                 statusStr != null ? statusStr : "all"
         );
     }
+
+    public PostPageResponse getListByUserId(Pageable pageable, int userId, String statusStr) {
+        PostStatus status = (statusStr != null && !"all".equalsIgnoreCase(statusStr))
+                ? PostStatus.valueOf(statusStr.toUpperCase()) : null;
+
+        Page<Post> postPage;
+
+        if (status == null) {
+            postPage = postRepository.findBySellerId(userId, pageable);
+        }
+        else postPage = postRepository.findBySellerIdAndStatus(userId, status, pageable);
+
+        List<PostListResponse> dtoList = postPage.getContent().stream()
+                .map(PostListResponse::new)
+                .toList();
+
+        return new PostPageResponse(
+                dtoList, postPage.getNumber(), postPage.getSize(),
+                postPage.getTotalElements(), postPage.getTotalPages(),
+                statusStr != null ? statusStr : "all"
+        );
+    }
 }

@@ -23,6 +23,11 @@ public interface AuctionRepository extends JpaRepository<Auction, Integer> {
     @EntityGraph(attributePaths = {"seller", "seller.reputation", "category"})
     Page<Auction> findAll(Pageable pageable);
 
+    // 전체 조회 by Seller
+    Page<Auction> findBySellerId(Integer sellerId, Pageable pageable);
+
+    Page<Auction> findBySellerIdAndStatus(Integer sellerId, AuctionStatus status, Pageable pageable);
+
     // 카테고리로 필터링
     @EntityGraph(attributePaths = {"seller", "seller.reputation", "category"})
     Page<Auction> findByCategoryName(String categoryName, Pageable pageable);

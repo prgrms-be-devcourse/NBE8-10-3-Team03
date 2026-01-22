@@ -24,4 +24,7 @@ public interface PostRepository extends JpaRepository<Post, Integer> {
             "AND (:status IS NULL OR p.status = :status)")
     Page<Post> findPostsByStatus(@Param("status") PostStatus status, Pageable pageable);
     Page<Post> findAllByDeletedFalse(Pageable pageable);
+
+    Page<Post> findBySellerIdAndStatus(Integer sellerId, PostStatus status, Pageable pageable);
+    Page<Post> findBySellerId(Integer sellerId, Pageable pageable);
 }
