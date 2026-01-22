@@ -6,7 +6,7 @@ import com.back.domain.category.category.repository.CategoryRepository;
 import com.back.domain.image.image.entity.Image;
 import com.back.domain.image.image.repository.ImageRepository;
 import com.back.domain.member.member.entity.Member;
-import com.back.domain.member.member.repository.MemberRepository;
+import com.back.domain.member.member.enums.MemberStatus;
 import com.back.domain.member.member.service.MemberService;
 import com.back.domain.post.post.dto.*;
 import com.back.domain.post.post.entity.Post;
@@ -34,7 +34,7 @@ public class PostService {
     @Transactional
     public int create(Member actor, PostCreateRequest req) {
         // 정지된 회원의 글쓰기 방지
-        if(!memberService.findById(actor.getId()).get().getActive()) {
+        if(memberService.findById(actor.getId()).get().getStatus() == MemberStatus.SUSPENDED) {
             throw new ServiceException("403-3", "정지된 회원은 해당 기능을 사용할 수 없습니다.");
         }
 
@@ -77,7 +77,7 @@ public class PostService {
             throw new ServiceException("403-1", "자신의 글만 수정할 수 있습니다.");
         }
 
-        if (!actor.getActive()) {
+        if(memberService.findById(actor.getId()).get().getStatus() == MemberStatus.SUSPENDED) {
             throw new ServiceException("403-3", "정지된 회원은 해당 기능을 사용할 수 없습니다.");
         }
 

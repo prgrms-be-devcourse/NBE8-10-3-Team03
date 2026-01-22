@@ -87,10 +87,7 @@ public class MemberController {
         Member member = memberService.findByUsername(reqBody.username())
                 .orElseThrow(() -> new ServiceException("401-1", "존재하지 않는 아이디입니다."));
 
-        memberService.checkPassword(
-                member,
-                reqBody.password()
-        );
+        memberService.login(member, reqBody.password());
 
         String accessToken = memberService.genAccessToken(member);
 
@@ -132,12 +129,30 @@ public class MemberController {
         return new MemberWithUsernameDto(actor);
     }
 
+
+    @DeleteMapping("/me")
+    @Transactional(readOnly = true)
+    @Operation(summary = "회원 탈퇴")
+    public RsData<Void> withdraw() {
+        Member actor = rq.getActorFromDb();
+        rq.deleteCookie("apiKey");
+        rq.deleteCookie("accessToken");
+        memberService.withdraw(actor);
+
+        return new RsData<>(
+                "200-1",
+                "탙퇴가 정상적으로 처리되었습니다."
+        );
+    }
+
+
     record MemberNameModifyReqBody(
             @NotBlank
             @Size(min = 2, max = 30)
             String nickname
     ) {
     }
+
 
     @PatchMapping("/me/nickname")
     @Transactional
@@ -194,8 +209,9 @@ public class MemberController {
     @PatchMapping("/{userId}/credit")
     public RsData<Void> decrease(@PathVariable int userId) {
         Member member = memberService.findById(userId).get();
+        Member reporter = rq.getActor();
 
-        memberService.decreaseByNofiy(member);
+        memberService.decreaseByNofiy(member, reporter);
 
         return new RsData<>(
                 "200-1",

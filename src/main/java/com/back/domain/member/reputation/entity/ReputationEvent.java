@@ -14,8 +14,8 @@ import lombok.NoArgsConstructor;
 @Table(name = "reputation_events")
 public class ReputationEvent extends BaseEntity {
     @ManyToOne
-    @JoinColumn(name = "member_id")
-    private Member member;
+    @JoinColumn(name = "target_id")
+    private Member target;
 
     @Enumerated(EnumType.STRING)
     private EventType eventType;
@@ -25,17 +25,22 @@ public class ReputationEvent extends BaseEntity {
 
     private int refId;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "reporter_id", nullable = true)
+    private Member reporter;
+
     private double delta;
 
-    public ReputationEvent(Member member, EventType eventType, RefType refType) {
-        this(member, eventType, refType, 0, 0);
+    public ReputationEvent(Member target, EventType eventType, RefType refType, Member reporter) {
+        this(target, eventType, refType, 0, 0, reporter);
     }
 
-    public ReputationEvent(Member member, EventType eventType, RefType refType, int refId, double delta) {
-        this.member = member;
+    public ReputationEvent(Member target, EventType eventType, RefType refType, int refId, double delta, Member reporter) {
+        this.target = target;
         this.eventType = eventType;
         this.refType = refType;
         this.refId = refId;
         this.delta = delta;
+        this.reporter = reporter;
     }
 }

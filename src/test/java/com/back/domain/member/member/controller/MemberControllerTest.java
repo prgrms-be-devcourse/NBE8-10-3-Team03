@@ -1,6 +1,7 @@
 package com.back.domain.member.member.controller;
 
 import com.back.domain.member.member.entity.Member;
+import com.back.domain.member.member.enums.MemberStatus;
 import com.back.domain.member.member.service.MemberService;
 import jakarta.servlet.http.Cookie;
 import org.hamcrest.Matchers;
@@ -301,13 +302,13 @@ public class MemberControllerTest {
                 .andExpect(jsonPath("$.resultCode").value("200-1"))
                 .andExpect(jsonPath("$.msg").value("신고 완료 처리되었습니다."));
 
-        assertThat(user1.getReputationEvents()).hasSize(1);
+        assertThat(user1.getTargetEvents()).hasSize(1);
         assertThat(user1.getReputation().getNotifyCount()).isEqualTo(1);
         assertThat(user1.getReputation().getTotalNotifyCount()).isEqualTo(1);
     }
 
     @Test
-    @DisplayName("신고 10번 처리 => 신용도 1번 감소")
+    @DisplayName("신고 3번 이상 => 3번 초과 신고 못함")
     @WithUserDetails("user1")
     void t12() throws Exception {
         Member user1 = memberService.findByUsername("user1").get();
@@ -329,46 +330,10 @@ public class MemberControllerTest {
                 .andExpect(handler().handlerType(MemberController.class))
                 .andExpect(handler().methodName("decrease"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.resultCode").value("200-1"))
-                .andExpect(jsonPath("$.msg").value("신고 완료 처리되었습니다."));
-
-        assertThat(user1.getReputationEvents()).hasSize(10);
-        assertThat(user1.getReputation().getNotifyCount()).isEqualTo(10);
-        assertThat(user1.getReputation().getTotalNotifyCount()).isEqualTo(10);
-        assertThat(user1.getReputation().getScore()).isEqualTo(45.0);
+                .andExpect(jsonPath("$.resultCode").value("403-1"))
+                .andExpect(jsonPath("$.msg").value("해당 회원에 대한 신고 횟수를 초과했습니다."));
     }
 
-    @Test
-    @DisplayName("신고 100번 처리 => 계정 1주일 정지")
-    @WithUserDetails("user2")
-    void t13() throws Exception {
-        Member user1 = memberService.findByUsername("user1").get();
-        int userId = user1.getId();
-
-        ResultActions resultActions = null;
-
-        // 10번 반복
-        for (int i = 0; i < 100; i++) {
-            resultActions = mvc
-                    .perform(
-                            patch("/api/v1/members/%d/credit".formatted(userId))
-                    )
-                    .andDo(print());
-        }
-
-        // 마지막 결과만 검증
-        resultActions
-                .andExpect(handler().handlerType(MemberController.class))
-                .andExpect(handler().methodName("decrease"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.resultCode").value("200-1"))
-                .andExpect(jsonPath("$.msg").value("신고 완료 처리되었습니다."));
-
-        assertThat(user1.getReputationEvents()).hasSize(100);
-        assertThat(user1.getReputation().getNotifyCount()).isEqualTo(0);
-        assertThat(user1.getReputation().getTotalNotifyCount()).isEqualTo(100);
-        assertThat(user1.getActive()).isFalse();
-    }
 
     @Test
     @DisplayName("정지 계정 리뷰 쓰기 금지")
