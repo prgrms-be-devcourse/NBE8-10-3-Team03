@@ -10,6 +10,8 @@ import com.back.domain.category.category.entity.Category;
 import com.back.domain.category.category.repository.CategoryRepository;
 import com.back.domain.member.member.entity.Member;
 import com.back.domain.member.member.service.MemberService;
+import com.back.domain.member.review.entity.Review;
+import com.back.domain.member.review.repository.ReviewRepository;
 import com.back.global.app.AppConfig;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,6 +33,7 @@ public class BaseInitData {
     private final MemberService memberService;
     private final CategoryRepository categoryRepository;
     private final AuctionRepository auctionRepository;
+    private final ReviewRepository reviewRepository;
     private final AuctionService auctionService;
     private final BidService bidService;
 
@@ -40,6 +43,7 @@ public class BaseInitData {
             self.work1();
             self.work2();
             self.work3();
+            self.work4();
         };
     }
 
@@ -62,6 +66,10 @@ public class BaseInitData {
         Member memberUser3 = memberService.join("user3", "1234", "유저3", null);
         if (AppConfig.isNotProd()) memberUser3.modifyApiKey(memberUser3.getUsername());
 
+        Member memberUser4 = memberService.join("user4", "1234", "유저4", null);
+        if (AppConfig.isNotProd()) memberUser3.modifyApiKey(memberUser4.getUsername());
+        memberUser4.setActive(false);
+        memberUser4.setSuspendAt(LocalDateTime.now().minusDays(3));
         System.out.println("테스트 회원 생성 완료");
     }
 
@@ -122,5 +130,20 @@ public class BaseInitData {
         auctionRepository.save(auction3);
 
         System.out.println("테스트 경매 생성 완료");
+    }
+
+    @Transactional
+    public void work4() {
+        if (reviewRepository.count() > 0) return;
+        Member seller1 = memberService.findByUsername("user1").get();
+        Member reviewer1 = memberService.findByUsername("user2").get();
+        Member reviewer2 = memberService.findByUsername("user3").get();
+
+        Review review1 = memberService.createReview(5, "친절하시고 배송이 빠릅니다.", seller1, reviewer1.getId());
+        reviewRepository.save(review1);
+        Review review2 = memberService.createReview(3, "연락이 빠릅니다.", seller1, reviewer2.getId());
+        reviewRepository.save(review2);
+        Review review3 = memberService.createReview(4, "물건 상태가 좋아요", reviewer1, reviewer2.getId());
+        reviewRepository.save(review3);
     }
 }

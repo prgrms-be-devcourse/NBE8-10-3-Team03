@@ -16,6 +16,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -282,6 +284,7 @@ public class MemberControllerTest {
     }
 
     @Test
+    @WithUserDetails("user1")
     @DisplayName("신고 처리")
     void t11() throws Exception {
         Member user1 = memberService.findByUsername("user1").get();
@@ -299,10 +302,15 @@ public class MemberControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.resultCode").value("200-1"))
                 .andExpect(jsonPath("$.msg").value("신고 완료 처리되었습니다."));
+
+        assertThat(user1.getReputationEvents()).hasSize(1);
+        assertThat(user1.getReputation().getNotifyCount()).isEqualTo(1);
+        assertThat(user1.getReputation().getTotalNotifyCount()).isEqualTo(1);
     }
 
     @Test
     @DisplayName("신고 10번 처리 => 신용도 1번 감소")
+    @WithUserDetails("user1")
     void t12() throws Exception {
         Member user1 = memberService.findByUsername("user1").get();
         int userId = user1.getId();
@@ -327,8 +335,97 @@ public class MemberControllerTest {
                 .andExpect(jsonPath("$.msg").value("신고 완료 처리되었습니다."));
 
         assertThat(user1.getReputationEvents()).hasSize(10);
-        assertThat(user1.getReputation().getCaution()).isEqualTo(1);
+        assertThat(user1.getReputation().getNotifyCount()).isEqualTo(10);
+        assertThat(user1.getReputation().getTotalNotifyCount()).isEqualTo(10);
         assertThat(user1.getReputation().getScore()).isEqualTo(45.0);
+    }
+
+    @Test
+    @DisplayName("신고 100번 처리 => 계정 1주일 정지")
+    @WithUserDetails("user2")
+    void t13() throws Exception {
+        Member user1 = memberService.findByUsername("user1").get();
+        int userId = user1.getId();
+
+        ResultActions resultActions = null;
+
+        // 10번 반복
+        for (int i = 0; i < 100; i++) {
+            resultActions = mvc
+                    .perform(
+                            patch("/api/v1/members/%d/credit".formatted(userId))
+                    )
+                    .andDo(print());
+        }
+
+        // 마지막 결과만 검증
+        resultActions
+                .andExpect(handler().handlerType(MemberController.class))
+                .andExpect(handler().methodName("decrease"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.resultCode").value("200-1"))
+                .andExpect(jsonPath("$.msg").value("신고 완료 처리되었습니다."));
+
+        assertThat(user1.getReputationEvents()).hasSize(100);
+        assertThat(user1.getReputation().getNotifyCount()).isEqualTo(0);
+        assertThat(user1.getReputation().getTotalNotifyCount()).isEqualTo(100);
+        assertThat(user1.getActive()).isFalse();
+    }
+
+    @Test
+    @DisplayName("정지 계정 리뷰 쓰기 금지")
+    @WithUserDetails("user4")
+    void t14() throws Exception {
+        ResultActions resultActions = null;
+
+        resultActions = mvc
+                .perform(
+                        post("/api/v1/members/%d/review".formatted(3))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("""
+                                        {
+                                            "star" : 5,
+                                            "comment" : "친절합니다."
+                                        }
+                                        """.stripIndent())
+                )
+                .andDo(print());
+
+        resultActions
+                .andExpect(handler().handlerType(MemberController.class))
+                .andExpect(handler().methodName("review"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.resultCode").value("403-3"))
+                .andExpect(jsonPath("$.msg").value("정지된 회원은 해당 기능을 사용할 수 없습니다."));
+
+    }
+
+    @Test
+    @DisplayName("정상 계정 리뷰 쓰기 성공")
+    @WithUserDetails("user3")
+    void t15() throws Exception {
+        ResultActions resultActions = null;
+
+        resultActions = mvc
+                .perform(
+                        post("/api/v1/members/%d/review".formatted(3))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("""
+                                        {
+                                            "star" : 5,
+                                            "comment" : "친절합니다."
+                                        }
+                                        """.stripIndent())
+                )
+                .andDo(print());
+
+        resultActions
+                .andExpect(handler().handlerType(MemberController.class))
+                .andExpect(handler().methodName("review"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.resultCode").value("201-1"))
+                .andExpect(jsonPath("$.msg").value("후기 작성이 완료되었습니다."));
+
     }
 
 }

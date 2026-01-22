@@ -76,9 +76,12 @@ public class CustomAuthenticationFilter extends OncePerRequestFilter {
             apiKey = headerAuthorizationBits[1];
             accessToken = headerAuthorizationBits.length == 3 ? headerAuthorizationBits[2] : "";
 
+            // 헤더에 apiKey나 accessToken만 넣는 경우
             if (headerAuthorizationBits.length == 2) {
-                accessToken = headerAuthorizationBits[1];
-                apiKey = "";
+                if (headerAuthorizationBits[1].split("\\.").length == 3) {
+                    accessToken = headerAuthorizationBits[1];
+                    apiKey = "";
+                }
             }
 
         } else {
@@ -111,6 +114,7 @@ public class CustomAuthenticationFilter extends OncePerRequestFilter {
                 String username = (String) payload.get("username");
                 String name = (String) payload.get("name");
                 String role = (String) payload.get("role");
+                boolean active = (boolean) payload.get("active") ;
                 member = new Member(id, username, name, Role.from(role));
 
                 isAccessTokenValid = true;

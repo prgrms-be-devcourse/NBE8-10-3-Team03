@@ -7,8 +7,10 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.OneToOne;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Getter
+@Setter
 @Entity
 @NoArgsConstructor
 public class Reputation extends BaseEntity {
@@ -16,16 +18,14 @@ public class Reputation extends BaseEntity {
     @JoinColumn(name = "member_id")
     private Member member;
     private double score;
-    private int caution;
+    private int notifyCount; // 신고 누적 (리셋o)
+    private int totalNotifyCount;  // 신고 total 누적 (리셋x)
 
     public Reputation(Member member, double score) {
         this.member = member;
         this.score = score;
-        this.caution = 0;
-    }
-
-    public void update(int caution) {
-        this.caution = caution;
+        this.notifyCount = 0;
+        this.totalNotifyCount = 0;
     }
 
     // 10% 감소
@@ -38,5 +38,10 @@ public class Reputation extends BaseEntity {
     public void increase() {
         double newScore = this.score * 1.1;
         this.score = Math.min(newScore, 100);
+    }
+
+    public void increaseNotify() {
+        this.notifyCount++;
+        this.totalNotifyCount++;
     }
 }
