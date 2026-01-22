@@ -114,7 +114,7 @@ public class CustomAuthenticationFilter extends OncePerRequestFilter {
                 String username = (String) payload.get("username");
                 String name = (String) payload.get("name");
                 String role = (String) payload.get("role");
-                boolean active = (boolean) payload.get("active") ;
+
                 member = new Member(id, username, name, Role.from(role));
 
                 isAccessTokenValid = true;
