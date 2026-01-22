@@ -50,6 +50,11 @@ public class AuctionService {
 
     @Transactional
     public RsData<AuctionIdResponse> createAuction(AuctionCreateRequest request, Integer sellerId) {
+        // 정지된 회원의 글쓰기 방지
+        if(!memberService.findById(sellerId).get().getActive()) {
+            throw new ServiceException("403-3", "정지된 회원은 해당 기능을 사용할 수 없습니다.");
+        }
+
         // 1. 필수 값 검증
         validateAuctionRequest(request);
 
