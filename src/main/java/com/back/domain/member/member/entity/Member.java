@@ -46,8 +46,11 @@ public class Member extends BaseEntity {
     @OneToOne(mappedBy = "member", fetch = FetchType.LAZY)
     private Reputation reputation;
 
-    @OneToMany(mappedBy = "member", fetch = FetchType.LAZY)
-    private List<ReputationEvent> reputationEvents;
+    @OneToMany(mappedBy = "target", fetch = FetchType.LAZY)
+    private List<ReputationEvent> targetEvents;
+
+    @OneToMany(mappedBy = "reporter", fetch = FetchType.LAZY)
+    private List<ReputationEvent> reporterEvents;
 
     @OneToMany(mappedBy = "member", fetch = FetchType.LAZY)
     private List<Review> reviews;
