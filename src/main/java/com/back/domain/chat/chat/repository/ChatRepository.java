@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Set;
 
 public interface ChatRepository extends JpaRepository<Chat, Integer> {
     @EntityGraph(attributePaths = {"chatRoom", "chatRoom.post", "chatRoom.auction"})
@@ -18,18 +19,25 @@ public interface ChatRepository extends JpaRepository<Chat, Integer> {
 
     // 읽음 처리 (JPQL)
     @Modifying(clearAutomatically = true)
-    @Query("UPDATE Chat c SET c.isRead = true WHERE c.chatRoom.roomId = :roomId AND c.sender != :readerName AND c.isRead = false")
-    void markMessagesAsRead(@Param("roomId") String roomId,
-                            @Param("readerName") String readerName);
+    @Query("UPDATE Chat c SET c.isRead = true WHERE c.chatRoom.roomId = :roomId AND c.senderId != :readerId AND c.isRead = false")
+    void markMessagesAsRead(@Param("roomId") String roomId, @Param("readerId") Integer readerId);
 
     // 참여한 대화의 최신 메세지들 (JPQL)
     @Query("SELECT c FROM Chat c " +
-            "JOIN FETCH c.chatRoom cr " +
-            "WHERE c.id IN (" +
-            "  SELECT MAX(c2.id) FROM Chat c2 " +
-            "  WHERE c2.chatRoom.sellerId = :apiKey OR c2.chatRoom.buyerId = :apiKey " +
-            "  GROUP BY c2.chatRoom" +
-            ") " +
-            "ORDER BY c.createDate DESC")
+            "WHERE c.id IN (SELECT MAX(c2.id) FROM Chat c2 GROUP BY c2.chatRoom) " +
+            "AND ((c.chatRoom.sellerId = :apiKey AND c.chatRoom.sellerExited = false) " +
+            "OR (c.chatRoom.buyerId = :apiKey AND c.chatRoom.buyerExited = false))")
     List<Chat> findAllLatestMessagesByMember(@Param("apiKey") String apiKey);
+
+    // 안 읽은 메세지 개수 조회
+    Integer countByChatRoom_RoomIdAndIsReadFalseAndSenderIdNot(String roomId, Integer readerId);
+
+    // 안 읽은 메시지 개수 일괄 조회
+    @Query("SELECT c.chatRoom.roomId, COUNT(c) " +
+            "FROM Chat c " +
+            "WHERE c.chatRoom.roomId IN :roomIds " +
+            "AND c.isRead = false " +
+            "AND c.senderId != :myId " +
+            "GROUP BY c.chatRoom.roomId")
+    List<Object[]> countUnreadMessagesByRoomIds(@Param("roomIds") Set<String> roomIds, @Param("myId") Integer myId);
 }

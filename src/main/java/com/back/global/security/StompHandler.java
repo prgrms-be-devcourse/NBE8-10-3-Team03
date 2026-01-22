@@ -23,6 +23,7 @@ public class StompHandler implements ChannelInterceptor {
     private final MemberService memberService;
 
     public Message<?> preSend(Message<?> message, MessageChannel channel) {
+        // accessor를 이용해 헤더 정보만 빼옴
         StompHeaderAccessor accessor = MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
 
         if (StompCommand.CONNECT == accessor.getCommand()) {
@@ -31,6 +32,7 @@ public class StompHandler implements ChannelInterceptor {
             if (token != null && token.startsWith("Bearer ")) {
                 token = token.substring(7);
 
+                // 복호화
                 Map<String, Object> payload = memberService.payload(token);
 
                 if (payload != null) {
@@ -46,6 +48,8 @@ public class StompHandler implements ChannelInterceptor {
                     );
 
                     Authentication auth = new UsernamePasswordAuthenticationToken(user, "", user.getAuthorities() );
+
+                    accessor.setUser(auth);
                 }
             }
         }

@@ -36,6 +36,12 @@ public class ChatRoom extends BaseEntity {
     @Column(name = "buyer_id", nullable = false)
     private String buyerId;  // 구매자 id
 
+    @Column(name = "seller_exited", nullable = false)
+    private boolean sellerExited = false;
+
+    @Column(name = "buyer_exited", nullable = false)
+    private boolean buyerExited = false;
+
     @Builder
     private ChatRoom(String roomId,
                      ChatRoomType txType,
@@ -73,5 +79,16 @@ public class ChatRoom extends BaseEntity {
                 .sellerId(post.getSeller().getApiKey())
                 .buyerId(buyer.getApiKey())
                 .build();
+    }
+
+    // 퇴장
+    public void exit(String apiKey) {
+        if (this.sellerId.equals(apiKey)) this.sellerExited = true;
+        if (this.buyerId.equals(apiKey)) this.buyerExited = true;
+    }
+
+    // 둘 다 나갔는지 확인
+    public boolean isBothExited() {
+        return sellerExited && buyerExited;
     }
 }
