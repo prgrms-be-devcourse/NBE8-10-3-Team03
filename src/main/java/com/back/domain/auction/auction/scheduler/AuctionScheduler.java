@@ -54,7 +54,7 @@ public class AuctionScheduler {
         if (highestBid.isPresent()) {
             // 입찰이 있으면 낙찰 처리
             Bid winningBid = highestBid.get();
-            auction.completeWithWinner(winningBid.getBidder().getId(), winningBid.getId());
+            auction.completeWithWinner(winningBid.getBidder().getId());
 
             log.info("경매 ID {} 낙찰 완료 - 낙찰자: {}, 낙찰가: {}원",
                     auction.getId(),

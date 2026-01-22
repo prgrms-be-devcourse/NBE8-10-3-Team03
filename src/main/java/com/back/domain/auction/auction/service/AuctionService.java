@@ -23,9 +23,10 @@ import com.back.domain.member.member.repository.MemberRepository;
 import com.back.domain.member.member.service.MemberService;
 import com.back.global.exception.ServiceException;
 import com.back.global.rsData.RsData;
+import com.back.global.util.PageUtils;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -35,6 +36,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.time.LocalDateTime;
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -50,8 +52,11 @@ public class AuctionService {
 
     @Transactional
     public RsData<AuctionIdResponse> createAuction(AuctionCreateRequest request, Integer sellerId) {
+        log.debug("경매 생성 시작 - 판매자 ID: {}, 물품명: {}, 시작가: {}원", sellerId, request.getName(), request.getStartPrice());
+
         // 정지된 회원의 글쓰기 방지
         if(!memberService.findById(sellerId).get().getActive()) {
+            log.warn("경매 생성 실패 - 정지된 회원: 사용자 ID: {}", sellerId);
             throw new ServiceException("403-3", "정지된 회원은 해당 기능을 사용할 수 없습니다.");
         }
 
@@ -69,6 +74,7 @@ public class AuctionService {
         // 4. 경매 시작/종료 시간 설정
         LocalDateTime startAt = LocalDateTime.now();
         LocalDateTime endAt = startAt.plusHours(request.getDurationHours());
+        log.debug("경매 시간 설정 - 시작: {}, 종료: {}", startAt, endAt);
 
         // 5. 경매 엔티티 생성
         Auction auction = Auction.builder()
@@ -87,8 +93,13 @@ public class AuctionService {
 
         // 7. 이미지 처리 (선택사항)
         if (request.getImages() != null && !request.getImages().isEmpty()) {
+            log.debug("경매 이미지 저장 시작 - 경매 ID: {}, 이미지 수: {}", savedAuction.getId(), request.getImages().size());
             saveAuctionImages(request.getImages(), savedAuction);
         }
+
+        log.info("경매 생성 완료 - 경매 ID: {}, 판매자: {} ({}), 카테고리: {}, 시작가: {}원, 즉시구매가: {}원",
+                savedAuction.getId(), seller.getNickname(), sellerId, category.getName(),
+                request.getStartPrice(), request.getBuyNowPrice());
 
         AuctionIdResponse responseData = new AuctionIdResponse(
                 savedAuction.getId(),
@@ -137,17 +148,9 @@ public class AuctionService {
             String categoryName,
             String status
     ) {
-        // 파라미터 검증
-        if (page < 0) {
-            throw new ServiceException("400-1", "페이지 번호는 0 이상이어야 합니다.");
-        }
-        if (size <= 0) {
-            throw new ServiceException("400-1", "페이지 크기는 1 이상이어야 합니다.");
-        }
-
-        // 정렬 설정
+        // 정렬 설정 및 페이징 생성
         Sort sort = createSort(sortBy);
-        Pageable pageable = PageRequest.of(page, size, sort);
+        Pageable pageable = PageUtils.createPageable(page, size, sort);
 
         // 상태 변환
         AuctionStatus auctionStatus = null;
@@ -317,12 +320,15 @@ public class AuctionService {
 
     @Transactional
     public RsData<AuctionDeleteResponse> deleteAuction(Integer auctionId, Integer memberId) {
+        log.debug("경매 삭제 시작 - 경매 ID: {}, 요청자 ID: {}", auctionId, memberId);
+
         // 1. 경매 조회
         Auction auction = auctionRepository.findById(auctionId)
                 .orElseThrow(() -> new ServiceException("404-1", "존재하지 않는 경매입니다."));
 
         // 2. 판매자 권한 확인
         if (!auction.isSeller(memberId)) {
+            log.warn("경매 삭제 실패 - 권한 없음: 경매 ID: {}, 요청자 ID: {}", auctionId, memberId);
             throw new ServiceException("403-1", "경매를 삭제할 권한이 없습니다.");
         }
 
@@ -332,6 +338,9 @@ public class AuctionService {
         // 4. 경매 삭제
         auctionRepository.delete(auction);
 
+        log.info("경매 삭제 완료 - 경매 ID: {}, 판매자 ID: {}, 입찰 수: {}",
+                auctionId, memberId, auction.getBidCount());
+
         AuctionDeleteResponse response = new AuctionDeleteResponse("경매가 정상적으로 취소되었습니다.");
 
         return new RsData<>("200-1", "경매가 정상적으로 취소되었습니다.", response);
@@ -339,6 +348,8 @@ public class AuctionService {
 
     @Transactional
     public RsData<Void> cancelTrade(Integer auctionId, Integer memberId) {
+        log.debug("거래 취소 시작 - 경매 ID: {}, 요청자 ID: {}", auctionId, memberId);
+
         // 1. 경매 조회
         Auction auction = auctionRepository.findById(auctionId)
                 .orElseThrow(() -> new ServiceException("404-1", "존재하지 않는 경매입니다."));
@@ -348,14 +359,19 @@ public class AuctionService {
         try {
             role = auction.determineCancellerRole(memberId);
         } catch (IllegalStateException e) {
+            log.warn("거래 취소 실패 - 상태 오류: 경매 ID: {}, 사유: {}", auctionId, e.getMessage());
             throw new ServiceException("400-1", e.getMessage());
         } catch (IllegalArgumentException e) {
+            log.warn("거래 취소 실패 - 권한 없음: 경매 ID: {}, 요청자 ID: {}", auctionId, memberId);
             throw new ServiceException("403-1", e.getMessage());
         }
 
         // 3. 거래 취소 처리 (누가 취소했는지 기록)
         auction.cancelTrade(memberId, role);
         auctionRepository.save(auction);
+
+        log.info("거래 취소 완료 - 경매 ID: {}, 취소자 역할: {}, 취소자 ID: {}",
+                auctionId, role, memberId);
 
         return new RsData<>("200-1", "거래가 취소되었습니다.", null);
     }
