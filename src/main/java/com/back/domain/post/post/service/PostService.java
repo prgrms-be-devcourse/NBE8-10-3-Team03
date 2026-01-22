@@ -77,6 +77,10 @@ public class PostService {
             throw new ServiceException("403-1", "자신의 글만 수정할 수 있습니다.");
         }
 
+        if (!actor.getActive()) {
+            throw new ServiceException("403-3", "정지된 회원은 해당 기능을 사용할 수 없습니다.");
+        }
+
         Category category = categoryRepository.findById(req.getCategoryId())
                 .orElseThrow(() -> new ServiceException("404-2", "카테고리 오류"));
 
