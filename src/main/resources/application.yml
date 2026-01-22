@@ -48,6 +48,19 @@ spring:
 file:
   upload-dir: ./uploads
 
+# Redis 설정
+spring.data.redis:
+  host: localhost
+  port: 6379
+  # password: # 비밀번호가 있다면 설정
+
+# Cache 설정
+spring.cache:
+  type: redis
+  redis:
+    time-to-live: 600000  # 10분 (밀리초)
+    cache-null-values: false
+
 # Swagger 설정
 springdoc:
   api-docs:
