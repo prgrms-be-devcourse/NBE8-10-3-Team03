@@ -14,7 +14,8 @@ public record PostListResponse(
     String statusDisplayName,
     long viewCount,
     int sellerId,
-    String sellerNickname
+    String sellerNickname,
+    String sellerBadge
 ) {
     public PostListResponse(Post post) {
         this(
@@ -29,7 +30,16 @@ public record PostListResponse(
                 post.getStatus().getDisplayName(),
                 post.getViewCount(),
                 post.getSeller().getId(),
-                post.getSeller().getNickname()
+                post.getSeller().getNickname(),
+                calculateBadge(post.getSeller().getReputation().getScore())
         );
+    }
+
+    public static String calculateBadge(Double score) {
+        if (score == null) return "일반 판매자";
+        if (score >= 80) return "안전한 판매자";
+        if (score >= 60) return "우수 판매자";
+        if (score >= 40) return "일반 판매자";
+        return "주의 판매자";
     }
 }

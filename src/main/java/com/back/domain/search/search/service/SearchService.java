@@ -2,6 +2,7 @@ package com.back.domain.search.search.service;
 
 import com.back.domain.auction.auction.entity.Auction;
 import com.back.domain.auction.auction.repository.AuctionRepository;
+import com.back.domain.post.post.dto.PostListResponse;
 import com.back.domain.post.post.entity.Post;
 import com.back.domain.post.post.repository.PostRepository;
 import com.back.domain.search.search.dto.UnifiedSearchResponse;
@@ -51,6 +52,7 @@ public class SearchService {
                 .viewCount(post.getViewCount())
                 .sellerId(post.getSeller().getId())
                 .sellerNickname(post.getSeller().getNickname())
+                .sellerBadge(PostListResponse.calculateBadge(post.getSeller().getReputation().getScore()))
                 .build()
         ));
 
