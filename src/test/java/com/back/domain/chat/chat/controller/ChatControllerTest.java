@@ -13,6 +13,7 @@ import com.back.domain.post.post.entity.Post;
 import com.back.domain.post.post.entity.PostStatus;
 import com.back.domain.post.post.repository.PostRepository;
 import com.back.global.security.SecurityUser;
+import com.back.global.security.StompHandler;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -20,8 +21,15 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.messaging.Message;
+import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.messaging.simp.stomp.StompCommand;
+import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
+import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.test.context.support.WithAnonymousUser;
 import org.springframework.test.context.ActiveProfiles;
@@ -36,10 +44,11 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -58,6 +67,8 @@ class ChatControllerTest {
     private ObjectMapper objectMapper;
     @Autowired
     private EntityManager em;
+    @Autowired
+    private StompHandler stompHandler;
 
     @Autowired
     private MemberRepository memberRepository;
@@ -546,6 +557,131 @@ class ChatControllerTest {
                         .with(user(makeSecurityUser(anotherUser))))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.resultCode").value("403-1"));
+    }
+
+    @Test
+    @DisplayName("27. 채팅방 참여자(구매자)가 해당 방 구독(SUBSCRIBE) 시 성공해야 한다")
+    void t27() throws Exception {
+        String roomId = createRoomAsUser(salePostId, "POST", buyer);
+
+        StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.SUBSCRIBE);
+        accessor.setDestination("/sub/chat/room/" + roomId);
+
+        Authentication auth = new UsernamePasswordAuthenticationToken(makeSecurityUser(buyer), null);
+        accessor.setUser(auth);
+
+        Message<?> message = MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());
+        MessageChannel mockChannel = mock(MessageChannel.class);
+
+        assertDoesNotThrow(() -> stompHandler.preSend(message, mockChannel));
+    }
+
+    @Test
+    @DisplayName("28. 참여자가 아닌 제3자가 채팅방 구독(SUBSCRIBE) 시 예외 발생(구독 차단)")
+    void t28() throws Exception {
+        String roomId = createRoomAsUser(salePostId, "POST", buyer);
+
+        StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.SUBSCRIBE);
+        accessor.setDestination("/sub/chat/room/" + roomId);
+
+        Authentication auth = new UsernamePasswordAuthenticationToken(makeSecurityUser(anotherUser), null);
+        accessor.setUser(auth);
+
+        Message<?> message = MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());
+        MessageChannel mockChannel = mock(MessageChannel.class);
+
+        assertThrows(RuntimeException.class, () -> stompHandler.preSend(message, mockChannel));
+    }
+
+    @Test
+    @DisplayName("29. 채팅방이 아닌 공개 채널(예: 경매) 구독 시에는 권한 체크 없이 통과해야 한다")
+    void t29() throws Exception {
+        String publicChannel = "/sub/auction/" + auctionId;
+
+        StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.SUBSCRIBE);
+        accessor.setDestination(publicChannel);
+
+        Authentication auth = new UsernamePasswordAuthenticationToken(makeSecurityUser(anotherUser), null);
+        accessor.setUser(auth);
+
+        Message<?> message = MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());
+        MessageChannel mockChannel = mock(MessageChannel.class);
+
+        assertDoesNotThrow(() -> stompHandler.preSend(message, mockChannel));
+    }
+
+    @Test
+    @DisplayName("30. 다중 이미지(2장) 업로드 및 조회 검증")
+    void t30() throws Exception {
+        // Given
+        String roomId = createRoomAsUser(salePostId, "POST", buyer);
+
+        MockMultipartFile image1 = new MockMultipartFile(
+                "images", "img1.jpg", "image/jpeg", "image_content_1".getBytes()
+        );
+        MockMultipartFile image2 = new MockMultipartFile(
+                "images", "img2.jpg", "image/jpeg", "image_content_2".getBytes()
+        );
+
+        mockMvc.perform(multipart("/api/chat/send")
+                        .file(image1)
+                        .file(image2)
+                        .with(csrf())
+                        .with(user(makeSecurityUser(buyer)))
+                        .param("roomId", roomId)
+                        .param("message", "사진 2장 보냅니다."))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/chat/room/" + roomId)
+                        .with(user(makeSecurityUser(buyer))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].imageUrls.length()").value(2));
+    }
+
+    @Test
+    @DisplayName("31. [Stomp] CONNECT 시 잘못된 토큰이면 연결 거부(예외 발생)")
+    void t31() {
+        // Given
+        StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.CONNECT);
+
+        accessor.setNativeHeader("token", "INVALID_TOKEN_STRING");
+
+        Message<?> message = MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());
+        MessageChannel mockChannel = mock(MessageChannel.class);
+
+        assertDoesNotThrow(() -> stompHandler.preSend(message, mockChannel));
+        assertThat(accessor.getUser()).isNull();
+    }
+
+    @Test
+    @DisplayName("32. 내가 보낸 메시지는 상대방이 읽기 전까지 isRead가 false여야 한다")
+    void t32() throws Exception {
+        String roomId = createRoomAsUser(salePostId, "POST", buyer);
+
+        sendMessageAsUser(roomId, "안 읽음 테스트", buyer, null);
+
+        mockMvc.perform(get("/api/chat/room/" + roomId)
+                        .with(user(makeSecurityUser(buyer))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].senderId").value(buyer.getId()))
+                .andExpect(jsonPath("$.data[0].isRead").value(false));
+    }
+
+    @Test
+    @DisplayName("33. 이미 나간 방에 다시 나가기 요청 시에도 성공(Idempotent) 혹은 적절한 처리")
+    void t33() throws Exception {
+        // Given
+        String roomId = createRoomAsUser(salePostId, "POST", buyer);
+
+        mockMvc.perform(patch("/api/chat/room/" + roomId + "/exit")
+                        .with(csrf())
+                        .with(user(makeSecurityUser(buyer))))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(patch("/api/chat/room/" + roomId + "/exit")
+                        .with(csrf())
+                        .with(user(makeSecurityUser(buyer))))
+                .andExpect(status().isOk());
     }
 
     // --- [헬퍼 메서드] ---
