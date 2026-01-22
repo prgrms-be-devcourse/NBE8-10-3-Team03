@@ -6,6 +6,7 @@ import com.back.domain.bid.bid.dto.response.BidResponse;
 import com.back.domain.bid.bid.entity.Bid;
 import com.back.domain.bid.bid.service.BidService;
 import com.back.domain.member.member.entity.Member;
+import com.back.global.rq.Rq;
 import com.back.global.rsData.RsData;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -14,7 +15,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
-import org.springframework.security.test.context.support.WithUserDetails;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -46,31 +47,37 @@ public class BidControllerTest {
     private ObjectMapper objectMapper;
 
     @MockitoBean
+    private Rq rq;
+
+    @MockitoBean
     private BidService bidService;
 
     @MockitoBean
     private SimpMessagingTemplate messagingTemplate;
 
-    @Test
-    @DisplayName("입찰이 성공하면 HTTP 응답과 함께 웹소켓으로 메시지가 전송되어야 한다")
-    @WithUserDetails("user1")
-    void t1() throws Exception {
 
+    @Test
+    @DisplayName("1. 입찰이 성공하면 HTTP 응답과 함께 웹소켓으로 메시지가 전송되어야 한다")
+    @WithMockUser(username = "user1")
+    void t1() throws Exception {
         Integer auctionId = 1;
         Integer bidPrice = 50000;
         BidCreateRequest request = new BidCreateRequest();
         request.setPrice(bidPrice);
 
+        Member mockActor = mock(Member.class);
+        when(mockActor.getId()).thenReturn(1);
+        when(mockActor.getNickname()).thenReturn("user1");
+
+        when(rq.getActor()).thenReturn(mockActor);
+
         Bid mockBid = mock(Bid.class);
         Auction mockAuction = mock(Auction.class);
-        Member mockBidder = mock(Member.class);
 
         when(mockBid.getId()).thenReturn(100);
         when(mockBid.getAuction()).thenReturn(mockAuction);
         when(mockAuction.getId()).thenReturn(auctionId);
-        when(mockBid.getBidder()).thenReturn(mockBidder);
-        when(mockBidder.getId()).thenReturn(1);
-        when(mockBidder.getNickname()).thenReturn("user1");
+        when(mockBid.getBidder()).thenReturn(mockActor); // 입찰자 설정
         when(mockBid.getPrice()).thenReturn(bidPrice);
         when(mockBid.getCreatedAt()).thenReturn(LocalDateTime.now());
 
@@ -102,5 +109,37 @@ public class BidControllerTest {
                 eq("/sub/auctions/" + auctionId),
                 any(RsData.class)
         );
+    }
+
+    @Test
+    @DisplayName("2. 입찰 서비스 실패(예: 금액 부족) 시 WebSocket 알림이 전송되지 않아야 한다")
+    @WithMockUser(username = "user1")
+    void t2() throws Exception {
+        // Given
+        int auctionId = 1;
+        int bidPrice = 500; // 낮은 금액
+        BidCreateRequest request = new BidCreateRequest();
+        request.setPrice(bidPrice);
+
+        Member mockMember = mock(Member.class);
+        when(mockMember.getId()).thenReturn(1);
+        when(rq.getActor()).thenReturn(mockMember);
+
+        // 서비스가 실패 응답(400-1)을 리턴한다고 가정
+        RsData<BidResponse> failResponse = new RsData<>("400-1", "입찰 금액이 현재가보다 낮습니다.", null);
+        when(bidService.createBid(anyInt(), any(BidCreateRequest.class), anyInt()))
+                .thenReturn(failResponse);
+
+        // When
+        mvc.perform(post("/api/auctions/" + auctionId + "/bids")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                // [수정] 실제 응답인 400 Bad Request를 검증해야 함
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.resultCode").value("400-1"));
+
+        // Then
+        verify(messagingTemplate, never()).convertAndSend(anyString(), (Object) any());
     }
 }
