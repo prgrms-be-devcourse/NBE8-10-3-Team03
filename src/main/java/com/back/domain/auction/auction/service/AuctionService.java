@@ -19,6 +19,7 @@ import com.back.domain.category.category.repository.CategoryRepository;
 import com.back.domain.image.image.entity.Image;
 import com.back.domain.image.image.repository.ImageRepository;
 import com.back.domain.member.member.entity.Member;
+import com.back.domain.member.member.enums.MemberStatus;
 import com.back.domain.member.member.repository.MemberRepository;
 import com.back.domain.member.member.service.MemberService;
 import com.back.global.exception.ServiceException;
@@ -55,7 +56,7 @@ public class AuctionService {
         log.debug("경매 생성 시작 - 판매자 ID: {}, 물품명: {}, 시작가: {}원", sellerId, request.getName(), request.getStartPrice());
 
         // 정지된 회원의 글쓰기 방지
-        if(!memberService.findById(sellerId).get().getActive()) {
+        if(memberService.findById(sellerId).get().getStatus() == MemberStatus.SUSPENDED) {
             log.warn("경매 생성 실패 - 정지된 회원: 사용자 ID: {}", sellerId);
             throw new ServiceException("403-3", "정지된 회원은 해당 기능을 사용할 수 없습니다.");
         }
