@@ -57,6 +57,7 @@ public class Member extends BaseEntity {
     @Column(nullable = true)
     private LocalDateTime suspendAt;  // 정지 시각
 
+
     public Member(int id, String username, String name, Role role) {
         setId(id);
         this.username = username;
@@ -78,17 +79,45 @@ public class Member extends BaseEntity {
         setRole(Role.USER);
     }
 
-    public String getName() {
-        return nickname;
+
+    public void checkActorCanModify(Member actor) {
+        if (!actor.equals(this))
+            throw new ServiceException("403-1", "수정권한이 없습니다.".formatted(getId()));
     }
 
-    public void setName(String name) {
-        this.nickname = name;
-    }
 
     public void modifyApiKey(String apiKey) {
         this.apiKey = apiKey;
     }
+
+    public void modifyName(String nickname) {
+        this.nickname = nickname;
+    }
+
+    public void modifyPassword(String password) {
+        this.password = password;
+    }
+
+    public void modify(String nickname, String profileImgUrl) {
+        this.nickname = nickname;
+        this.profileImgUrl = profileImgUrl;
+    }
+
+
+    public void suspend() {
+        this.active = false;
+        this.suspendAt = LocalDateTime.now();
+    }
+
+    public void release() {
+        this.active = true;
+        this.suspendAt = null;
+    }
+
+    public boolean getActive() {
+        return active;
+    }
+
 
     public boolean isAdmin() {
         if (this.role == Role.ADMIN) return true;
@@ -114,37 +143,5 @@ public class Member extends BaseEntity {
         }
 
         return authorities;
-    }
-
-    public void checkActorCanModify(Member actor) {
-        if (!actor.equals(this))
-            throw new ServiceException("403-1", "수정권한이 없습니다.".formatted(getId()));
-    }
-
-    public void modifyName(String nickname) {
-        this.nickname = nickname;
-    }
-
-    public void modifyPassword(String password) {
-        this.password = password;
-    }
-
-    public void modify(String nickname, String profileImgUrl) {
-        this.nickname = nickname;
-        this.profileImgUrl = profileImgUrl;
-    }
-
-    public void suspend() {
-        this.active = false;
-        this.suspendAt = LocalDateTime.now();
-    }
-
-    public void release() {
-        this.active = true;
-        this.suspendAt = null;
-    }
-
-    public boolean getActive() {
-        return active;
     }
 }

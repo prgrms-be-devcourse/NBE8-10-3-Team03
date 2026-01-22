@@ -7,6 +7,4 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface ReputationEventRepository extends JpaRepository<ReputationEvent, Integer> {
-    @Query("SELECT COUNT(re.member.id) FROM ReputationEvent re WHERE re.member.id = :userId AND re.eventType = :eventType")
-    int findByUserIdWithSum(@Param("userId") int userId, @Param("eventType") EventType eventType);
 }

@@ -1,7 +1,6 @@
 package com.back.domain.member.member.service;
 
 import com.back.domain.member.member.entity.Member;
-import com.back.domain.member.member.enums.Role;
 import com.back.standard.util.Ut;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -19,7 +18,7 @@ public class AuthTokenService {
     String genAccessToken(Member member) {
         int id = member.getId();
         String username = member.getUsername();
-        String name = member.getName();
+        String name = member.getNickname();
         String role = member.getRole().name();
 
         return Ut.jwt.toString(

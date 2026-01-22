@@ -26,7 +26,7 @@ public record MemberWithUsernameDto(
                 member.getId(),
                 member.getCreateDate(),
                 member.getModifyDate(),
-                member.getName(),
+                member.getNickname(),
                 member.getUsername(),
                 member.getReputation().getScore()
 

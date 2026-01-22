@@ -15,15 +15,10 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
-import lombok.SneakyThrows;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
-import java.net.InetAddress;
 import java.util.List;
-
-import static java.net.InetAddress.getLocalHost;
-import static org.springframework.util.MimeTypeUtils.TEXT_HTML_VALUE;
 
 @RestController
 @RequestMapping("/api/v1/members")
@@ -61,7 +56,7 @@ public class MemberController {
 
         return new RsData<>(
                 "201-1",
-                "%s님 환영합니다. 회원가입이 완료되었습니다.".formatted(member.getName()),
+                "%s님 환영합니다. 회원가입이 완료되었습니다.".formatted(member.getNickname()),
                 new MemberDto(member)
         );
     }
@@ -106,7 +101,7 @@ public class MemberController {
 
         return new RsData<>(
                 "200-1",
-                "%s님 환영합니다.".formatted(member.getName()),
+                "%s님 환영합니다.".formatted(member.getNickname()),
                 new MemberLoginResBody(
                         new MemberDto(member),
                         member.getApiKey(),
