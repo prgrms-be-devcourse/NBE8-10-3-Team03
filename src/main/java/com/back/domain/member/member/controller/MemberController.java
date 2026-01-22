@@ -1,14 +1,19 @@
 package com.back.domain.member.member.controller;
 
+import com.back.domain.auction.auction.dto.response.AuctionPageResponse;
+import com.back.domain.auction.auction.service.AuctionService;
 import com.back.domain.member.member.dto.MemberDto;
 import com.back.domain.member.member.dto.MemberWithUsernameDto;
 import com.back.domain.member.review.dto.ReviewDto;
 import com.back.domain.member.member.entity.Member;
 import com.back.domain.member.member.service.MemberService;
+import com.back.domain.post.post.dto.PostPageResponse;
+import com.back.domain.post.post.service.PostService;
 import com.back.global.exception.ServiceException;
 import com.back.global.rq.Rq;
 import com.back.global.rsData.RsData;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -20,6 +25,9 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
@@ -32,6 +40,8 @@ import java.util.List;
 public class MemberController {
 
     private final MemberService memberService;
+    private final AuctionService auctionService;
+    private final PostService postService;
     private final Rq rq;
 
     record MemberJoinReqBody(
@@ -271,6 +281,31 @@ public class MemberController {
         Member actor = rq.getActorFromDb();
 
         return new MemberWithUsernameDto(actor);
+    }
+
+    @GetMapping("/me/auctions")
+    @Transactional(readOnly = true)
+    @Operation(summary = "내 경매 조회")
+    public RsData<AuctionPageResponse> getAuctionsById(
+            @Parameter(description = "페이지 번호", example = "0") @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "페이지 크기", example = "20") @RequestParam(defaultValue = "20") int size,
+            @Parameter(description = "정렬", example = "createdAt,desc") @RequestParam(required = false) String sort,
+            @Parameter(description = "상태", example = "OPEN") @RequestParam(required = false) String status
+    ) {
+        Member member = rq.getActor();
+        return auctionService.getAuctionsByUserId(member.getId(), page, size, sort, status);
+    }
+
+    @GetMapping("/me/posts")
+    @Transactional(readOnly = true)
+    @Operation(summary = "내 거래 조회")
+    public RsData<PostPageResponse> getPostsById(
+            @PageableDefault(size = 10, sort = "createDate", direction = Sort.Direction.DESC) Pageable pageable,
+            @RequestParam(required = false) String status
+    ) {
+        Member member = rq.getActor();
+        PostPageResponse response = postService.getListByUserId(pageable, member.getId(), status);
+        return new RsData<>("200-4", "목록 조회 성공", response);
     }
 
 
