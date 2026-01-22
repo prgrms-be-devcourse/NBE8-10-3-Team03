@@ -209,8 +209,9 @@ public class MemberController {
     @PatchMapping("/{userId}/credit")
     public RsData<Void> decrease(@PathVariable int userId) {
         Member member = memberService.findById(userId).get();
+        Member reporter = rq.getActor();
 
-        memberService.decreaseByNofiy(member);
+        memberService.decreaseByNofiy(member, reporter);
 
         return new RsData<>(
                 "200-1",
