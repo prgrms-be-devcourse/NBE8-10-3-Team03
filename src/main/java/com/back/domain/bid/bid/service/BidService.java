@@ -15,6 +15,7 @@ import com.back.global.rsData.RsData;
 import com.back.global.util.PageUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -33,7 +34,9 @@ public class BidService {
     private final AuctionRepository auctionRepository;
     private final MemberRepository memberRepository;
 
+    @CacheEvict(value = "auction", key = "#auctionId")
     @Transactional
+        log.info("💰 입찰 발생 - 경매 캐시 삭제: auctionId={}", auctionId);
     public RsData<BidResponse> createBid(Integer auctionId, BidCreateRequest request, Integer bidderId) {
         log.debug("입찰 시작 - 경매 ID: {}, 입찰자 ID: {}, 입찰가: {}원", auctionId, bidderId, request.getPrice());
 

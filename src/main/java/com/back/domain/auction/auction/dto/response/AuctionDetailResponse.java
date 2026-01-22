@@ -5,12 +5,14 @@ import com.back.domain.auction.auction.entity.AuctionStatus;
 import com.back.domain.auction.auction.entity.CancellerRole;
 import lombok.Getter;
 
+import java.io.Serializable;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
 @Getter
-public class AuctionDetailResponse {
+public class AuctionDetailResponse implements Serializable {
+    private static final long serialVersionUID = 1L;
     private final Integer auctionId;
     private final String name;
     private final String description;

@@ -27,6 +27,10 @@ import com.back.global.rsData.RsData;
 import com.back.global.util.PageUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -255,9 +259,15 @@ public class AuctionService {
 
         // 첫 번째 이미지를 썸네일로 사용
         return auction.getAuctionImages().get(0).getImage().getUrl();
+    @Cacheable(value = "auction", key = "#auctionId")
     }
+        log.info("🔍 [Cache Miss] DB에서 경매 조회 - auctionId: {}", auctionId);
 
+
+    @Cacheable(value = "auction", key = "#auctionId")
     public RsData<AuctionDetailResponse> getAuctionDetail(Integer auctionId) {
+        log.info("🔍 [Cache Miss] DB에서 경매 조회 - auctionId: {}", auctionId);
+
         Auction auction = auctionRepository.findWithDetailsById(auctionId)
                 .orElseThrow(() -> new ServiceException("404-1", "존재하지 않는 경매입니다."));
 
@@ -267,7 +277,10 @@ public class AuctionService {
     }
 
     @Transactional
+    @CacheEvict(value = "auction", key = "#auctionId")
     public RsData<AuctionUpdateResponse> updateAuction(Integer auctionId, AuctionUpdateRequest request, Integer memberId) {
+        log.info("✏️ 경매 수정 - 캐시 삭제: auctionId={}", auctionId);
+
         // 1. 경매 조회
         Auction auction = auctionRepository.findWithDetailsById(auctionId)
                 .orElseThrow(() -> new ServiceException("404-1", "존재하지 않는 경매입니다."));
@@ -354,7 +367,9 @@ public class AuctionService {
                 Image image = new Image(imageUrl);
                 Image savedImage = imageRepository.save(image);
                 AuctionImage auctionImage = new AuctionImage(auction, savedImage);
+    @CacheEvict(value = "auction", key = "#auctionId")
                 auction.addAuctionImage(auctionImage);
+        log.info("🗑️ 경매 삭제 - 캐시 삭제: auctionId={}", auctionId);
             } catch (Exception e) {
                 throw new ServiceException("500-1", "이미지 저장에 실패했습니다: " + e.getMessage());
             }
