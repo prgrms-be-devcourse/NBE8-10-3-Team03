@@ -23,6 +23,7 @@ import com.back.domain.member.member.repository.MemberRepository;
 import com.back.domain.member.member.service.MemberService;
 import com.back.global.exception.ServiceException;
 import com.back.global.rsData.RsData;
+import com.back.global.util.PageUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -136,17 +137,9 @@ public class AuctionService {
             String sortBy,
             String categoryName,
             String status
-    ) {
-        // 파라미터 검증
-        if (page < 0) {
-            throw new ServiceException("400-1", "페이지 번호는 0 이상이어야 합니다.");
-        }
-        if (size <= 0) {
-            throw new ServiceException("400-1", "페이지 크기는 1 이상이어야 합니다.");
-        }
-
+        // 정렬 설정 및 페이징 생성
         // 정렬 설정
-        Sort sort = createSort(sortBy);
+        Pageable pageable = PageUtils.createPageable(page, size, sort);
         Pageable pageable = PageRequest.of(page, size, sort);
 
         // 상태 변환
