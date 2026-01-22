@@ -88,7 +88,7 @@ public class BidControllerTest {
                 .thenReturn(rsData);
 
         ResultActions resultActions = mvc
-                .perform(post("/api/auctions/" + auctionId + "/bids")
+                .perform(post("/api/v1/auctions/" + auctionId + "/bids")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request))
@@ -131,7 +131,7 @@ public class BidControllerTest {
                 .thenReturn(failResponse);
 
         // When
-        mvc.perform(post("/api/auctions/" + auctionId + "/bids")
+        mvc.perform(post("/api/v1/auctions/" + auctionId + "/bids")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))

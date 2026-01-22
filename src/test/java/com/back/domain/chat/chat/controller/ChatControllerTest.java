@@ -179,7 +179,7 @@ class ChatControllerTest {
     @Test
     @DisplayName("1. 일반 상품 채팅방 생성 성공")
     void t1() throws Exception {
-        mockMvc.perform(post("/api/chat/room")
+        mockMvc.perform(post("/api/v1/chat/room")
                         .with(csrf())
                         .with(user(makeSecurityUser(buyer)))
                         .param("itemId", String.valueOf(salePostId))
@@ -191,7 +191,7 @@ class ChatControllerTest {
     @Test
     @DisplayName("2. 경매 상품 채팅방 생성 성공")
     void t2() throws Exception {
-        mockMvc.perform(post("/api/chat/room")
+        mockMvc.perform(post("/api/v1/chat/room")
                         .with(csrf())
                         .with(user(makeSecurityUser(buyer)))
                         .param("itemId", String.valueOf(auctionId))
@@ -213,7 +213,7 @@ class ChatControllerTest {
     @Test
     @DisplayName("4. 존재하지 않는 상품 ID 요청 시 예외 발생")
     void t4() throws Exception {
-        mockMvc.perform(post("/api/chat/room")
+        mockMvc.perform(post("/api/v1/chat/room")
                         .with(csrf())
                         .with(user(makeSecurityUser(buyer)))
                         .param("itemId", "999999")
@@ -229,7 +229,7 @@ class ChatControllerTest {
                 999999, "unknown", "", "unknown", Role.USER, List.of(new SimpleGrantedAuthority("ROLE_USER"))
         );
 
-        mockMvc.perform(post("/api/chat/room")
+        mockMvc.perform(post("/api/v1/chat/room")
                         .with(csrf())
                         .with(user(unknownUser))
                         .param("itemId", String.valueOf(salePostId))
@@ -242,7 +242,7 @@ class ChatControllerTest {
     @Test
     @DisplayName("6. 판매 중(SALE)이 아닌 상품(SOLD)에 채팅 시도 시 예외 발생")
     void t6() throws Exception {
-        mockMvc.perform(post("/api/chat/room")
+        mockMvc.perform(post("/api/v1/chat/room")
                         .with(csrf())
                         .with(user(makeSecurityUser(buyer)))
                         .param("itemId", String.valueOf(soldPostId))
@@ -255,7 +255,7 @@ class ChatControllerTest {
     @Test
     @DisplayName("7. 본인(판매자)이 본인 상품에 채팅 시도 시 예외 발생")
     void t7() throws Exception {
-        mockMvc.perform(post("/api/chat/room")
+        mockMvc.perform(post("/api/v1/chat/room")
                         .with(csrf())
                         .with(user(makeSecurityUser(seller)))
                         .param("itemId", String.valueOf(salePostId))
@@ -267,7 +267,7 @@ class ChatControllerTest {
     @Test
     @DisplayName("8. 지원하지 않는 거래 타입(TxType) 요청")
     void t8() throws Exception {
-        mockMvc.perform(post("/api/chat/room")
+        mockMvc.perform(post("/api/v1/chat/room")
                         .with(csrf())
                         .with(user(makeSecurityUser(buyer)))
                         .param("itemId", String.valueOf(salePostId))
@@ -278,7 +278,7 @@ class ChatControllerTest {
     @Test
     @DisplayName("9. 본인(판매자)이 본인 경매에 채팅 시도 시 예외 발생")
     void t9() throws Exception {
-        mockMvc.perform(post("/api/chat/room")
+        mockMvc.perform(post("/api/v1/chat/room")
                         .with(csrf())
                         .with(user(makeSecurityUser(seller)))
                         .param("itemId", String.valueOf(auctionId))
@@ -293,7 +293,7 @@ class ChatControllerTest {
     void t10() throws Exception {
         String roomId = createRoomAsUser(salePostId, "POST", buyer);
 
-        mockMvc.perform(multipart("/api/chat/send")
+        mockMvc.perform(multipart("/api/v1/chat/send")
                         .with(csrf())
                         .with(user(makeSecurityUser(buyer)))
                         .param("roomId", roomId)
@@ -305,7 +305,7 @@ class ChatControllerTest {
     @Test
     @DisplayName("11. 존재하지 않는 방 ID로 메시지 전송 시 실패")
     void t11() throws Exception {
-        mockMvc.perform(multipart("/api/chat/send")
+        mockMvc.perform(multipart("/api/v1/chat/send")
                         .with(csrf())
                         .with(user(makeSecurityUser(buyer)))
                         .param("roomId", "invalid-room-uuid")
@@ -323,7 +323,7 @@ class ChatControllerTest {
         sendMessageAsUser(roomId, "안녕하세요", buyer, null);
         sendMessageAsUser(roomId, "반갑습니다", seller, null);
 
-        mockMvc.perform(get("/api/chat/room/" + roomId)
+        mockMvc.perform(get("/api/v1/chat/room/" + roomId)
                         .with(user(makeSecurityUser(buyer))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.length()").value(2))
@@ -337,7 +337,7 @@ class ChatControllerTest {
         String roomId = createRoomAsUser(salePostId, "POST", buyer);
         sendMessageAsUser(roomId, "판매자 메시지", seller, null);
 
-        mockMvc.perform(get("/api/chat/room/" + roomId)
+        mockMvc.perform(get("/api/v1/chat/room/" + roomId)
                         .with(user(makeSecurityUser(buyer))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data[0].isRead").value(true));
@@ -351,14 +351,14 @@ class ChatControllerTest {
         sendMessageAsUser(roomId, "2", buyer, null);
         sendMessageAsUser(roomId, "3", buyer, null);
 
-        MvcResult result = mockMvc.perform(get("/api/chat/room/" + roomId)
+        MvcResult result = mockMvc.perform(get("/api/v1/chat/room/" + roomId)
                         .with(user(makeSecurityUser(buyer))))
                 .andReturn();
 
         JsonNode data = objectMapper.readTree(result.getResponse().getContentAsString()).path("data");
         int secondMsgId = data.get(1).get("id").asInt();
 
-        mockMvc.perform(get("/api/chat/room/" + roomId)
+        mockMvc.perform(get("/api/v1/chat/room/" + roomId)
                         .with(user(makeSecurityUser(buyer)))
                         .param("lastChatId", String.valueOf(secondMsgId)))
                 .andExpect(status().isOk())
@@ -375,7 +375,7 @@ class ChatControllerTest {
         String otherRoomId = createRoomAsUser(salePostId, "POST", anotherUser);
         sendMessageAsUser(otherRoomId, "제3자 메시지", anotherUser, null);
 
-        mockMvc.perform(get("/api/chat/list")
+        mockMvc.perform(get("/api/v1/chat/list")
                         .with(user(makeSecurityUser(buyer))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.length()").value(1))
@@ -392,7 +392,7 @@ class ChatControllerTest {
         sendMessageAsUser(roomId, "Old", buyer, null);
         sendMessageAsUser(roomId, "New", buyer, null);
 
-        mockMvc.perform(get("/api/chat/list")
+        mockMvc.perform(get("/api/v1/chat/list")
                         .with(user(makeSecurityUser(buyer))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data[0].lastMessage").value("New"))
@@ -408,7 +408,7 @@ class ChatControllerTest {
                 "images", "test.jpg", "image/jpeg", "fake-image".getBytes()
         );
 
-        mockMvc.perform(multipart("/api/chat/send")
+        mockMvc.perform(multipart("/api/v1/chat/send")
                         .file(imageFile)
                         .with(csrf())
                         .with(user(makeSecurityUser(buyer)))
@@ -431,7 +431,7 @@ class ChatControllerTest {
 
         sendMessageAsUser(roomId, "포토 메시지", buyer, imageFile);
 
-        mockMvc.perform(get("/api/chat/room/" + roomId)
+        mockMvc.perform(get("/api/v1/chat/room/" + roomId)
                         .with(user(makeSecurityUser(buyer))))
                 .andDo(print())
                 .andExpect(status().isOk())
@@ -444,7 +444,7 @@ class ChatControllerTest {
     @DisplayName("19. 인증되지 않은 사용자가 메시지 전송 시도 시 401 발생")
     @WithAnonymousUser
     void t19() throws Exception {
-        mockMvc.perform(multipart("/api/chat/send")
+        mockMvc.perform(multipart("/api/v1/chat/send")
                         .with(csrf())
                         .param("roomId", "any-room")
                         .param("message", "비인증"))
@@ -456,7 +456,7 @@ class ChatControllerTest {
     void t20() throws Exception {
         String roomId = createRoomAsUser(salePostId, "POST", buyer);
 
-        mockMvc.perform(get("/api/chat/room/" + roomId)
+        mockMvc.perform(get("/api/v1/chat/room/" + roomId)
                         .with(user(makeSecurityUser(anotherUser))))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.resultCode").value("403-1"));
@@ -467,7 +467,7 @@ class ChatControllerTest {
     void t21() throws Exception {
         String roomId = createRoomAsUser(salePostId, "POST", buyer);
 
-        mockMvc.perform(multipart("/api/chat/send")
+        mockMvc.perform(multipart("/api/v1/chat/send")
                         .with(csrf())
                         .with(user(makeSecurityUser(buyer)))
                         .param("roomId", roomId)
@@ -475,7 +475,7 @@ class ChatControllerTest {
                 .andExpect(status().isOk());
 
         verify(messagingTemplate, times(1))
-                .convertAndSend(eq("/sub/chat/room/" + roomId), any(ChatResponse.class));
+                .convertAndSend(eq("/sub/v1/chat/room/" + roomId), any(ChatResponse.class));
     }
 
     @Test
@@ -484,7 +484,7 @@ class ChatControllerTest {
         String roomId = createRoomAsUser(salePostId, "POST", buyer);
         MockMultipartFile emptyFile = new MockMultipartFile("images", "", "image/jpeg", new byte[0]);
 
-        mockMvc.perform(multipart("/api/chat/send")
+        mockMvc.perform(multipart("/api/v1/chat/send")
                         .file(emptyFile)
                         .with(csrf())
                         .with(user(makeSecurityUser(buyer)))
@@ -502,7 +502,7 @@ class ChatControllerTest {
             sendMessageAsUser(roomId, "msg " + i, seller, null);
         }
 
-        mockMvc.perform(get("/api/chat/room/" + roomId)
+        mockMvc.perform(get("/api/v1/chat/room/" + roomId)
                         .with(user(makeSecurityUser(buyer))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data[?(@.isRead == false)]").doesNotExist());
@@ -515,7 +515,7 @@ class ChatControllerTest {
 
         Member latestBuyer = memberRepository.findById(buyer.getId()).get();
 
-        mockMvc.perform(patch("/api/chat/room/" + roomId + "/exit")
+        mockMvc.perform(patch("/api/v1/chat/room/" + roomId + "/exit")
                         .with(csrf())
                         .with(user(makeSecurityUser(latestBuyer))))
                 .andExpect(status().isOk())
@@ -531,17 +531,17 @@ class ChatControllerTest {
         Member latestBuyer = memberRepository.findById(buyer.getId()).orElse(buyer);
         Member latestSeller = memberRepository.findById(seller.getId()).orElse(seller);
 
-        mockMvc.perform(patch("/api/chat/room/" + roomId + "/exit")
+        mockMvc.perform(patch("/api/v1/chat/room/" + roomId + "/exit")
                         .with(csrf())
                         .with(user(makeSecurityUser(latestBuyer))))
                 .andExpect(status().isOk());
 
-        mockMvc.perform(get("/api/chat/list")
+        mockMvc.perform(get("/api/v1/chat/list")
                         .with(user(makeSecurityUser(latestBuyer))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.length()").value(0));
 
-        mockMvc.perform(get("/api/chat/list")
+        mockMvc.perform(get("/api/v1/chat/list")
                         .with(user(makeSecurityUser(latestSeller))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.length()").value(1));
@@ -552,7 +552,7 @@ class ChatControllerTest {
     void t26() throws Exception {
         String roomId = createRoomAsUser(salePostId, "POST", buyer);
 
-        mockMvc.perform(patch("/api/chat/room/" + roomId + "/exit")
+        mockMvc.perform(patch("/api/v1/chat/room/" + roomId + "/exit")
                         .with(csrf())
                         .with(user(makeSecurityUser(anotherUser))))
                 .andExpect(status().isForbidden())
@@ -582,7 +582,7 @@ class ChatControllerTest {
         String roomId = createRoomAsUser(salePostId, "POST", buyer);
 
         StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.SUBSCRIBE);
-        accessor.setDestination("/sub/chat/room/" + roomId);
+        accessor.setDestination("/sub/v1/chat/room/" + roomId);
 
         Authentication auth = new UsernamePasswordAuthenticationToken(makeSecurityUser(anotherUser), null);
         accessor.setUser(auth);
@@ -596,7 +596,7 @@ class ChatControllerTest {
     @Test
     @DisplayName("29. 채팅방이 아닌 공개 채널(예: 경매) 구독 시에는 권한 체크 없이 통과해야 한다")
     void t29() throws Exception {
-        String publicChannel = "/sub/auction/" + auctionId;
+        String publicChannel = "/sub/v1/auction/" + auctionId;
 
         StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.SUBSCRIBE);
         accessor.setDestination(publicChannel);
@@ -623,7 +623,7 @@ class ChatControllerTest {
                 "images", "img2.jpg", "image/jpeg", "image_content_2".getBytes()
         );
 
-        mockMvc.perform(multipart("/api/chat/send")
+        mockMvc.perform(multipart("/api/v1/chat/send")
                         .file(image1)
                         .file(image2)
                         .with(csrf())
@@ -632,7 +632,7 @@ class ChatControllerTest {
                         .param("message", "사진 2장 보냅니다."))
                 .andExpect(status().isOk());
 
-        mockMvc.perform(get("/api/chat/room/" + roomId)
+        mockMvc.perform(get("/api/v1/chat/room/" + roomId)
                         .with(user(makeSecurityUser(buyer))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data[0].imageUrls.length()").value(2));
@@ -660,7 +660,7 @@ class ChatControllerTest {
 
         sendMessageAsUser(roomId, "안 읽음 테스트", buyer, null);
 
-        mockMvc.perform(get("/api/chat/room/" + roomId)
+        mockMvc.perform(get("/api/v1/chat/room/" + roomId)
                         .with(user(makeSecurityUser(buyer))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data[0].senderId").value(buyer.getId()))
@@ -673,12 +673,12 @@ class ChatControllerTest {
         // Given
         String roomId = createRoomAsUser(salePostId, "POST", buyer);
 
-        mockMvc.perform(patch("/api/chat/room/" + roomId + "/exit")
+        mockMvc.perform(patch("/api/v1/chat/room/" + roomId + "/exit")
                         .with(csrf())
                         .with(user(makeSecurityUser(buyer))))
                 .andExpect(status().isOk());
 
-        mockMvc.perform(patch("/api/chat/room/" + roomId + "/exit")
+        mockMvc.perform(patch("/api/v1/chat/room/" + roomId + "/exit")
                         .with(csrf())
                         .with(user(makeSecurityUser(buyer))))
                 .andExpect(status().isOk());
@@ -687,7 +687,7 @@ class ChatControllerTest {
     // --- [헬퍼 메서드] ---
     // 채팅방 생성 후 Room ID(UUID String) 반환
     private String createRoomAsUser(int itemId, String txType, Member member) throws Exception {
-        MvcResult result = mockMvc.perform(post("/api/chat/room")
+        MvcResult result = mockMvc.perform(post("/api/v1/chat/room")
                         .with(csrf())
                         .with(user(makeSecurityUser(member)))
                         .param("itemId", String.valueOf(itemId))
@@ -698,7 +698,7 @@ class ChatControllerTest {
 
     // 메시지 전송 (텍스트 + 선택적 이미지)
     private void sendMessageAsUser(String roomId, String message, Member member, MockMultipartFile imageFile) throws Exception {
-        var builder = multipart("/api/chat/send")
+        var builder = multipart("/api/v1/chat/send")
                 .with(csrf())
                 .with(user(makeSecurityUser(member)))
                 .param("roomId", roomId)

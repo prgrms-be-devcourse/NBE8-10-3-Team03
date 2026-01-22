@@ -84,9 +84,9 @@ public class StompHandler implements ChannelInterceptor {
 
         // SUBSCRIBE 시 접근 권한 확인 로직
         else if (StompCommand.SUBSCRIBE.equals(accessor.getCommand())) {
-            // 목적지 추출 Ex: /sub/chat/room/{roomId}
+            // 목적지 추출 Ex: /sub/v1/chat/room/{roomId}
             String dest = accessor.getDestination();
-            String chatRoomPattern = "/sub/chat/room/{roomId}";
+            String chatRoomPattern = "/sub/v1/chat/room/{roomId}";
 
             // 구독 경로가 채팅방인지 체크
             if (dest != null && pathMatcher.match(chatRoomPattern, dest)) {

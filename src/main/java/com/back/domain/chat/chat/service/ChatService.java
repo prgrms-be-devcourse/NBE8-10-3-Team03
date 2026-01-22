@@ -46,7 +46,6 @@ public class ChatService {
     private final AuctionRepository auctionRepository;
     private final MemberRepository memberRepository;
     private final ImageRepository imageRepository;
-    private final ChatImageRepository chatImageRepository;
     private final FileStorageService fileStorageService;
     private final SimpMessagingTemplate messagingTemplate;
     private final Rq rq;
@@ -164,8 +163,8 @@ public class ChatService {
 
         ChatResponse chatResponse = new ChatResponse(chatMessage);
 
-        // "/sub/chat/room/{roomId}" 를 구독(Sub) 중인 모든 클라이언트에게 전송
-        messagingTemplate.convertAndSend("/sub/chat/room/" + req.getRoomId(), chatResponse);
+        // "/sub/v1/chat/room/{roomId}" 를 구독(Sub) 중인 모든 클라이언트에게 전송
+        messagingTemplate.convertAndSend("/sub/v1/chat/room/" + req.getRoomId(), chatResponse);
 
         return new RsData<>("200-1", "메시지가 전송되었습니다.", new ChatIdResponse(chatMessage.getId()));
     }
