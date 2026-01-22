@@ -77,13 +77,33 @@ public class BaseInitData {
     public void work2() {
         if (categoryRepository.count() > 0) return;
 
-        categoryRepository.save(new Category("전자기기"));
-        categoryRepository.save(new Category("의류"));
-        categoryRepository.save(new Category("도서"));
-        categoryRepository.save(new Category("가구"));
-        categoryRepository.save(new Category("기타"));
+        // 디지털/전자
+        categoryRepository.save(new Category("디지털기기"));
+        categoryRepository.save(new Category("생활가전"));
 
-        System.out.println("테스트 카테고리 생성 완료");
+        // 가구/생활
+        categoryRepository.save(new Category("가구/인테리어"));
+        categoryRepository.save(new Category("생활/주방"));
+
+        // 패션
+        categoryRepository.save(new Category("여성의류"));
+        categoryRepository.save(new Category("남성패션/잡화"));
+
+        // 유아동
+        categoryRepository.save(new Category("유아동"));
+
+        // 취미/레저
+        categoryRepository.save(new Category("스포츠/레저"));
+        categoryRepository.save(new Category("도서"));
+        categoryRepository.save(new Category("게임/취미"));
+
+        // 반려동물/식물
+        categoryRepository.save(new Category("반려동물용품"));
+
+        // 기타
+        categoryRepository.save(new Category("기타 중고물품"));
+
+        System.out.println("테스트 카테고리 생성 완료 (12개)");
     }
 
     @Transactional
