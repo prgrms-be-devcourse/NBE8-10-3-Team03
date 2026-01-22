@@ -3,6 +3,8 @@ package com.back.domain.member.member.service;
 import com.back.domain.auction.auction.entity.Auction;
 import com.back.domain.auction.auction.repository.AuctionRepository;
 import com.back.domain.member.member.entity.Member;
+import com.back.domain.member.review.entity.Review;
+import com.back.domain.member.review.repository.ReviewRepository;
 import com.back.domain.member.reputation.entity.Reputation;
 import com.back.domain.member.reputation.entity.ReputationEvent;
 import com.back.domain.member.reputation.enums.EventType;
@@ -13,9 +15,12 @@ import com.back.domain.member.reputation.repository.ReputationEventRepository;
 import com.back.domain.member.reputation.repository.ReputationRepository;
 import com.back.global.exception.ServiceException;
 import com.back.global.rsData.RsData;
+import com.back.standard.util.Ut;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -29,6 +34,7 @@ public class MemberService {
     private final ReputationRepository reputationRepository;
     private final ReputationEventRepository eventRepository;
     private final AuctionRepository auctionRepository;
+    private final ReviewRepository reviewRepository;
 
     public long count() {
         return memberRepository.count();
@@ -98,18 +104,28 @@ public class MemberService {
 
     }
 
+    @Transactional
     public void decreaseByNofiy(Member member) {
         int userId = member.getId();
         ReputationEvent event = new ReputationEvent(member, EventType.NOTIFY, RefType.DEAL);
         eventRepository.save(event);
 
-        int caution = eventRepository.findByUserIdWithSum(userId, EventType.NOTIFY) / 10;
-
         Reputation reputation = reputationRepository.findById(userId).get();
-        int nowCaution = reputation.getCaution();
-        if (nowCaution < caution) {
-            reputation.update(caution);
+
+        // 이미 정지 상태면 신고 누적 X
+        if (!member.getActive()) {
+            return;
+        }
+
+        reputation.increaseNotify();
+
+        if(reputation.getNotifyCount() % 10 == 0) {
             reputation.decrease();
+        }
+
+        if(reputation.getNotifyCount() >= 100) {
+            member.suspend();
+            reputation.setNotifyCount(0);
         }
     }
 
@@ -158,5 +174,13 @@ public class MemberService {
 
     private void modify(Member member, String nickname, String profileImgUrl) {
         member.modify(nickname, profileImgUrl);
+    }
+
+    public Review createReview(int star, String msg, Member member, int reviewerId) {
+        if(!findById(reviewerId).get().getActive()) {
+            throw new ServiceException("403-3", "정지된 회원은 해당 기능을 사용할 수 없습니다.");
+        }
+        Review review = new Review(member, star, msg, reviewerId);
+        return reviewRepository.save(review);
     }
 }
