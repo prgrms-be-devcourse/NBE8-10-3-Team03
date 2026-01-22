@@ -163,16 +163,24 @@ public class MemberService {
 
     // 신고에 의한 신용도 감소
     @Transactional
-    public void decreaseByNofiy(Member member) {
-        int userId = member.getId();
-        ReputationEvent event = new ReputationEvent(member, EventType.NOTIFY, RefType.DEAL);
+    public void decreaseByNofiy(Member member, Member reporter) {
+        int targetId = member.getId();
+        int reporterId = reporter.getId();
+        int count = eventRepository.countByTargetIdAndReporterId(targetId, reporterId);
+
+        // A 회원 대상 B 회원의 최대 신고 횟수 3
+        if (count >= 3) {
+            throw new ServiceException("403-1", "해당 회원에 대한 신고 횟수를 초과했습니다.");
+        }
+
+        ReputationEvent event = new ReputationEvent(member, EventType.NOTIFY, RefType.DEAL, reporter);
         eventRepository.save(event);
 
-        Reputation reputation = reputationRepository.findById(userId).get();
+        Reputation reputation = reputationRepository.findById(targetId).get();
 
         // 이미 정지/탈퇴/영구정지 상태면 신고 누적 X
         if (member.getStatus() == MemberStatus.SUSPENDED || member.getStatus() == MemberStatus.BANNED || member.getStatus() == MemberStatus.WITHDRAWN) {
-            return;
+            throw new ServiceException("400-2", "해당 회원은 정지된 회원입니다.");
         }
 
         // 신고 누적
@@ -210,7 +218,7 @@ public class MemberService {
             reputation.decrease();
             double after = reputation.getScore();
 
-            ReputationEvent event = new ReputationEvent(seller, EventType.CANCEL, RefType.AUCTION, auctionId, Math.abs(before - after));
+            ReputationEvent event = new ReputationEvent(seller, EventType.CANCEL, RefType.AUCTION, auctionId, Math.abs(before - after), null);
             eventRepository.save(event);
         }
     }
@@ -227,7 +235,7 @@ public class MemberService {
         reputation.increase();
         double after = reputation.getScore();
 
-        ReputationEvent event = new ReputationEvent(seller, EventType.CANCEL, RefType.AUCTION, dealId, Math.abs(before - after));
+        ReputationEvent event = new ReputationEvent(seller, EventType.CANCEL, RefType.AUCTION, dealId, Math.abs(before - after), null);
         eventRepository.save(event);
     }
 
