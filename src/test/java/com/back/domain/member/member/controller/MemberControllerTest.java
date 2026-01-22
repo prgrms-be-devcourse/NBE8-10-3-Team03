@@ -1,6 +1,7 @@
 package com.back.domain.member.member.controller;
 
 import com.back.domain.member.member.entity.Member;
+import com.back.domain.member.member.enums.MemberStatus;
 import com.back.domain.member.member.service.MemberService;
 import jakarta.servlet.http.Cookie;
 import org.hamcrest.Matchers;
@@ -367,7 +368,7 @@ public class MemberControllerTest {
         assertThat(user1.getReputationEvents()).hasSize(100);
         assertThat(user1.getReputation().getNotifyCount()).isEqualTo(0);
         assertThat(user1.getReputation().getTotalNotifyCount()).isEqualTo(100);
-        assertThat(user1.getActive()).isFalse();
+        assertThat(user1.getActive()).isEqualTo(MemberStatus.SUSPENDED);
     }
 
     @Test
