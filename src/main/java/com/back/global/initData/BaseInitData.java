@@ -9,6 +9,7 @@ import com.back.domain.bid.bid.service.BidService;
 import com.back.domain.category.category.entity.Category;
 import com.back.domain.category.category.repository.CategoryRepository;
 import com.back.domain.member.member.entity.Member;
+import com.back.domain.member.member.enums.MemberStatus;
 import com.back.domain.member.member.service.MemberService;
 import com.back.domain.member.review.entity.Review;
 import com.back.domain.member.review.repository.ReviewRepository;
@@ -23,8 +24,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.transaction.annotation.Transactional;
-import com.back.domain.post.post.entity.Post;
-import com.back.domain.post.post.entity.PostStatus;
 import com.back.domain.post.post.repository.PostRepository;
 
 import java.time.LocalDateTime;
@@ -75,9 +74,18 @@ public class BaseInitData {
         Member memberUser3 = memberService.join("user3", "1234", "유저3", null);
         if (AppConfig.isNotProd()) memberUser3.modifyApiKey(memberUser3.getUsername());
 
+        // 정지 회원
         Member memberUser4 = memberService.join("user4", "1234", "유저4", null);
         if (AppConfig.isNotProd()) memberUser4.modifyApiKey(memberUser4.getUsername());
+        memberUser4.setStatus(MemberStatus.SUSPENDED);
         memberUser4.setSuspendAt(LocalDateTime.now().minusDays(3));
+
+        // 영구 정지 회원
+        Member memberUser5 = memberService.join("user5", "1234", "유저5", null);
+        if (AppConfig.isNotProd()) memberUser5.modifyApiKey(memberUser5.getUsername());
+        memberUser5.setStatus(MemberStatus.BANNED);
+        memberUser5.setDeleteAt(LocalDateTime.now().minusDays(3));
+
 
         log.info("테스트 회원 생성 완료 - 총 6명");
     }
