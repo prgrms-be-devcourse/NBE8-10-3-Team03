@@ -52,6 +52,10 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-websocket")
     // OAuth
     implementation("org.springframework.boot:spring-boot-starter-oauth2-client")
+
+    // Redis
+    implementation("org.springframework.boot:spring-boot-starter-data-redis")
+    implementation("org.springframework.boot:spring-boot-starter-cache")
 }
 
 tasks.withType<Test> {
