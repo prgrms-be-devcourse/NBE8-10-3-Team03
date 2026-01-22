@@ -7,6 +7,11 @@ import org.springframework.data.domain.Sort;
 
 public class PageUtils {
 
+    // 페이징 기본값 상수
+    public static final int DEFAULT_PAGE = 0;
+    public static final int DEFAULT_SIZE = 20;
+    public static final int MAX_SIZE = 100;
+
     private PageUtils() {
         // Utility class
     }
@@ -50,6 +55,9 @@ public class PageUtils {
         }
         if (size <= 0) {
             throw new ServiceException("400-1", "페이지 크기는 1 이상이어야 합니다.");
+        }
+        if (size > MAX_SIZE) {
+            throw new ServiceException("400-1", String.format("페이지 크기는 %d 이하여야 합니다.", MAX_SIZE));
         }
     }
 }

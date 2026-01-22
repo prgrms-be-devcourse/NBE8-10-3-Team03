@@ -11,6 +11,7 @@ import com.back.domain.auction.auction.service.AuctionService;
 import com.back.global.controller.BaseController;
 import com.back.global.rq.Rq;
 import com.back.global.rsData.RsData;
+import com.back.global.util.PageUtils;
 import jakarta.validation.Valid;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;

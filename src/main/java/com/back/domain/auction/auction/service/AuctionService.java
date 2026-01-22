@@ -26,7 +26,6 @@ import com.back.global.rsData.RsData;
 import com.back.global.util.PageUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -137,10 +136,10 @@ public class AuctionService {
             String sortBy,
             String categoryName,
             String status
+    ) {
         // 정렬 설정 및 페이징 생성
-        // 정렬 설정
+        Sort sort = createSort(sortBy);
         Pageable pageable = PageUtils.createPageable(page, size, sort);
-        Pageable pageable = PageRequest.of(page, size, sort);
 
         // 상태 변환
         AuctionStatus auctionStatus = null;
