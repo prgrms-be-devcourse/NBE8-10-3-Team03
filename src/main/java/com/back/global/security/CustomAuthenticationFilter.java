@@ -1,7 +1,7 @@
 package com.back.global.security;
 
 import com.back.domain.member.member.entity.Member;
-import com.back.domain.member.member.enums.Role;
+import com.back.domain.member.member.enums.MemberStatus;
 import com.back.domain.member.member.service.MemberService;
 import com.back.global.exception.ServiceException;
 import com.back.global.rq.Rq;
@@ -115,7 +115,7 @@ public class CustomAuthenticationFilter extends OncePerRequestFilter {
                 String name = (String) payload.get("name");
                 String role = (String) payload.get("role");
 
-                member = new Member(id, username, name, Role.from(role));
+                member = memberService.findById(id).get();
 
                 isAccessTokenValid = true;
             }
@@ -136,6 +136,16 @@ public class CustomAuthenticationFilter extends OncePerRequestFilter {
             // 액세스 토큰을 쿠키와 헤더에 저장
             rq.setCookie("accessToken", actorAccessToken);
             rq.setHeader("Authorization", actorAccessToken);
+        }
+
+        // 영구 정지 회원 JWT 차단
+        if (member.getStatus() == MemberStatus.BANNED) {
+            throw new ServiceException("403-4", "계정이 영구 정지되었습니다. 관리자에게 문의해주세요.");
+        }
+
+        // 탈퇴 회원 JWT 차단
+        if (member.getStatus() == MemberStatus.WITHDRAWN) {
+            throw new ServiceException("403-5", "탈퇴한 계정입니다.");
         }
 
         // Spring Security 인증 객체 생성 ⭐
