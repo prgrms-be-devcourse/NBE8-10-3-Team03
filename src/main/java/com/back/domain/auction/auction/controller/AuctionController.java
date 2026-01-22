@@ -8,34 +8,29 @@ import com.back.domain.auction.auction.dto.response.AuctionIdResponse;
 import com.back.domain.auction.auction.dto.response.AuctionPageResponse;
 import com.back.domain.auction.auction.dto.response.AuctionUpdateResponse;
 import com.back.domain.auction.auction.service.AuctionService;
-import com.back.domain.member.member.entity.Member;
-import com.back.global.exception.ServiceException;
+import com.back.global.controller.BaseController;
 import com.back.global.rq.Rq;
 import com.back.global.rsData.RsData;
 import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/v1/auctions")
-@RequiredArgsConstructor
-public class AuctionController {
+public class AuctionController extends BaseController {
 
     private final AuctionService auctionService;
-    private final Rq rq;
+
+    public AuctionController(Rq rq, AuctionService auctionService) {
+        super(rq);
+        this.auctionService = auctionService;
+    }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public RsData<AuctionIdResponse> createAuction(
             @Valid @ModelAttribute AuctionCreateRequest request
     ) {
-        Member actor = rq.getActor();
-
-        if (actor == null) {
-            throw new ServiceException("401-1", "로그인이 필요합니다.");
-        }
-
-        return auctionService.createAuction(request, actor.getId());
+        return auctionService.createAuction(request, getAuthenticatedMemberId());
     }
 
     @GetMapping
@@ -61,38 +56,20 @@ public class AuctionController {
             @PathVariable Integer auctionId,
             @Valid @ModelAttribute AuctionUpdateRequest request
     ) {
-        Member actor = rq.getActor();
-
-        if (actor == null) {
-            throw new ServiceException("401-1", "로그인이 필요합니다.");
-        }
-
-        return auctionService.updateAuction(auctionId, request, actor.getId());
+        return auctionService.updateAuction(auctionId, request, getAuthenticatedMemberId());
     }
 
     @DeleteMapping("/{auctionId}")
     public RsData<AuctionDeleteResponse> deleteAuction(
             @PathVariable Integer auctionId
     ) {
-        Member actor = rq.getActor();
-
-        if (actor == null) {
-            throw new ServiceException("401-1", "로그인이 필요합니다.");
-        }
-
-        return auctionService.deleteAuction(auctionId, actor.getId());
+        return auctionService.deleteAuction(auctionId, getAuthenticatedMemberId());
     }
 
     @PostMapping("/{auctionId}/cancel")
     public RsData<Void> cancelTrade(
             @PathVariable Integer auctionId
     ) {
-        Member actor = rq.getActor();
-
-        if (actor == null) {
-            throw new ServiceException("401-1", "로그인이 필요합니다.");
-        }
-
-        return auctionService.cancelTrade(auctionId, actor.getId());
+        return auctionService.cancelTrade(auctionId, getAuthenticatedMemberId());
     }
 }

@@ -4,12 +4,10 @@ import com.back.domain.bid.bid.dto.request.BidCreateRequest;
 import com.back.domain.bid.bid.dto.response.BidPageResponse;
 import com.back.domain.bid.bid.dto.response.BidResponse;
 import com.back.domain.bid.bid.service.BidService;
-import com.back.domain.member.member.entity.Member;
-import com.back.global.exception.ServiceException;
+import com.back.global.controller.BaseController;
 import com.back.global.rq.Rq;
 import com.back.global.rsData.RsData;
 import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.bind.annotation.*;
@@ -17,26 +15,23 @@ import org.springframework.web.bind.annotation.*;
 @Slf4j
 @RestController
 @RequestMapping("/api/v1/auctions/{auctionId}/bids")
-@RequiredArgsConstructor
-public class BidController {
+public class BidController extends BaseController {
 
     private final BidService bidService;
-    private final Rq rq;
     private final SimpMessagingTemplate messagingTemplate;
+
+    public BidController(Rq rq, BidService bidService, SimpMessagingTemplate messagingTemplate) {
+        super(rq);
+        this.bidService = bidService;
+        this.messagingTemplate = messagingTemplate;
+    }
 
     @PostMapping
     public RsData<BidResponse> createBid(
             @PathVariable Integer auctionId,
             @Valid @RequestBody BidCreateRequest request
     ) {
-        Member actor = rq.getActor();
-
-        if (actor == null) {
-            throw new ServiceException("401-1", "로그인이 필요합니다.");
-        }
-
-        // 기존 return에 있던 서비스 실행 로직
-        RsData<BidResponse> result = bidService.createBid(auctionId, request, actor.getId());
+        RsData<BidResponse> result = bidService.createBid(auctionId, request, getAuthenticatedMemberId());
 
         if (result.statusCode() == 200) {
             messagingTemplate.convertAndSend("/sub/auctions/" + auctionId, result);
