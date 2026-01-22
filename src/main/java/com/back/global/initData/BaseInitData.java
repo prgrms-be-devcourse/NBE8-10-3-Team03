@@ -12,6 +12,8 @@ import com.back.domain.member.member.entity.Member;
 import com.back.domain.member.member.service.MemberService;
 import com.back.domain.member.review.entity.Review;
 import com.back.domain.member.review.repository.ReviewRepository;
+import com.back.domain.post.post.entity.Post;
+import com.back.domain.post.post.entity.PostStatus;
 import com.back.global.app.AppConfig;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,6 +22,9 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.transaction.annotation.Transactional;
+import com.back.domain.post.post.entity.Post;
+import com.back.domain.post.post.entity.PostStatus;
+import com.back.domain.post.post.repository.PostRepository;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -36,6 +41,7 @@ public class BaseInitData {
     private final ReviewRepository reviewRepository;
     private final AuctionService auctionService;
     private final BidService bidService;
+    private final PostRepository postRepository;
 
     @Bean
     ApplicationRunner baseInitDataApplicationRunner() {
@@ -44,6 +50,7 @@ public class BaseInitData {
             self.work2();
             self.work3();
             self.work4();
+            self.work5();
         };
     }
 
@@ -166,4 +173,38 @@ public class BaseInitData {
         Review review3 = memberService.createReview(4, "물건 상태가 좋아요", reviewer1, reviewer2.getId());
         reviewRepository.save(review3);
     }
+
+    @Transactional
+    public void work5() {
+
+        if (postRepository.count() > 10) return;
+
+        Member seller1 = memberService.findByUsername("user1").get();
+        Category category = categoryRepository.findAll().get(0);
+
+        for (int i = 1; i <= 3; i++) {
+            Post post = Post.builder()
+                    .seller(seller1)
+                    .title("판매 중인 테스트 상품 " + i)
+                    .content("상태가 SALE인 상품입니다.")
+                    .price(10000 * i)
+                    .category(category)
+                    .status(PostStatus.SALE) //
+                    .build();
+            postRepository.save(post);
+        }
+
+        for (int i = 1; i <= 2; i++) {
+            Post post = Post.builder()
+                    .seller(seller1)
+                    .title("이미 팔린 테스트 상품 " + i)
+                    .content("상태가 SOLD인 상품입니다.")
+                    .price(50000 * i)
+                    .category(category)
+                    .status(PostStatus.SOLD) //
+                    .build();
+            postRepository.save(post);
+        }
+    }
+
 }
