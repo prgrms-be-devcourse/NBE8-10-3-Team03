@@ -1,6 +1,7 @@
 package com.back.domain.member.member.entity;
 
 import com.back.domain.member.member.enums.Role;
+import com.back.domain.member.member.enums.MemberStatus;
 import com.back.domain.member.reputation.entity.Reputation;
 import com.back.domain.member.reputation.entity.ReputationEvent;
 import com.back.domain.member.review.entity.Review;
@@ -33,7 +34,9 @@ public class Member extends BaseEntity {
     @Column(unique = true)
     private String nickname;
 
-    private boolean active;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private MemberStatus status;
 
     @Column(unique = true)
     private String apiKey;
@@ -49,13 +52,15 @@ public class Member extends BaseEntity {
     @OneToMany(mappedBy = "member", fetch = FetchType.LAZY)
     private List<Review> reviews;
 
-    @Setter
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Role role;
 
     @Column(nullable = true)
     private LocalDateTime suspendAt;  // 정지 시각
+
+    @Column(nullable = true)
+    private LocalDateTime deleteAt;  // 영구 정지 시각
 
 
     public Member(int id, String username, String name, Role role) {
@@ -73,10 +78,18 @@ public class Member extends BaseEntity {
         this.username = username;
         this.password = password;
         this.nickname = nickname;
-        this.active = true;
+        this.status = MemberStatus.ACTIVE;
         this.apiKey = UUID.randomUUID().toString();
         this.profileImgUrl = profileImgUrl;
         setRole(Role.USER);
+    }
+
+    public MemberStatus getActive() {
+        return this.status;
+    }
+
+    public String getNickname() {
+        return this.status == MemberStatus.WITHDRAWN ? "탈퇴한 회원" : this.nickname;
     }
 
 
@@ -86,6 +99,7 @@ public class Member extends BaseEntity {
     }
 
 
+    // 수정 관련
     public void modifyApiKey(String apiKey) {
         this.apiKey = apiKey;
     }
@@ -104,21 +118,33 @@ public class Member extends BaseEntity {
     }
 
 
+    // 계정 활성화 관련
+    // 계정 정지
     public void suspend() {
-        this.active = false;
+        this.status = MemberStatus.SUSPENDED;
         this.suspendAt = LocalDateTime.now();
     }
 
+    // 계정 재활성화
     public void release() {
-        this.active = true;
+        this.status = MemberStatus.ACTIVE;
         this.suspendAt = null;
     }
 
-    public boolean getActive() {
-        return active;
+    // 계정 영구 정지
+    public void banned() {
+        this.status = MemberStatus.BANNED;
+        this.deleteAt = LocalDateTime.now();
+    }
+
+    // 계정 탈퇴
+    public void withdraw() {
+        this.status = MemberStatus.WITHDRAWN;
+        this.deleteAt = LocalDateTime.now();
     }
 
 
+    // 계정 인가 관련
     public boolean isAdmin() {
         if (this.role == Role.ADMIN) return true;
 
