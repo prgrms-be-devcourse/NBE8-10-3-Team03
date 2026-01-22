@@ -173,7 +173,7 @@ public class BidController extends BaseController {
         RsData<BidResponse> result = bidService.createBid(auctionId, request, getAuthenticatedMemberId());
 
         if (result.statusCode() == 200) {
-            messagingTemplate.convertAndSend("/sub/auctions/" + auctionId, result);
+            messagingTemplate.convertAndSend("/sub/v1/auctions/" + auctionId, result);
             log.info("실시간 입찰 알림 전송 완료: AuctionId={}, Price={}", auctionId, request.getPrice());
         }
 
