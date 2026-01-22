@@ -76,10 +76,10 @@ public class BaseInitData {
         if (AppConfig.isNotProd()) memberUser3.modifyApiKey(memberUser3.getUsername());
 
         Member memberUser4 = memberService.join("user4", "1234", "유저4", null);
-        if (AppConfig.isNotProd()) memberUser3.modifyApiKey(memberUser4.getUsername());
-        log.info("테스트 회원 생성 완료 - 총 6명");
+        if (AppConfig.isNotProd()) memberUser4.modifyApiKey(memberUser4.getUsername());
         memberUser4.setSuspendAt(LocalDateTime.now().minusDays(3));
-        System.out.println("테스트 회원 생성 완료");
+
+        log.info("테스트 회원 생성 완료 - 총 6명");
     }
 
     @Transactional
@@ -110,9 +110,9 @@ public class BaseInitData {
         categoryRepository.save(new Category("반려동물용품"));
 
         // 기타
-        log.info("테스트 카테고리 생성 완료 - 총 12개");
+        categoryRepository.save(new Category("기타 중고물품"));
 
-        System.out.println("테스트 카테고리 생성 완료 (12개)");
+        log.info("테스트 카테고리 생성 완료 - 총 12개");
     }
 
     @Transactional

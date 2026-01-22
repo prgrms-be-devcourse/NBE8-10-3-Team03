@@ -49,9 +49,6 @@ public class Auction extends BaseEntity {
     @Enumerated(EnumType.STRING)
     private AuctionStatus status = AuctionStatus.OPEN;
 
-    @Column(nullable = false)
-    private Boolean completed = false;
-
     @Column(name = "start_at", nullable = false)
     private LocalDateTime startAt;
 
@@ -60,9 +57,6 @@ public class Auction extends BaseEntity {
 
     @Column(name = "winner_id")
     private Integer winnerId;
-
-    @Column(name = "winning_bid_id")
-    private Integer winningBidId;
 
     @Column(name = "closed_at")
     private LocalDateTime closedAt;
@@ -90,7 +84,6 @@ public class Auction extends BaseEntity {
         this.endAt = endAt;
         this.bidCount = 0;
         this.status = AuctionStatus.OPEN;
-        this.completed = false;
     }
 
     public void addAuctionImage(AuctionImage auctionImage) {
@@ -156,24 +149,20 @@ public class Auction extends BaseEntity {
 
     // 경매 즉시 종료 (즉시구매)
     public void closeAuction() {
-        this.status = AuctionStatus.CLOSED;
-        this.completed = true;
+        this.status = AuctionStatus.COMPLETED;
+        this.closedAt = LocalDateTime.now();
     }
 
-
     // 낙찰 처리 (입찰이 있는 경우)
-    public void completeWithWinner(Integer winnerId, Integer winningBidId) {
+    public void completeWithWinner(Integer winnerId) {
         this.winnerId = winnerId;
-        this.winningBidId = winningBidId;
         this.status = AuctionStatus.COMPLETED;
-        this.completed = true;
         this.closedAt = LocalDateTime.now();
     }
 
     // 경매 종료 (입찰이 없는 경우)
     public void closeWithoutBid() {
         this.status = AuctionStatus.CLOSED;
-        this.completed = false;
         this.closedAt = LocalDateTime.now();
     }
 
@@ -215,6 +204,18 @@ public class Auction extends BaseEntity {
     // 경매 진행 중 여부 확인
     public boolean isActive() {
         return this.status == AuctionStatus.OPEN && !isExpired();
+    }
+
+    // 낙찰 완료 여부 확인
+    public boolean isCompleted() {
+        return this.status == AuctionStatus.COMPLETED;
+    }
+
+    // 경매 종료 여부 확인 (CLOSED, COMPLETED, CANCELLED)
+    public boolean isClosed() {
+        return this.status == AuctionStatus.CLOSED ||
+               this.status == AuctionStatus.COMPLETED ||
+               this.status == AuctionStatus.CANCELLED;
     }
 }
 
