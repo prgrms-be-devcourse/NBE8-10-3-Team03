@@ -1,6 +1,7 @@
 package com.back.domain.post.post.repository;
 
 import com.back.domain.post.post.entity.Post;
+import com.back.domain.post.post.entity.PostStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -18,5 +19,9 @@ public interface PostRepository extends JpaRepository<Post, Integer> {
             "AND (p.title LIKE %:kw% OR p.content LIKE %:kw%)")
     Page<Post> search(@Param("kw") String kw, Pageable pageable);
 
+    @Query("SELECT p FROM Post p " +
+            "WHERE p.deleted = false " +
+            "AND (:status IS NULL OR p.status = :status)")
+    Page<Post> findPostsByStatus(@Param("status") PostStatus status, Pageable pageable);
     Page<Post> findAllByDeletedFalse(Pageable pageable);
 }

@@ -7,6 +7,7 @@ import com.back.domain.image.image.entity.Image;
 import com.back.domain.image.image.repository.ImageRepository;
 import com.back.domain.member.member.entity.Member;
 import com.back.domain.member.member.repository.MemberRepository;
+import com.back.domain.member.member.service.MemberService;
 import com.back.domain.post.post.dto.*;
 import com.back.domain.post.post.entity.Post;
 import com.back.domain.post.post.entity.PostImage;
@@ -28,10 +29,15 @@ public class PostService {
     private final CategoryRepository categoryRepository;
     private final ImageRepository imageRepository;
     private final FileStorageService fileStorageService;
-    private final MemberRepository memberRepository;
+    private final MemberService memberService;
 
     @Transactional
     public int create(Member actor, PostCreateRequest req) {
+        // 정지된 회원의 글쓰기 방지
+        if(!memberService.findById(actor.getId()).get().getActive()) {
+            throw new ServiceException("403-3", "정지된 회원은 해당 기능을 사용할 수 없습니다.");
+        }
+
         Category category = categoryRepository.findById(req.getCategoryId())
                 .orElseThrow(() -> new ServiceException("404-2", "존재하지 않는 카테고리입니다."));
 
@@ -131,5 +137,22 @@ public class PostService {
         }
 
         post.updateStatus(status);
+    }
+
+    public PostPageResponse getList(Pageable pageable, String statusStr) {
+        PostStatus status = (statusStr != null && !"all".equalsIgnoreCase(statusStr))
+                ? PostStatus.valueOf(statusStr.toUpperCase()) : null;
+
+        Page<Post> postPage = postRepository.findPostsByStatus(status, pageable);
+
+        List<PostListResponse> dtoList = postPage.getContent().stream()
+                .map(PostListResponse::new)
+                .toList();
+
+        return new PostPageResponse(
+                dtoList, postPage.getNumber(), postPage.getSize(),
+                postPage.getTotalElements(), postPage.getTotalPages(),
+                statusStr != null ? statusStr : "all"
+        );
     }
 }

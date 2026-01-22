@@ -27,7 +27,6 @@ public class AuctionDetailResponse {
 
     // 낙찰 정보
     private final Integer winnerId;
-    private final Integer winningBidId;
     private final LocalDateTime closedAt;
 
     // 취소 정보
@@ -50,7 +49,6 @@ public class AuctionDetailResponse {
 
         // 낙찰 정보
         this.winnerId = auction.getWinnerId();
-        this.winningBidId = auction.getWinningBidId();
         this.closedAt = auction.getClosedAt();
 
         // 취소 정보

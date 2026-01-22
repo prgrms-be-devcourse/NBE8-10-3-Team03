@@ -22,7 +22,7 @@ public record MemberDto(
                 member.getId(),
                 member.getCreateDate(),
                 member.getModifyDate(),
-                member.getName()
+                member.getNickname()
         );
     }
 }

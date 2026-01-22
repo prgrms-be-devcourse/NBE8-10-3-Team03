@@ -43,10 +43,14 @@ public class SearchService {
                 .title(post.getTitle())
                 .price(post.getPrice())
                 .status(post.getStatus().name())
+                .statusDisplayName(post.getStatus().getDisplayName())
                 .categoryName(post.getCategory().getName())
                 .thumbnailUrl(post.getPostImages().isEmpty() ? null
                     : post.getPostImages().get(0).getImage().getUrl())
                 .createDate(post.getCreateDate())
+                .viewCount(post.getViewCount())
+                .sellerId(post.getSeller().getId())
+                .sellerNickname(post.getSeller().getNickname())
                 .build()
         ));
 

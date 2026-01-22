@@ -42,11 +42,11 @@ public class SecurityConfig {
                                 ).permitAll()
                                 .requestMatchers(
                                         HttpMethod.GET,
-                                        "/api/auctions/**",
+                                        "/api/*/auctions/**",
                                         "/api/*/posts/**",
                                         "/api/*/search"
                                 ).permitAll()
-                                .requestMatchers("/api/auctions/**").authenticated()
+                                .requestMatchers("/api/*/auctions/**").authenticated()
                                 .requestMatchers("/api/*/**").authenticated()
                                 .requestMatchers("/ws/**").permitAll()
                                 .requestMatchers(HttpMethod.POST, "/api/chat/send").authenticated()

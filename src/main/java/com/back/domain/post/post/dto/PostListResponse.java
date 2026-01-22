@@ -11,6 +11,7 @@ public record PostListResponse(
     String thumbnailUrl,
     LocalDateTime createDate,
     String status,
+    String statusDisplayName,
     long viewCount,
     int sellerId,
     String sellerNickname
@@ -25,6 +26,7 @@ public record PostListResponse(
                         : post.getPostImages().get(0).getImage().getUrl(),
                 post.getCreateDate(),
                 post.getStatus().name(),
+                post.getStatus().getDisplayName(),
                 post.getViewCount(),
                 post.getSeller().getId(),
                 post.getSeller().getNickname()

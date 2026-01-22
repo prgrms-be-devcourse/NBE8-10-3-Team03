@@ -83,9 +83,11 @@ public class PostController {
     }
 
     @GetMapping
-    public RsData<Page<PostListResponse>> getList(
-            @PageableDefault(size = 10, sort = "createDate", direction = Sort.Direction.DESC) Pageable pageable
+    public RsData<PostPageResponse> getList(
+            @PageableDefault(size = 10, sort = "createDate", direction = Sort.Direction.DESC) Pageable pageable,
+            @RequestParam(required = false) String status
     ) {
-        return new RsData<>("200-4", "목록 조회 성공", postService.getList(pageable));
+        PostPageResponse response = postService.getList(pageable, status);
+        return new RsData<>("200-4", "목록 조회 성공", response);
     }
 }

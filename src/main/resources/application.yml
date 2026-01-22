@@ -48,6 +48,19 @@ spring:
 file:
   upload-dir: ./uploads
 
+# Swagger 설정
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: alpha
+    tags-sorter: alpha
+    display-request-duration: true
+    doc-expansion: none
+  default-consumes-media-type: application/json
+  default-produces-media-type: application/json
+
 custom:
   jwt:
     secretKey: abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789

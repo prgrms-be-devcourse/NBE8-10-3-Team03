@@ -16,3 +16,14 @@ spring:
     console:
       enabled: true
       path: /h2-console
+
+# 개발 환경 로그 설정
+logging:
+  level:
+    root: INFO
+    com.back.domain.auction: DEBUG
+    com.back.domain.bid: DEBUG
+    com.back.global.initData: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
