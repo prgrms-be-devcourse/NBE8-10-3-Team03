@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.*;
 
 @Slf4j
 @RestController
-@RequestMapping("/api/auctions/{auctionId}/bids")
+@RequestMapping("/api/v1/auctions/{auctionId}/bids")
 @RequiredArgsConstructor
 public class BidController {
 
