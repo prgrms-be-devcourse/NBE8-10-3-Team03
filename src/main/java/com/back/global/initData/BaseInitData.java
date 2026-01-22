@@ -16,6 +16,7 @@ import com.back.domain.post.post.entity.Post;
 import com.back.domain.post.post.entity.PostStatus;
 import com.back.global.app.AppConfig;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.annotation.Bean;
@@ -29,6 +30,7 @@ import com.back.domain.post.post.repository.PostRepository;
 import java.time.LocalDateTime;
 import java.util.List;
 
+@Slf4j
 @Configuration
 @RequiredArgsConstructor
 public class BaseInitData {
@@ -75,7 +77,7 @@ public class BaseInitData {
 
         Member memberUser4 = memberService.join("user4", "1234", "유저4", null);
         if (AppConfig.isNotProd()) memberUser3.modifyApiKey(memberUser4.getUsername());
-        memberUser4.setActive(false);
+        log.info("테스트 회원 생성 완료 - 총 6명");
         memberUser4.setSuspendAt(LocalDateTime.now().minusDays(3));
         System.out.println("테스트 회원 생성 완료");
     }
@@ -108,7 +110,7 @@ public class BaseInitData {
         categoryRepository.save(new Category("반려동물용품"));
 
         // 기타
-        categoryRepository.save(new Category("기타 중고물품"));
+        log.info("테스트 카테고리 생성 완료 - 총 12개");
 
         System.out.println("테스트 카테고리 생성 완료 (12개)");
     }
@@ -156,7 +158,7 @@ public class BaseInitData {
                 .build();
         auctionRepository.save(auction3);
 
-        System.out.println("테스트 경매 생성 완료");
+        log.info("테스트 경매 생성 완료 - 총 3개");
     }
 
     @Transactional
