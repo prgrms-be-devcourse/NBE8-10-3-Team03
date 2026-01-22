@@ -15,11 +15,27 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.websocket.Endpoint;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.bind.annotation.*;
 
-@Tag(name = "입찰 관리", description = "경매 물품에 대한 입찰 등록 및 조회 API")
+import java.net.http.WebSocket;
+
+@Tag(name = "입찰 관리", description = """
+    ## 경매 물품에 대한 입찰 등록 및 조회 API
+    
+    경매 물품에 대한 입찰 등록, 조회 및 **WebSocket 실시간 가격 갱신**을 담당합니다.
+    
+    ### WebSocket 실시간 연동 가이드
+    입찰이 발생하면 서버는 해당 경매를 보고 있는 모든 사용자에게 새로운 가격 정보를 브로드캐스팅합니다.
+    
+    | 단계 | 프로토콜 | API / Endpoint | 설명 |
+    |:---:|:---:|:---|:---|
+    | **1** | `WS` | **SUBSCRIBE** `/sub/v1/auctions/{auctionId}` | 경매 상세 페이지 진입 시 해당 경매 ID를 구독합니다. |
+    | **2** | `HTTP` | **POST** `/api/v1/auctions/{auctionId}/bids` | 사용자가 새로운 입찰 요청을 보냅니다. |
+    | **3** | `WS` | **MESSAGE** | 입찰 성공 시, 구독 중인 모든 클라이언트에게 `BidResponse` JSON이 전송됩니다. |
+    """)
 @Slf4j
 @RestController
 @RequestMapping("/api/v1/auctions/{auctionId}/bids")
@@ -51,7 +67,7 @@ public class BidController extends BaseController {
     @ApiResponses({
         @ApiResponse(
             responseCode = "200",
-            description = "입찰 성공 또는 즉시구매 성공"
+            description = "입찰 성공 또는 즉시구매 성공 (실시간 알림 발송됨)"
         ),
         @ApiResponse(
             responseCode = "400",
