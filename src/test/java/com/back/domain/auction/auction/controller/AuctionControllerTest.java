@@ -40,7 +40,7 @@ public class AuctionControllerTest {
 
         ResultActions resultActions = mvc
                 .perform(
-                        delete("/api/auctions/%d".formatted(auctionId))
+                        delete("/api/v1/auctions/%d".formatted(auctionId))
                 )
                 .andDo(print());
 
@@ -63,7 +63,7 @@ public class AuctionControllerTest {
 
         ResultActions resultActions = mvc
                 .perform(
-                        delete("/api/auctions/%d".formatted(auctionId))
+                        delete("/api/v1/auctions/%d".formatted(auctionId))
                 )
                 .andDo(print());
 
