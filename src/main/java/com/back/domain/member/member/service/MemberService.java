@@ -100,15 +100,16 @@ public class MemberService {
     }
 
     // 회원 탈퇴
+    @Transactional
     public void withdraw(Member actor) {
         Member member = memberRepository.findById(actor.getId())
-                .orElseThrow(() -> new ServiceException("404-1", "회원 없음"));
+                .orElseThrow(() -> new ServiceException("404-1", "존재하지 않는 회원입니다."));
 
         if (member.getStatus() == MemberStatus.WITHDRAWN) {
             throw new ServiceException("400-1", "이미 탈퇴한 회원입니다.");
         }
 
-        actor.withdraw();
+        member.withdraw();
     }
 
 
