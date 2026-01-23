@@ -125,7 +125,7 @@ public class MemberController {
     }
 
     @PostMapping("/login")
-    @Transactional(readOnly = true)
+    @Transactional
     @Operation(summary = "로그인")
     @ApiResponses({
             @ApiResponse(

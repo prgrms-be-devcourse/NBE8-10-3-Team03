@@ -21,8 +21,10 @@ import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -37,6 +39,7 @@ public class MemberService {
     private final ReputationEventRepository eventRepository;
     private final AuctionRepository auctionRepository;
     private final ReviewRepository reviewRepository;
+    private final LoginFailService loginFailService;
 
     public long count() {
         return memberRepository.count();
@@ -56,7 +59,7 @@ public class MemberService {
         Member member = new Member(username, password, nickname, profileImgUrl);
 
         // (임시) system이나 admin으로 가입시 ADMIN ROLE 부여
-        if (username.startsWith("system") || username.startsWith("admin"))
+        if (username.equals("system") || username.equals("admin"))
             member.setRole(Role.ADMIN);
         else member.setRole(Role.USER);
 
@@ -89,6 +92,7 @@ public class MemberService {
     }
 
     // 로그인
+    @Transactional
     public void login(Member member, String password) {
         if (member.getStatus() == MemberStatus.BANNED)
             throw new ServiceException("403-3", "계정이 영구 정지되었습니다. 관리자에게 문의해주세요.");
@@ -96,8 +100,37 @@ public class MemberService {
         if (member.getStatus() == MemberStatus.WITHDRAWN)
             throw new ServiceException("403-4", "탈퇴한 계정입니다.");
 
+        // 계정 잠김이 만료되었는지 확인
+        member.unlockIfExpired();
+
+        // 계정이 잠겨있으면 에러
+        if (member.isLocked()) {
+            if (member.getLockedUntil().isAfter(LocalDateTime.now())) {
+                throw new ServiceException("400-5", "계정이 일시적으로 잠겼습니다.");
+            }
+        }
+
         checkPassword(member, password);
+        member.resetFailCount();
     }
+
+    @Transactional
+    public void checkPassword(Member member, String password) {
+        LocalDateTime now = LocalDateTime.now();
+        // 패스워드가 일치하지 않으면
+        if (!passwordEncoder.matches(password, member.getPassword())) {
+            loginFailService.record(member.getId(), now);
+            System.out.println("loginfail : " + member.getLoginFailCount());
+
+            if (member.getLoginFailCount() >= 5) {
+                loginFailService.lock(member.getId(), now);
+                throw new ServiceException("401-1", "비밀번호 입력 횟수를 초과하였습니다. 10분 뒤에 다시 시도해주세요.");
+            }
+
+            throw new ServiceException("401-1", "비밀번호가 일치하지 않습니다.");
+        }
+    }
+
 
     // 회원 탈퇴
     @Transactional
@@ -135,12 +168,6 @@ public class MemberService {
 
     public List<Member> findAll() {
         return memberRepository.findAll();
-    }
-
-
-    public void checkPassword(Member member, String password) {
-        if (!passwordEncoder.matches(password, member.getPassword()))
-            throw new ServiceException("401-1", "비밀번호가 일치하지 않습니다.");
     }
 
 

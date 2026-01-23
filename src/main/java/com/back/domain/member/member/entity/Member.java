@@ -66,6 +66,48 @@ public class Member extends BaseEntity {
     private LocalDateTime deleteAt;  // 영구 정지 시각
 
 
+    private int loginFailCount;
+    @Column(nullable = true)
+    private LocalDateTime lastLoginFailAt;
+    private boolean locked;
+    @Column(nullable = true)
+    private LocalDateTime lockedUntil;
+
+    // 계정 잠김 관련
+    public boolean isLocked() {
+        return locked && lockedUntil != null && lockedUntil.isAfter(LocalDateTime.now());
+    }
+
+    public void unlockIfExpired() {
+        if (locked && lockedUntil.isBefore(LocalDateTime.now())) {
+            this.locked = false;
+            this.lockedUntil = null;
+            this.loginFailCount = 0;
+        }
+    }
+
+    public void lock() {
+        this.locked = true;
+    }
+
+    public void resetFailCount() {
+        this.loginFailCount = 0;
+    }
+
+    public void increaseFailCount() {
+        this.loginFailCount++;
+    }
+
+    public void updateLastFailAt(LocalDateTime now) {
+        this.lastLoginFailAt = now;
+    }
+
+    public void lockUntil(LocalDateTime after) {
+        this.lockedUntil = after;
+    }
+
+
+    // 생성자
     public Member(int id, String username, String name, Role role) {
         setId(id);
         this.username = username;
@@ -84,8 +126,11 @@ public class Member extends BaseEntity {
         this.status = MemberStatus.ACTIVE;
         this.apiKey = UUID.randomUUID().toString();
         this.profileImgUrl = profileImgUrl;
+        this.loginFailCount = 0;
+        this.locked = false;
         setRole(Role.USER);
     }
+
 
     public MemberStatus getActive() {
         return this.status;
