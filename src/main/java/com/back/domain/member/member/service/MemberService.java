@@ -180,9 +180,12 @@ public class MemberService {
         Reputation reputation = reputationRepository.findById(targetId).get();
 
         // 이미 정지/탈퇴/영구정지 상태면 신고 누적 X
-        if (member.getStatus() == MemberStatus.SUSPENDED || member.getStatus() == MemberStatus.BANNED || member.getStatus() == MemberStatus.WITHDRAWN) {
+        if (member.getStatus() == MemberStatus.SUSPENDED || member.getStatus() == MemberStatus.BANNED)
             throw new ServiceException("400-2", "해당 회원은 정지된 회원입니다.");
-        }
+
+
+        if (member.getStatus() == MemberStatus.WITHDRAWN)
+            throw new ServiceException("400-3", "해당 회원은 탈퇴한 회원입니다.");
 
         // 신고 누적
         reputation.increaseNotify();
