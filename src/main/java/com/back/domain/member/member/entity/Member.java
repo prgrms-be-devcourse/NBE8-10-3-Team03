@@ -124,15 +124,19 @@ public class Member extends BaseEntity {
     }
 
     public Member(String username, String password, String nickname, String profileImgUrl) {
+        this(username, password, nickname, null, profileImgUrl);
+    }
+
+    public Member(String username, String password, String nickname, Role role, String profileImgUrl) {
         this.username = username;
         this.password = password;
         this.nickname = nickname;
         this.status = MemberStatus.ACTIVE;
         this.apiKey = UUID.randomUUID().toString();
+        this.role = role;
         this.profileImgUrl = profileImgUrl;
         this.loginFailCount = 0;
         this.locked = false;
-        setRole(Role.USER);
     }
 
 

@@ -67,9 +67,9 @@ public class GlobalExceptionHandler {
                 .stream()
                 .filter(error -> error instanceof FieldError)
                 .map(error -> (FieldError) error)
-                .map(error -> error.getField() + "-" + error.getCode() + "-" + error.getDefaultMessage())
+                .map(error -> error.getDefaultMessage())
                 .sorted(Comparator.comparing(String::toString))
-                .collect(Collectors.joining("\n"));
+                .collect(Collectors.joining(" "));
 
         return new ResponseEntity<>(
                 new RsData<>(

@@ -1,6 +1,7 @@
 package com.back.domain.member.member.repository;
 
 import com.back.domain.member.member.entity.Member;
+import com.back.domain.member.member.enums.MemberStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.time.LocalDateTime;
@@ -13,7 +14,13 @@ public interface MemberRepository extends JpaRepository<Member, Integer> {
 
     Optional<Member> findByApiKey(String apiKey);
 
+    Optional<Member> findByNickname(String nickname);
+
     List<Member> findByApiKeyIn(Set<String> apiKeys);
-    List<Member> findByActiveFalseAndSuspendAtBefore(LocalDateTime time);
+    List<Member> findByStatusAndSuspendAtBefore(
+            MemberStatus status,
+            LocalDateTime time
+    );
+
 }
 

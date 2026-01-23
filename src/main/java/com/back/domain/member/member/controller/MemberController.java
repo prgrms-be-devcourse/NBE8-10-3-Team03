@@ -23,6 +23,7 @@ import jakarta.annotation.Nullable;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
@@ -45,14 +46,17 @@ public class MemberController {
     private final Rq rq;
 
     record MemberJoinReqBody(
-            @NotBlank
-            @Size(min = 2, max = 30)
+            @NotBlank(message = "아이디는 공백을 포함할 수 없습니다.")
+            @Pattern(
+                    regexp = "^[^\\s]+$",
+                    message = "아이디는 공백을 포함할 수 없습니다."
+            )
+            @Size(min = 5, max = 20, message = "아이디는 5-20자여야 합니다.")
             String username,
-            @NotBlank
-            @Size(min = 2, max = 30)
+            @NotBlank(message = "비밀번호는 필수입니다.")
+            @Size(min = 8, max = 20, message = "비밀번호는 8-20자여야 합니다.")
             String password,
-            @NotBlank
-            @Size(min = 2, max = 30)
+            @Size(min = 2, max = 30, message = "두 글자 이상 입력하세요.")
             String nickname
     ) {
     }
@@ -91,6 +95,104 @@ public class MemberController {
                     {
                       "resultCode": "409-1",
                       "msg": "이미 존재하는 아이디입니다.",
+                      "data": null
+                    }
+                    """)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "409",
+                    description = "잘못된 요청",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                    {
+                      "resultCode": "409-1",
+                      "msg": "%s(은)는 사용중인 닉네임입니다.",
+                      "data": null
+                    }
+                    """)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "잘못된 요청",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                    {
+                      "resultCode": "400-1",
+                      "msg": "아이디는 5-20자여야 합니다. 아이디는 공백을 포함할 수 없습니다.",
+                      "data": null
+                    }
+                    """)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "잘못된 요청",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                    {
+                      "resultCode": "400-1",
+                      "msg": "아이디는 공백을 포함할 수 없습니다.",
+                      "data": null
+                    }
+                    """)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "잘못된 요청",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                    {
+                      "resultCode": "400-1",
+                      "msg": "비밀번호는 영문 대/소문자, 숫자, 특수문자 중 3가지 이상 조합이어야 합니다",
+                      "data": null
+                    }
+                    """)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "잘못된 요청",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                    {
+                      "resultCode": "400-1",
+                      "msg": "연속된 문자 또는 숫자 3개 이상 사용할 수 없습니다",
+                      "data": null
+                    }
+                    """)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "잘못된 요청",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                    {
+                      "resultCode": "400-1",
+                      "msg": "동일한 문자를 3번 이상 연속 사용할 수 없습니다",
+                      "data": null
+                    }
+                    """)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "잘못된 요청",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                    {
+                      "resultCode": "400-1",
+                      "msg": "비밀번호에 아이디를 포함할 수 없습니다",
                       "data": null
                     }
                     """)
@@ -170,6 +272,48 @@ public class MemberController {
                     {
                           "resultCode": "403-4",
                           "msg": "탈퇴한 계정입니다.",
+                          "data": null
+                    }
+                    """)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "잘못된 요청",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                    {
+                          "resultCode": "400-5",
+                          "msg": "게정이 일시적으로 잠겼습니다.",
+                          "data": null
+                    }
+                    """)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "잘못된 요청",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                    {
+                          "resultCode": "401-1",
+                          "msg": "비밀번호 입력 횟수를 초과하였습니다. 10분 뒤에 다시 시도해주세요.",
+                          "data": null
+                    }
+                    """)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "잘못된 요청",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                    {
+                          "resultCode": "401-1",
+                          "msg": "비밀번호가 일치하지 않습니다.",
                           "data": null
                     }
                     """)
@@ -553,6 +697,34 @@ public class MemberController {
                                                     {
                                                         "resultCode": "403-1",
                                                         "msg": "해당 회원에 대한 신고 횟수를 초과했습니다.",
+                                                        "data": null
+                                                    }
+                                    """)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "실패",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                                    {
+                                                        "resultCode": "400-6",
+                                                        "msg": "신고는 하루에 3번만 가능합니다.",
+                                                        "data": null
+                                                    }
+                                    """)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "실패",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                                    {
+                                                        "resultCode": "400-6",
+                                                        "msg": "이미 신고한 회원입니다.",
                                                         "data": null
                                                     }
                                     """)
