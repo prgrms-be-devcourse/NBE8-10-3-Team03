@@ -25,14 +25,14 @@ public class Chat extends BaseEntity {
     private String message;
 
     @Column(name = "is_read", nullable = false)
-    private boolean isRead = false; // 읽음 여부
+    private boolean read = false; // 읽음 여부
 
     @Builder
-    public Chat(ChatRoom chatRoom, Integer senderId, String message, boolean isRead) {
+    public Chat(ChatRoom chatRoom, Integer senderId, String message, boolean read) {
         this.chatRoom = chatRoom;
         this.senderId = senderId;
         this.message = message;
-        this.isRead = isRead;
+        this.read = read;
     }
 
     @OneToMany(mappedBy = "chat", cascade = CascadeType.ALL, orphanRemoval = true)

@@ -110,7 +110,7 @@ public class StompHandler implements ChannelInterceptor {
                         .orElseThrow(() -> new RuntimeException("Member not found"));
 
                 // 권한 검증
-                if (!room.getSellerId().equals(member.getApiKey()) && !room.getBuyerId().equals(member.getApiKey())) {
+                if (!room.getSellerApiKey().equals(member.getApiKey()) && !room.getBuyerApiKey().equals(member.getApiKey())) {
                     log.warn("사용자(ID:{})가 권한 없는 채팅방({}) 구독 시도", user.getId(), roomId);
                     throw new RuntimeException("Subscription not authorized");
                 }

@@ -30,11 +30,11 @@ public class ChatRoom extends BaseEntity {
     @JoinColumn(name = "post_id")
     private Post post;
 
-    @Column(name = "seller_id", nullable = false)
-    private String sellerId; // 판매자 id
+    @Column(name = "seller_api_key", nullable = false)
+    private String sellerApiKey;
 
-    @Column(name = "buyer_id", nullable = false)
-    private String buyerId;  // 구매자 id
+    @Column(name = "buyer_api_key", nullable = false)
+    private String buyerApiKey;
 
     @Column(name = "seller_exited", nullable = false)
     private boolean sellerExited = false;
@@ -47,14 +47,14 @@ public class ChatRoom extends BaseEntity {
                      ChatRoomType txType,
                      Auction auction,
                      Post post,
-                     String sellerId,
-                     String buyerId) {
+                     String sellerApiKey,
+                     String buyerApiKey) {
         this.roomId = roomId;
         this.txType = txType;
         this.auction = auction;
         this.post = post;
-        this.sellerId = sellerId;
-        this.buyerId = buyerId;
+        this.sellerApiKey = sellerApiKey;
+        this.buyerApiKey = buyerApiKey;
     }
 
     // 경매(Auction) 낙찰 후 채팅방 생성
@@ -64,8 +64,8 @@ public class ChatRoom extends BaseEntity {
                 .txType(ChatRoomType.AUCTION)
                 .auction(auction)
                 .post(null)
-                .sellerId(auction.getSeller().getApiKey())
-                .buyerId(buyer.getApiKey())
+                .sellerApiKey(auction.getSeller().getApiKey())
+                .buyerApiKey(buyer.getApiKey())
                 .build();
     }
 
@@ -76,15 +76,15 @@ public class ChatRoom extends BaseEntity {
                 .txType(ChatRoomType.POST)
                 .auction(null)
                 .post(post)
-                .sellerId(post.getSeller().getApiKey())
-                .buyerId(buyer.getApiKey())
+                .sellerApiKey(post.getSeller().getApiKey())
+                .buyerApiKey(buyer.getApiKey())
                 .build();
     }
 
     // 퇴장
     public void exit(String apiKey) {
-        if (this.sellerId.equals(apiKey)) this.sellerExited = true;
-        if (this.buyerId.equals(apiKey)) this.buyerExited = true;
+        if (this.sellerApiKey.equals(apiKey)) this.sellerExited = true;
+        if (this.buyerApiKey.equals(apiKey)) this.buyerExited = true;
     }
 
     // 둘 다 나갔는지 확인

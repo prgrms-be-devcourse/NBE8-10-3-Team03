@@ -106,7 +106,7 @@ public class ChatService {
         String roomId;
         if (type == ChatRoomType.POST) {
             final Post finalPost = post;
-            roomId = chatRoomRepository.findByPostAndBuyerId(post, buyerApiKey)
+            roomId = chatRoomRepository.findByPostAndBuyerApiKey(post, buyerApiKey)
                     .map(ChatRoom::getRoomId)
                     .orElseGet(() -> {
                         ChatRoom room = ChatRoom.createForPost(finalPost, buyer);
@@ -114,7 +114,7 @@ public class ChatService {
                     });
         } else {
             final Auction finalAuction = auction;
-            roomId = chatRoomRepository.findByAuctionAndBuyerId(auction, buyerApiKey)
+            roomId = chatRoomRepository.findByAuctionAndBuyerApiKey(auction, buyerApiKey)
                     .map(ChatRoom::getRoomId)
                     .orElseGet(() -> {
                         ChatRoom room = ChatRoom.createForAuction(finalAuction, buyer);
@@ -148,7 +148,7 @@ public class ChatService {
         String currentApiKey = sender.getApiKey();
 
         // 참여자 권한체크
-        if (!room.getSellerId().equals(currentApiKey) && !room.getBuyerId().equals(currentApiKey)) {
+        if (!room.getSellerApiKey().equals(currentApiKey) && !room.getBuyerApiKey().equals(currentApiKey)) {
             throw new ServiceException("403-1", "해당 채팅방에 메세지를 보낼 권한이 없습니다.");
         }
 
@@ -157,7 +157,7 @@ public class ChatService {
                 .chatRoom(room)
                 .senderId(sender.getId())
                 .message(req.getMessage())
-                .isRead(false)
+                .read(false)
                 .build();
 
         chatRepository.save(chatMessage);
@@ -204,12 +204,21 @@ public class ChatService {
         ChatRoom room = chatRoomRepository.findByRoomId(roomId)
                 .orElseThrow(() -> new ServiceException("404-1", "존재하지 않는 채팅방입니다."));
 
-        // 최신 프로필 이미지를 보여주기 위해 Member 정보를 미리 조회
-        Member seller = memberRepository.findByApiKey(room.getSellerId()).orElse(null);
-        Member buyer = memberRepository.findByApiKey(room.getBuyerId()).orElse(null);
+        // 접속 사용자 권한 검증
+        Member actor = rq.getActor();
+        Member me = memberRepository.findById(actor.getId()).orElseThrow();
+        String currentApiKey = me.getApiKey();
+
+        if (!room.getSellerApiKey().equals(currentApiKey) && !room.getBuyerApiKey().equals(currentApiKey)) {
+            throw new ServiceException("403-1", "해당 채팅방에 접근 권한이 없습니다.");
+        }
 
         // 확인한 상대방의 메시지들을 읽음 처리
-        chatRepository.markMessagesAsRead(roomId, lastChatId);
+        chatRepository.markMessagesAsRead(roomId, me.getId());
+
+        // 최신 프로필 이미지를 보여주기 위해 Member 정보를 미리 조회
+        Member seller = memberRepository.findByApiKey(room.getSellerApiKey()).orElse(null);
+        Member buyer = memberRepository.findByApiKey(room.getBuyerApiKey()).orElse(null);
 
         // 메시지 조회 (스크롤 처리를 위해 lastChatId를 넘기면 그 이후의 데이터만 가져옴)
         List<Chat> chats = (lastChatId == null || lastChatId <= 0)
@@ -265,7 +274,7 @@ public class ChatService {
             roomIds.add(room.getRoomId());
 
             // 상대방 찾기 (내가 구매자면 상대방은 판매자 => 반대)
-            String opponentKey = room.getSellerId().equals(myApiKey) ? room.getBuyerId() : room.getSellerId();
+            String opponentKey = room.getSellerApiKey().equals(myApiKey) ? room.getBuyerApiKey() : room.getSellerApiKey();
             opponentApiKeys.add(opponentKey);
         }
 
@@ -288,7 +297,7 @@ public class ChatService {
             String currentRoomId = room.getRoomId();
 
             // 상대방 정보 가져오기
-            String opponentKey = room.getSellerId().equals(myApiKey) ? room.getBuyerId() : room.getSellerId();
+            String opponentKey = room.getSellerApiKey().equals(myApiKey) ? room.getBuyerApiKey() : room.getSellerApiKey();
             Member opponent = opponentMap.get(opponentKey);
 
             if (opponent == null) continue;
@@ -364,7 +373,7 @@ public class ChatService {
 
         String currentApiKey = me.getApiKey();
 
-        if (!room.getSellerId().equals(currentApiKey) && !room.getBuyerId().equals(currentApiKey)) {
+        if (!room.getSellerApiKey().equals(currentApiKey) && !room.getBuyerApiKey().equals(currentApiKey)) {
             throw new ServiceException("403-1", "해당 채팅방에 접근 권한이 없습니다.");
         }
 

@@ -20,7 +20,6 @@ public class ChatResponse {
     private final String message;
     private final LocalDateTime createDate;
     private final List<String> imageUrls;
-    @JsonProperty("isRead")
     private final boolean isRead;
 
     public ChatResponse(Chat chat) {

@@ -5,6 +5,8 @@ import com.back.domain.auction.auction.repository.AuctionRepository;
 import com.back.domain.category.category.entity.Category;
 import com.back.domain.category.category.repository.CategoryRepository;
 import com.back.domain.chat.chat.dto.response.ChatResponse;
+import com.back.domain.chat.chat.entity.Chat;
+import com.back.domain.chat.chat.repository.ChatRepository;
 import com.back.domain.chat.chat.repository.ChatRoomRepository;
 import com.back.domain.member.member.entity.Member;
 import com.back.domain.member.member.enums.Role;
@@ -80,6 +82,8 @@ class ChatControllerTest {
     private CategoryRepository categoryRepository;
     @Autowired
     private ChatRoomRepository chatRoomRepository;
+    @Autowired
+    private ChatRepository chatRepository;
 
     @MockitoBean
     private SimpMessagingTemplate messagingTemplate;
@@ -335,12 +339,15 @@ class ChatControllerTest {
     @DisplayName("13. 읽음 처리 확인 (상대방이 조회하면 isRead가 true)")
     void t13() throws Exception {
         String roomId = createRoomAsUser(salePostId, "POST", buyer);
-        sendMessageAsUser(roomId, "판매자 메시지", seller, null);
+        int chatId = sendMessageAsUser(roomId, "판매자 메시지", seller, null);
 
         mockMvc.perform(get("/api/v1/chat/room/" + roomId)
                         .with(user(makeSecurityUser(buyer))))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data[0].isRead").value(true));
+                .andExpect(status().isOk());
+
+        Chat chat = chatRepository.findById(chatId).orElseThrow();
+
+        org.assertj.core.api.Assertions.assertThat(chat.isRead()).isTrue();
     }
 
     @Test
@@ -664,7 +671,7 @@ class ChatControllerTest {
                         .with(user(makeSecurityUser(buyer))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data[0].senderId").value(buyer.getId()))
-                .andExpect(jsonPath("$.data[0].isRead").value(false));
+                .andExpect(jsonPath("$.data[0].read").value(false));
     }
 
     @Test
@@ -697,7 +704,7 @@ class ChatControllerTest {
     }
 
     // 메시지 전송 (텍스트 + 선택적 이미지)
-    private void sendMessageAsUser(String roomId, String message, Member member, MockMultipartFile imageFile) throws Exception {
+    private int sendMessageAsUser(String roomId, String message, Member member, MockMultipartFile imageFile) throws Exception {
         var builder = multipart("/api/v1/chat/send")
                 .with(csrf())
                 .with(user(makeSecurityUser(member)))
@@ -706,6 +713,12 @@ class ChatControllerTest {
 
         if (imageFile != null) builder.file(imageFile);
 
-        mockMvc.perform(builder).andExpect(status().isOk());
+        String responseBody = mockMvc.perform(builder)
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        return com.jayway.jsonpath.JsonPath.read(responseBody, "$.data.chatId");
     }
 }
