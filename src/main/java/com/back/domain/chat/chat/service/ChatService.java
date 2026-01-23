@@ -53,11 +53,12 @@ public class ChatService {
     private final Rq rq;
 
     /**
-     * * 채팅방 생성
-     * @param itemId 상품 ID (Post ID or Auction ID)
-     * @param txType POST or AUCTION
-     * @return roomId (UUID)
-     **/
+     * 채팅방 생성 (또는 기존 방 반환)
+     * 1. 로그인 사용자 검증 및 구매자 정보 확보
+     * 2. 거래 타입(일반/경매)에 따른 상품 존재 여부 및 판매 가능 상태 확인
+     * 3. 본인 상품 여부 체크 (자가 거래 방지)
+     * 4. 기존 동일 상품/참여자 기반 채팅방 존재 시 해당 방 ID 반환, 없을 시 생성
+     */
     @Transactional
     public RsData<ChatRoomIdResponse> createChatRoom(int itemId, String txType) {
         ChatRoomType type = ChatRoomType.valueOf(txType.toUpperCase());
@@ -76,6 +77,7 @@ public class ChatService {
         Post post = null;
         Auction auction = null;
 
+        // 거래 대상(POST or AUCTION)에 따른 데이터 검증
         if (type == ChatRoomType.POST) {
             post = postRepository.findById(itemId)
                     .orElseThrow(() -> new ServiceException("404-2", "해당 게시글이 존재하지 않습니다."));
@@ -95,10 +97,12 @@ public class ChatService {
             throw new ServiceException("400-2", "채팅을 개설할 수 없습니다.");
         }
 
+        // 판매자가 본인 상품에 채팅방을 만드는 것을 금지
         if (seller.getApiKey().equals(buyerApiKey)) {
             throw new ServiceException("400-3", "본인의 상품에는 채팅을 개설할 수 없습니다.");
         }
 
+        // 기존에 대화하던 방이 있으면 UUID를 그대로 반환 없으면 신규 생성
         String roomId;
         if (type == ChatRoomType.POST) {
             final Post finalPost = post;
@@ -121,6 +125,13 @@ public class ChatService {
         return new RsData<>("200-1", "채팅방에 입장했습니다.", new ChatRoomIdResponse(roomId));
     }
 
+    /**
+     * 메시지 전송 및 실시간 브로드캐스팅
+     * 1. 채팅방 및 발신자 권한 확인
+     * 2. 메시지 엔티티 저장 (Chat)
+     * 3. 이미지 첨부 시 파일 저장 및 매핑 정보 생성 (ChatImage)
+     * 4. STOMP(WebSocket)를 사용하여 해당 방을 구독 중인 클라이언트들에게 실시간 전송
+     */
     @Transactional
     public RsData<ChatIdResponse> saveMessage(ChatMessageRequest req) {
         ChatRoom room = chatRoomRepository.findByRoomId(req.getRoomId())
@@ -141,7 +152,7 @@ public class ChatService {
             throw new ServiceException("403-1", "해당 채팅방에 메세지를 보낼 권한이 없습니다.");
         }
 
-        // 메세지 저장
+        // 메세지 정보 구축
         Chat chatMessage = Chat.builder()
                 .chatRoom(room)
                 .senderId(sender.getId())
@@ -167,6 +178,8 @@ public class ChatService {
         chatRepository.save(chatMessage);
 
         ChatResponse chatResponse = new ChatResponse(chatMessage);
+        // 실시간 대화창 표시를 위해 발신자의 프로필 이미지 정보 추가
+        chatResponse.setSenderProfileImageUrl(sender.getProfileImgUrl());
 
         // "/sub/v1/chat/room/{roomId}" 를 구독(Sub) 중인 모든 클라이언트에게 전송
         try {
@@ -179,38 +192,53 @@ public class ChatService {
         return new RsData<>("200-1", "메시지가 전송되었습니다.", new ChatIdResponse(chatMessage.getId()));
     }
 
+    /**
+     * 채팅 내역 조회
+     * 1. 채팅방 정보 및 참여자(판매자/구매자) 최신 정보 확보
+     * 2. 상대방이 보낸 메시지들에 대한 일괄 읽음 처리
+     * 3. 페이징 처리: lastChatId 기준으로 이전 혹은 이후 내역 조회
+     * 4. 각 메시지 DTO에 발신자 프로필 이미지 매핑 (UI용)
+     */
     @Transactional
     public RsData<List<ChatResponse>> getMessages(String roomId, Integer lastChatId) {
         ChatRoom room = chatRoomRepository.findByRoomId(roomId)
                 .orElseThrow(() -> new ServiceException("404-1", "존재하지 않는 채팅방입니다."));
 
-        Member actor = rq.getActor();
-        Member reader = memberRepository.findById(actor.getId())
-                .orElseThrow(() -> new ServiceException("404-1", "존재하지 않는 회원입니다."));
+        // 최신 프로필 이미지를 보여주기 위해 Member 정보를 미리 조회
+        Member seller = memberRepository.findByApiKey(room.getSellerId()).orElse(null);
+        Member buyer = memberRepository.findByApiKey(room.getBuyerId()).orElse(null);
 
-        String currentApiKey = reader.getApiKey();
+        // 확인한 상대방의 메시지들을 읽음 처리
+        chatRepository.markMessagesAsRead(roomId, lastChatId);
 
-        // 참여자만 메시지 조회 가능
-        if (!room.getSellerId().equals(currentApiKey) && !room.getBuyerId().equals(currentApiKey)) {
-            throw new ServiceException("403-1", "해당 채팅방에 접근 권한이 없습니다.");
-        }
+        // 메시지 조회 (스크롤 처리를 위해 lastChatId를 넘기면 그 이후의 데이터만 가져옴)
+        List<Chat> chats = (lastChatId == null || lastChatId <= 0)
+                ? chatRepository.findAllByChatRoom_RoomIdOrderByCreateDateAsc(roomId)
+                : chatRepository.findByChatRoom_RoomIdAndIdGreaterThanOrderByCreateDateAsc(roomId, lastChatId);
 
-        chatRepository.markMessagesAsRead(roomId, actor.getId());
-
-        List<Chat> chats;
-        if (lastChatId == null || lastChatId <= 0) {
-            chats = chatRepository.findAllByChatRoom_RoomIdOrderByCreateDateAsc(roomId);
-        } else {
-            chats = chatRepository.findByChatRoom_RoomIdAndIdGreaterThanOrderByCreateDateAsc(roomId, lastChatId);
-        }
-
+        // SenderId를 비교하여 Sender를 찾고 senderProfileImageUrl에 이미지 URL 주입
         List<ChatResponse> responses = chats.stream()
-                .map(ChatResponse::new)
+                .map(chat -> {
+                    ChatResponse res = new ChatResponse(chat);
+                    if (seller != null && chat.getSenderId().equals(seller.getId())) {
+                        res.setSenderProfileImageUrl(seller.getProfileImgUrl());
+                    } else if (buyer != null && chat.getSenderId().equals(buyer.getId())) {
+                        res.setSenderProfileImageUrl(buyer.getProfileImgUrl());
+                    }
+                    return res;
+                })
                 .collect(Collectors.toList());
 
         return new RsData<>("200-1", "메시지 조회 성공", responses);
     }
 
+    /**
+     * 나의 전체 채팅 목록 조회
+     * 1. 내가 속한 모든 채팅방의 '마지막 메시지'들 조회
+     * 2. 상대방 정보(닉네임, 프로필) 일괄 조회 및 매핑
+     * 3. 각 방별 '안 읽은 메시지 수' 일괄 카운트
+     * 4. 관련 상품(Post/Auction) 정보 및 썸네일 이미지 추출
+     */
     public RsData<List<ChatRoomListResponse>> getChatList() {
         Member actor = rq.getActor();
         Member me = memberRepository.findById(actor.getId())
@@ -219,6 +247,7 @@ public class ChatService {
         String myApiKey = me.getApiKey();
         Integer myId = me.getId();
 
+        // 참여한 방들의 최신 메시지 1개씩을 긁어옴
         List<Chat> latestChats = chatRepository.findAllLatestMessagesByMember(myApiKey);
 
         if (latestChats.isEmpty()) {
@@ -240,11 +269,11 @@ public class ChatService {
             opponentApiKeys.add(opponentKey);
         }
 
-        // 상대방 정보 일괄 조회 & Map 변환
+        // 상대방 정보 Map (Key: ApiKey)
         Map<String, Member> opponentMap = memberRepository.findByApiKeyIn(opponentApiKeys).stream()
                 .collect(Collectors.toMap(Member::getApiKey, Function.identity()));
 
-        // 안 읽은 메시지 개수 일괄 조회하고 Map으로 변환
+        // 안 읽은 개수 Map (Key: RoomID)
         Map<String, Integer> unreadCountMap = chatRepository.countUnreadMessagesByRoomIds(roomIds, myId).stream()
                 .collect(Collectors.toMap(
                         result -> (String) result[0], // 키 : roomId
@@ -278,14 +307,22 @@ public class ChatService {
                 itemId = post.getId();
                 itemName = post.getTitle();
                 itemPrice = post.getPrice();
-                // TODO: Post에 대표 이미지 필드가 있다면 가져오기
+
+                // (일반) 상품 이미지가 존재한다면 첫번째 이미지를 썸네일로 가져옴
+                if (post.getPostImages() != null && !post.getPostImages().isEmpty()) {
+                   itemImageUrl = post.getPostImages().get(0).getImage().getUrl();
+                }
             }
             else if (room.getTxType() == ChatRoomType.AUCTION && room.getAuction() != null) {
                 Auction auction = room.getAuction();
                 itemId = auction.getId();
                 itemName = auction.getName();
                 itemPrice = auction.getCurrentHighestBid();
-                // TODO: Auction에 대표 이미지 필드가 있다면 가져오기
+
+                // (경매) 상품 이미지가 존재한다면 첫번째 이미지를 썸네일로 가져옴
+                if (auction.getAuctionImages() != null && !auction.getAuctionImages().isEmpty()) {
+                    itemImageUrl = auction.getAuctionImages().get(0).getImage().getUrl();
+                }
             }
 
             // DTO 조립
@@ -310,6 +347,12 @@ public class ChatService {
     }
 
 
+    /**
+     * 채팅방 퇴장
+     * 1. 참여자(판매자 혹은 구매자) 중 한 명이 퇴장했음을 표시
+     * 2. 데이터 보존: 한 명이 나갔다고 해서 즉시 DB에서 방을 지우지 않음 (상대방은 대화 내용을 봐야 하므로)
+     * 3. 삭제 처리: 두 사람 모두가 방에서 나갔을 경우에만 DB에서 실제 레코드 삭제
+     */
     @Transactional
     public RsData<Void> exitChatRoom(String roomId) {
         ChatRoom room = chatRoomRepository.findByRoomId(roomId)
