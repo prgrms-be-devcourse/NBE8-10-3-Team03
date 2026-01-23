@@ -26,6 +26,7 @@ import com.back.global.rq.Rq;
 import com.back.global.rsData.RsData;
 import com.back.global.exception.ServiceException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,6 +36,7 @@ import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -122,7 +124,10 @@ public class ChatService {
     @Transactional
     public RsData<ChatIdResponse> saveMessage(ChatMessageRequest req) {
         ChatRoom room = chatRoomRepository.findByRoomId(req.getRoomId())
-                .orElseThrow(() -> new ServiceException("404-1", "존재하지 않는 채팅방입니다."));
+                .orElseThrow(() -> {
+                    log.warn("메세지 전송 실패 - 존재하지 않는 채팅방: {}",  req.getRoomId());
+                    return new ServiceException("404-1", "존재하지 않는 채팅방입니다.");
+                });
 
         // Rq Actor ID로 완전한 Member 조회 후 API Key 확보
         Member actor = rq.getActor();
@@ -164,7 +169,12 @@ public class ChatService {
         ChatResponse chatResponse = new ChatResponse(chatMessage);
 
         // "/sub/v1/chat/room/{roomId}" 를 구독(Sub) 중인 모든 클라이언트에게 전송
-        messagingTemplate.convertAndSend("/sub/v1/chat/room/" + req.getRoomId(), chatResponse);
+        try {
+            messagingTemplate.convertAndSend("/sub/v1/chat/room/" + req.getRoomId(), chatResponse);
+            log.info("메시지 브로드캐스팅 성공 - RoomID: {}, MessageID: {}", req.getRoomId(), chatMessage.getId());
+        } catch (Exception e) {
+            log.error("WebSocket 전송 실패 - RoomID: {}, Error: {}", req.getRoomId(), e.getMessage());
+        }
 
         return new RsData<>("200-1", "메시지가 전송되었습니다.", new ChatIdResponse(chatMessage.getId()));
     }
@@ -295,6 +305,7 @@ public class ChatService {
                     .build());
         }
 
+        log.debug("채팅 목록 조회 완료 - 사용자: {}, 조회된 방 개수: {}", me.getNickname(), responseList.size());
         return new RsData<>("200-1", "채팅 목록 조회 성공", responseList);
     }
 
