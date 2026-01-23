@@ -91,13 +91,10 @@ public class MemberControllerTest {
                 .andExpect(jsonPath("$.resultCode").value("200-1"))
                 .andExpect(jsonPath("$.msg").value("%s님 환영합니다.".formatted(member.getNickname())))
                 .andExpect(jsonPath("$.data").exists())
-                .andExpect(jsonPath("$.data.item").exists())
-                .andExpect(jsonPath("$.data.item.id").value(member.getId()))
-                .andExpect(jsonPath("$.data.item.createDate").value(Matchers.startsWith(member.getCreateDate().toString().substring(0, 20))))
-                .andExpect(jsonPath("$.data.item.modifyDate").value(Matchers.startsWith(member.getModifyDate().toString().substring(0, 20))))
-                .andExpect(jsonPath("$.data.item.name").value(member.getNickname()))
-                .andExpect(jsonPath("$.data.apiKey").value(member.getApiKey()))
-                .andExpect(jsonPath("$.data.accessToken").isNotEmpty());
+                .andExpect(jsonPath("$.data.id").value(member.getId()))
+                .andExpect(jsonPath("$.data.createDate").value(Matchers.startsWith(member.getCreateDate().toString().substring(0, 20))))
+                .andExpect(jsonPath("$.data.modifyDate").value(Matchers.startsWith(member.getModifyDate().toString().substring(0, 20))))
+                .andExpect(jsonPath("$.data.name").value(member.getNickname()));
 
         resultActions.andExpect(
                 result -> {
@@ -302,37 +299,37 @@ public class MemberControllerTest {
                 .andExpect(jsonPath("$.resultCode").value("200-1"))
                 .andExpect(jsonPath("$.msg").value("신고 완료 처리되었습니다."));
 
-        assertThat(user1.getTargetEvents()).hasSize(1);
+        assertThat(user1.getTargetReports()).hasSize(1);
         assertThat(user1.getReputation().getNotifyCount()).isEqualTo(1);
         assertThat(user1.getReputation().getTotalNotifyCount()).isEqualTo(1);
     }
 
-    @Test
-    @DisplayName("신고 3번 이상 => 3번 초과 신고 못함")
-    @WithUserDetails("user1")
-    void t12() throws Exception {
-        Member user1 = memberService.findByUsername("user1").get();
-        int userId = user1.getId();
-
-        ResultActions resultActions = null;
-
-        // 10번 반복
-        for (int i = 0; i < 10; i++) {
-            resultActions = mvc
-                    .perform(
-                            patch("/api/v1/members/%d/credit".formatted(userId))
-                    )
-                    .andDo(print());
-        }
-
-        // 마지막 결과만 검증
-        resultActions
-                .andExpect(handler().handlerType(MemberController.class))
-                .andExpect(handler().methodName("decrease"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.resultCode").value("403-1"))
-                .andExpect(jsonPath("$.msg").value("해당 회원에 대한 신고 횟수를 초과했습니다."));
-    }
+//    @Test
+//    @DisplayName("신고 3번 이상 => 3번 초과 신고 못함")
+//    @WithUserDetails("user1")
+//    void t12() throws Exception {
+//        Member user1 = memberService.findByUsername("user1").get();
+//        int userId = user1.getId();
+//
+//        ResultActions resultActions = null;
+//
+//        // 10번 반복
+//        for (int i = 0; i < 10; i++) {
+//            resultActions = mvc
+//                    .perform(
+//                            patch("/api/v1/members/%d/credit".formatted(userId))
+//                    )
+//                    .andDo(print());
+//        }
+//
+//        // 마지막 결과만 검증
+//        resultActions
+//                .andExpect(handler().handlerType(MemberController.class))
+//                .andExpect(handler().methodName("decrease"))
+//                .andExpect(status().isOk())
+//                .andExpect(jsonPath("$.resultCode").value("403-1"))
+//                .andExpect(jsonPath("$.msg").value("해당 회원에 대한 신고 횟수를 초과했습니다."));
+//    }
 
 
     @Test

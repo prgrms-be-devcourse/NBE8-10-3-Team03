@@ -4,6 +4,8 @@ import com.back.domain.auction.auction.entity.Auction;
 import com.back.domain.auction.auction.repository.AuctionRepository;
 import com.back.domain.member.member.entity.Member;
 import com.back.domain.member.member.enums.MemberStatus;
+import com.back.domain.member.reputation.entity.Report;
+import com.back.domain.member.reputation.repository.ReportRepository;
 import com.back.domain.member.review.entity.Review;
 import com.back.domain.member.review.repository.ReviewRepository;
 import com.back.domain.member.reputation.entity.Reputation;
@@ -39,6 +41,7 @@ public class MemberService {
     private final ReputationEventRepository eventRepository;
     private final AuctionRepository auctionRepository;
     private final ReviewRepository reviewRepository;
+    private final ReportRepository reportRepository;
     private final LoginFailService loginFailService;
 
     public long count() {
@@ -191,27 +194,39 @@ public class MemberService {
 
     // 신고에 의한 신용도 감소
     @Transactional
-    public void decreaseByNofiy(Member member, Member reporter) {
-        int targetId = member.getId();
+    public void decreaseByNofiy(Member target, Member reporter) {
+        int targetId = target.getId();
         int reporterId = reporter.getId();
-        int count = eventRepository.countByTargetIdAndReporterId(targetId, reporterId);
 
-        // A 회원 대상 B 회원의 최대 신고 횟수 3
+        int count = reportRepository.countByReporterIdAndCreateDateAfter(reporterId, LocalDateTime.now().minusDays(1));
+
+        // 신고는 하루에 3번만 가능
         if (count >= 3) {
-            throw new ServiceException("403-1", "해당 회원에 대한 신고 횟수를 초과했습니다.");
+            throw new ServiceException("400-6", "신고는 하루에 3번만 가능합니다.");
         }
 
-        ReputationEvent event = new ReputationEvent(member, EventType.NOTIFY, RefType.DEAL, reporter);
-        eventRepository.save(event);
+        boolean exists = reportRepository.existsByReporterAndTargetAndCreateDateAfter(
+                        reporter,
+                        target,
+                        LocalDateTime.now().minusDays(1)
+                );
+
+        // A 회원 대상 B 회원의 최대 신고 횟수 하루에 1번 제한
+        if (exists) {
+            throw new ServiceException("400-6", "이미 신고했습니다.");
+        }
+
+        Report report = new Report(target, reporter);
+        reportRepository.save(report);
+
 
         Reputation reputation = reputationRepository.findById(targetId).get();
 
         // 이미 정지/탈퇴/영구정지 상태면 신고 누적 X
-        if (member.getStatus() == MemberStatus.SUSPENDED || member.getStatus() == MemberStatus.BANNED)
+        if (target.getStatus() == MemberStatus.SUSPENDED || target.getStatus() == MemberStatus.BANNED)
             throw new ServiceException("400-2", "해당 회원은 정지된 회원입니다.");
 
-
-        if (member.getStatus() == MemberStatus.WITHDRAWN)
+        if (target.getStatus() == MemberStatus.WITHDRAWN)
             throw new ServiceException("400-3", "해당 회원은 탈퇴한 회원입니다.");
 
         // 신고 누적
@@ -224,13 +239,13 @@ public class MemberService {
 
         // 신고 누적 100회 -> 일주일간 정지
         if (reputation.getNotifyCount() >= 100) {
-            member.suspend();
+            target.suspend();
             reputation.setNotifyCount(0);
         }
 
         // 신고 누적 10000회 이상 -> 영구 정지
         if (reputation.getTotalNotifyCount() >= 10000) {
-            member.banned();
+            target.banned();
         }
     }
 
@@ -249,7 +264,7 @@ public class MemberService {
             reputation.decrease();
             double after = reputation.getScore();
 
-            ReputationEvent event = new ReputationEvent(seller, EventType.CANCEL, RefType.AUCTION, auctionId, Math.abs(before - after), null);
+            ReputationEvent event = new ReputationEvent(seller, EventType.CANCEL, RefType.AUCTION, auctionId, Math.abs(before - after));
             eventRepository.save(event);
         }
     }
@@ -266,7 +281,7 @@ public class MemberService {
         reputation.increase();
         double after = reputation.getScore();
 
-        ReputationEvent event = new ReputationEvent(seller, EventType.CANCEL, RefType.AUCTION, dealId, Math.abs(before - after), null);
+        ReputationEvent event = new ReputationEvent(seller, EventType.CANCEL, RefType.AUCTION, dealId, Math.abs(before - after));
         eventRepository.save(event);
     }
 
