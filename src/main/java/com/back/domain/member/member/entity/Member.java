@@ -122,27 +122,36 @@ public class Member extends BaseEntity {
 
 
     // 계정 활성화 관련
+    // 상태 변경 가능한지
+    public void changeStatus(MemberStatus target) {
+        if (!this.status.canTransitionTo(target)) {
+            throw new ServiceException("400-4", "잘못된 상태 변경입니다.");
+        }
+
+        this.status = target;
+    }
+
     // 계정 정지
     public void suspend() {
-        this.status = MemberStatus.SUSPENDED;
+        changeStatus(MemberStatus.SUSPENDED);
         this.suspendAt = LocalDateTime.now();
     }
 
     // 계정 재활성화
     public void release() {
-        this.status = MemberStatus.ACTIVE;
+        changeStatus(MemberStatus.ACTIVE);
         this.suspendAt = null;
     }
 
     // 계정 영구 정지
     public void banned() {
-        this.status = MemberStatus.BANNED;
+        changeStatus(MemberStatus.BANNED);
         this.deleteAt = LocalDateTime.now();
     }
 
     // 계정 탈퇴
     public void withdraw() {
-        this.status = MemberStatus.WITHDRAWN;
+        changeStatus(MemberStatus.WITHDRAWN);
         this.deleteAt = LocalDateTime.now();
     }
 
