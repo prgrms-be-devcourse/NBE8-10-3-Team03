@@ -1,6 +1,7 @@
 package com.back.domain.member.member.scheduler;
 
 import com.back.domain.member.member.entity.Member;
+import com.back.domain.member.member.enums.MemberStatus;
 import com.back.domain.member.member.repository.MemberRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,7 +24,7 @@ public class MemberScheduler {
     public void releaseSuspendedMembers() {
         LocalDateTime threshold = LocalDateTime.now().minusDays(7);
 
-        List<Member> targets = memberRepository.findByActiveFalseAndSuspendAtBefore(threshold);
+        List<Member> targets = memberRepository.findByStatusAndSuspendAtBefore(MemberStatus.SUSPENDED, threshold);
 
         targets.forEach(Member::release);
     }
