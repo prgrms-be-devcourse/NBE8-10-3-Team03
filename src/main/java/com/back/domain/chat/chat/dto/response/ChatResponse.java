@@ -4,6 +4,7 @@ import com.back.domain.chat.chat.entity.Chat;
 import com.back.domain.chat.chat.entity.ChatRoomType;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Getter;
+import lombok.Setter;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -14,10 +15,11 @@ public class ChatResponse {
     private final Integer itemId;
     private final String roomId;
     private final Integer senderId;
+    @Setter
+    private String senderProfileImageUrl;
     private final String message;
     private final LocalDateTime createDate;
     private final List<String> imageUrls;
-    @JsonProperty("isRead")
     private final boolean isRead;
 
     public ChatResponse(Chat chat) {

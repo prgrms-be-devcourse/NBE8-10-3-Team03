@@ -12,8 +12,8 @@ public interface ChatRoomRepository extends JpaRepository<ChatRoom, Integer> {
     Optional<ChatRoom> findByRoomId(String roomId);
 
     // POST: 이미 존재하는 방인지 확인
-    Optional<ChatRoom> findByPostAndBuyerId(Post post, String buyerId);
+    Optional<ChatRoom> findByPostAndBuyerApiKey(Post post, String buyerId);
 
     // Auction: 이미 존재하는 방인지 확인
-    Optional<ChatRoom> findByAuctionAndBuyerId(Auction auction, String buyerId);
+    Optional<ChatRoom> findByAuctionAndBuyerApiKey(Auction auction, String buyerId);
 }
