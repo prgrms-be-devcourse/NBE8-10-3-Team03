@@ -16,8 +16,12 @@ import com.back.domain.member.member.enums.Role;
 import com.back.domain.member.member.repository.MemberRepository;
 import com.back.domain.member.reputation.repository.ReputationEventRepository;
 import com.back.domain.member.reputation.repository.ReputationRepository;
+import com.back.global.audit.enums.AuditType;
+import com.back.global.audit.service.SecurityAuditService;
 import com.back.global.exception.ServiceException;
 import com.back.global.rsData.RsData;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
@@ -44,6 +48,8 @@ public class MemberService {
     private final ReviewRepository reviewRepository;
     private final ReportRepository reportRepository;
     private final LoginFailService loginFailService;
+    private final SecurityAuditService auditService;
+    private final HttpServletRequest servletRequest;
 
     public long count() {
         return memberRepository.count();
@@ -130,10 +136,10 @@ public class MemberService {
         // 패스워드가 일치하지 않으면
         if (!passwordEncoder.matches(password, member.getPassword())) {
             loginFailService.record(member.getId(), now);
-            System.out.println("loginfail : " + member.getLoginFailCount());
 
             if (member.getLoginFailCount() >= 5) {
                 loginFailService.lock(member.getId(), now);
+                auditService.log(member.getId(), AuditType.LOCK, servletRequest.getRemoteAddr(), servletRequest.getHeader("User-Agent"));
                 throw new ServiceException("401-1", "비밀번호 입력 횟수를 초과하였습니다. 10분 뒤에 다시 시도해주세요.");
             }
 
@@ -153,6 +159,7 @@ public class MemberService {
         }
 
         member.withdraw();
+        auditService.log(member.getId(), AuditType.WITHDRAW, servletRequest.getRemoteAddr(), servletRequest.getHeader("User-Agent"));
     }
 
 
