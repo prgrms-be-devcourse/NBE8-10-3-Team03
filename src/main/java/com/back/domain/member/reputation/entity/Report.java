@@ -7,13 +7,6 @@ import lombok.Getter;
 
 @Entity
 @Getter
-@Table(
-        uniqueConstraints = {
-                @UniqueConstraint(
-                        columnNames = {"reporter_id", "target_id", "create_date"}
-                )
-        }
-)
 public class Report extends BaseEntity {
     @ManyToOne
     @JoinColumn(name = "target_id")
