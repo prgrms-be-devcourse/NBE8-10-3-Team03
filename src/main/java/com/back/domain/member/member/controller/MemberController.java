@@ -9,6 +9,8 @@ import com.back.domain.member.member.entity.Member;
 import com.back.domain.member.member.service.MemberService;
 import com.back.domain.post.post.dto.PostPageResponse;
 import com.back.domain.post.post.service.PostService;
+import com.back.global.audit.enums.AuditType;
+import com.back.global.audit.service.SecurityAuditService;
 import com.back.global.exception.ServiceException;
 import com.back.global.rq.Rq;
 import com.back.global.rsData.RsData;
@@ -20,6 +22,8 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.Nullable;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -43,6 +47,8 @@ public class MemberController {
     private final MemberService memberService;
     private final AuctionService auctionService;
     private final PostService postService;
+    private final SecurityAuditService auditService;
+    private final HttpServletRequest servletRequest;
     private final Rq rq;
 
     record MemberJoinReqBody(
@@ -326,20 +332,31 @@ public class MemberController {
         Member member = memberService.findByUsername(reqBody.username())
                 .orElseThrow(() -> new ServiceException("401-1", "존재하지 않는 아이디입니다."));
 
-        memberService.login(member, reqBody.password());
+        try {
+            memberService.login(member, reqBody.password());
 
-        String accessToken = memberService.genAccessToken(member);
+            String accessToken = memberService.genAccessToken(member);
 
 
-        rq.setHeader("Authorization", "Bearer " + member.getApiKey() + " " + accessToken);
-        rq.setCookie("apiKey", member.getApiKey());
-        rq.setCookie("accessToken", accessToken);
+            rq.setHeader("Authorization", "Bearer " + member.getApiKey() + " " + accessToken);
+            rq.setCookie("apiKey", member.getApiKey());
+            rq.setCookie("accessToken", accessToken);
 
-        return new RsData<>(
-                "200-1",
-                "%s님 환영합니다.".formatted(member.getNickname()),
-                new MemberDto(member)
-        );
+            return new RsData<>(
+                    "200-1",
+                    "%s님 환영합니다.".formatted(member.getNickname()),
+                    new MemberDto(member)
+            );
+        } catch (ServiceException e) {
+            auditService.log(
+                    null, // 로그인 실패라 memberId 없음
+                    AuditType.LOGIN_FAIL,
+                    servletRequest.getRemoteAddr(),
+                    servletRequest.getHeader("User-Agent")
+            );
+
+            throw e;
+        }
     }
 
     @Operation(summary = "로그아웃")
