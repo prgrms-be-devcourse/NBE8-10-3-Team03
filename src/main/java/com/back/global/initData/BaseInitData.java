@@ -10,6 +10,8 @@ import com.back.domain.category.category.entity.Category;
 import com.back.domain.category.category.repository.CategoryRepository;
 import com.back.domain.member.member.entity.Member;
 import com.back.domain.member.member.enums.MemberStatus;
+import com.back.domain.member.member.enums.Role;
+import com.back.domain.member.member.repository.MemberRepository;
 import com.back.domain.member.member.service.MemberService;
 import com.back.domain.member.review.entity.Review;
 import com.back.domain.member.review.repository.ReviewRepository;
@@ -23,6 +25,7 @@ import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
 import com.back.domain.post.post.repository.PostRepository;
 
@@ -40,9 +43,12 @@ public class BaseInitData {
     private final CategoryRepository categoryRepository;
     private final AuctionRepository auctionRepository;
     private final ReviewRepository reviewRepository;
+    private final MemberRepository memberRepository;
     private final AuctionService auctionService;
     private final BidService bidService;
     private final PostRepository postRepository;
+
+    private final PasswordEncoder passwordEncoder;
 
     @Bean
     ApplicationRunner baseInitDataApplicationRunner() {
@@ -59,35 +65,41 @@ public class BaseInitData {
     public void work1() {
         if (memberService.count() > 0) return;
 
-        Member memberSystem = memberService.join("system", "1234", "시스템",  null);
+        Member memberSystem = new Member ("system", passwordEncoder.encode("1234"), "시스템", Role.ADMIN,null);
         if (AppConfig.isNotProd()) memberSystem.modifyApiKey(memberSystem.getUsername());
+        memberRepository.save(memberSystem);
 
-        Member memberAdmin = memberService.join("admin", "1234", "관리자", null);
+        Member memberAdmin = new Member("admin", passwordEncoder.encode("1234"), "관리자", Role.ADMIN,null);
         if (AppConfig.isNotProd()) memberAdmin.modifyApiKey(memberAdmin.getUsername());
+        memberRepository.save(memberAdmin);
 
-        Member memberUser1 = memberService.join("user1", "1234", "유저1", null);
+        Member memberUser1 = new Member("user1", passwordEncoder.encode("1234"), "유저1", Role.USER, null);
         if (AppConfig.isNotProd()) memberUser1.modifyApiKey(memberUser1.getUsername());
+        memberRepository.save(memberUser1);
 
-        Member memberUser2 = memberService.join("user2", "1234", "유저2", null);
+        Member memberUser2 = new Member("user2", passwordEncoder.encode("1234"), "유저2", Role.USER, null);
         if (AppConfig.isNotProd()) memberUser2.modifyApiKey(memberUser2.getUsername());
+        memberRepository.save(memberUser2);
 
-        Member memberUser3 = memberService.join("user3", "1234", "유저3", null);
+        Member memberUser3 = new Member("user3", passwordEncoder.encode("1234"), "유저3", Role.USER, null);
         if (AppConfig.isNotProd()) memberUser3.modifyApiKey(memberUser3.getUsername());
+        memberRepository.save(memberUser3);
 
         // 정지 회원
-        Member memberUser4 = memberService.join("user4", "1234", "유저4", null);
+        Member memberUser4 = new Member("user4", passwordEncoder.encode("1234"), "유저4", Role.USER, null);
         if (AppConfig.isNotProd()) memberUser4.modifyApiKey(memberUser4.getUsername());
         memberUser4.setStatus(MemberStatus.SUSPENDED);
         memberUser4.setSuspendAt(LocalDateTime.now().minusDays(3));
+        memberRepository.save(memberUser4);
 
         // 영구 정지 회원
-        Member memberUser5 = memberService.join("user5", "1234", "유저5", null);
+        Member memberUser5 = new Member("user5", passwordEncoder.encode("1234"), "유저5", Role.USER, null);
         if (AppConfig.isNotProd()) memberUser5.modifyApiKey(memberUser5.getUsername());
         memberUser5.setStatus(MemberStatus.BANNED);
         memberUser5.setDeleteAt(LocalDateTime.now().minusDays(3));
+        memberRepository.save(memberUser5);
 
-
-        log.info("테스트 회원 생성 완료 - 총 6명");
+        log.info("테스트 회원 생성 완료 - 총 8명");
     }
 
     @Transactional
