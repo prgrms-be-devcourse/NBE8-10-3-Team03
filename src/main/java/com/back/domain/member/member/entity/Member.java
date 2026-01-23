@@ -2,6 +2,7 @@ package com.back.domain.member.member.entity;
 
 import com.back.domain.member.member.enums.Role;
 import com.back.domain.member.member.enums.MemberStatus;
+import com.back.domain.member.reputation.entity.Report;
 import com.back.domain.member.reputation.entity.Reputation;
 import com.back.domain.member.reputation.entity.ReputationEvent;
 import com.back.domain.member.review.entity.Review;
@@ -49,8 +50,11 @@ public class Member extends BaseEntity {
     @OneToMany(mappedBy = "target", fetch = FetchType.LAZY)
     private List<ReputationEvent> targetEvents;
 
+    @OneToMany(mappedBy = "target", fetch = FetchType.LAZY)
+    private List<Report> targetReports;
+
     @OneToMany(mappedBy = "reporter", fetch = FetchType.LAZY)
-    private List<ReputationEvent> reporterEvents;
+    private List<Report> reporterReports;
 
     @OneToMany(mappedBy = "member", fetch = FetchType.LAZY)
     private List<Review> reviews;
