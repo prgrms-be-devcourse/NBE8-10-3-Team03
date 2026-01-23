@@ -30,6 +30,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.regex.Pattern;
 
 @Service
 @RequiredArgsConstructor
@@ -49,14 +50,20 @@ public class MemberService {
     }
 
     @Transactional
-    public Member join(String username, String password, String nickname, String profileImgUrl) {
+    public Member join(String username, String password, String name, String profileImgUrl) {
+        String nickname = name.trim();
         memberRepository
                 .findByUsername(username)
                 .ifPresent(_member -> {
                     throw new ServiceException("409-1", "이미 존재하는 아이디입니다.");
                 });
+        memberRepository.findByNickname(nickname)
+                .ifPresent(_member -> {
+                    throw new ServiceException("409-1", "%s(은)는 사용중인 닉네임입니다.".formatted(nickname));
+                });
 
-        // password가 null이면(OAuth) password에 null 저장
+        passwordValidation(username, password);
+
         password = (password != null && !password.isBlank()) ? passwordEncoder.encode(password) : null;
 
         Member member = new Member(username, password, nickname, profileImgUrl);
@@ -213,7 +220,7 @@ public class MemberService {
 
         // A 회원 대상 B 회원의 최대 신고 횟수 하루에 1번 제한
         if (exists) {
-            throw new ServiceException("400-6", "이미 신고했습니다.");
+            throw new ServiceException("400-6", "이미 신고한 회원입니다.");
         }
 
         Report report = new Report(target, reporter);
@@ -294,5 +301,69 @@ public class MemberService {
         }
         Review review = new Review(member, star, msg, reviewerId);
         return reviewRepository.save(review);
+    }
+
+
+    public void passwordValidation(String username, String password) {
+        if (password == null) return;
+
+        // 길이 검증 (이미 @Size로 체크되지만 명시적으로)
+        if (password.length() < 8 || password.length() > 20) {
+            throw new ServiceException("400-1", "비밀번호는 8-20자여야 합니다");
+        }
+
+        // 복잡도 검증 (영문 대/소문자, 숫자, 특수문자 중 3가지 이상)
+        int complexityCount = 0;
+        if (Pattern.compile("[a-z]").matcher(password).find()) complexityCount++;
+        if (Pattern.compile("[A-Z]").matcher(password).find()) complexityCount++;
+        if (Pattern.compile("[0-9]").matcher(password).find()) complexityCount++;
+        if (Pattern.compile("[!@#$%^&*()_+\\-=\\[\\]{};':\"\\\\|,.<>/?]").matcher(password).find()) complexityCount++;
+
+        if (complexityCount < 3) {
+            throw new ServiceException("400-1", "비밀번호는 영문 대/소문자, 숫자, 특수문자 중 3가지 이상 조합이어야 합니다");
+        }
+
+        // 연속된 문자 검증
+        if (hasConsecutiveChars(password)) {
+            throw new ServiceException("400-1", "연속된 문자 또는 숫자 3개 이상 사용할 수 없습니다");
+        }
+
+        // 동일 문자 반복 검증
+        if (Pattern.compile("(.)\\1\\1").matcher(password).find()) {
+            throw new ServiceException("400-1", "동일한 문자를 3번 이상 연속 사용할 수 없습니다");
+        }
+
+        // 아이디 포함 검증
+        if (username != null && !username.isEmpty() &&
+                password.toLowerCase().contains(username.toLowerCase())) {
+            throw new ServiceException("400-1", "비밀번호에 아이디를 포함할 수 없습니다");
+        }
+    }
+
+    private boolean hasConsecutiveChars(String password) {
+        String lowerPassword = password.toLowerCase();
+
+        // 연속된 숫자 체크
+        String[] consecutiveNumbers = {
+                "012", "123", "234", "345", "456", "567", "678", "789", "890"
+        };
+        for (String seq : consecutiveNumbers) {
+            if (lowerPassword.contains(seq)) return true;
+        }
+
+        // 연속된 알파벳 체크
+        for (int i = 0; i < lowerPassword.length() - 2; i++) {
+            char c1 = lowerPassword.charAt(i);
+            char c2 = lowerPassword.charAt(i + 1);
+            char c3 = lowerPassword.charAt(i + 2);
+
+            if (Character.isLetter(c1) && Character.isLetter(c2) && Character.isLetter(c3)) {
+                if (c2 == c1 + 1 && c3 == c2 + 1) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 }
