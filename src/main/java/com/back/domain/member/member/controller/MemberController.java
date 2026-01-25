@@ -232,6 +232,13 @@ public class MemberController {
     ) {
     }
 
+    record MemberLoginResBody(
+            MemberDto item,
+            String apiKey,
+            String accessToken
+    ) {
+    }
+
     @PostMapping("/login")
     @Transactional
     @Operation(summary = "로그인")
@@ -326,7 +333,7 @@ public class MemberController {
                     )
             )
     })
-    public RsData<MemberDto> login(
+    public RsData<MemberLoginResBody> login(
             @Valid @RequestBody MemberLoginReqBody reqBody
     ) {
         Member member = memberService.findByUsername(reqBody.username())
@@ -345,7 +352,11 @@ public class MemberController {
             return new RsData<>(
                     "200-1",
                     "%s님 환영합니다.".formatted(member.getNickname()),
-                    new MemberDto(member)
+                    new MemberLoginResBody(
+                            new MemberDto(member),
+                            member.getApiKey(),
+                            accessToken
+                    )
             );
         } catch (ServiceException e) {
             auditService.log(
