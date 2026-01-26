@@ -220,10 +220,17 @@ public class ChatService {
         Member seller = memberRepository.findByApiKey(room.getSellerApiKey()).orElse(null);
         Member buyer = memberRepository.findByApiKey(room.getBuyerApiKey()).orElse(null);
 
-        // 메시지 조회 (스크롤 처리를 위해 lastChatId를 넘기면 그 이후의 데이터만 가져옴)
-        List<Chat> chats = (lastChatId == null || lastChatId <= 0)
-                ? chatRepository.findAllByChatRoom_RoomIdOrderByCreateDateAsc(roomId)
-                : chatRepository.findByChatRoom_RoomIdAndIdGreaterThanOrderByCreateDateAsc(roomId, lastChatId);
+        // No-Offset 페이징 로직
+        List<Chat> chats;
+        // 방 처음 진입 시 가장 최신 메세지 20개 조회 (내림차순)
+        if (lastChatId == null || lastChatId <= 0) {
+            chats = chatRepository.findTop20ByChatRoom_RoomIdOrderByIdDesc(roomId);
+        } else {
+            // 스크롤 상단 도달 시 특정 ID 이전의 과거 데이터 20개 조회 (내림차순)
+            chats = chatRepository.findTop20ByChatRoom_RoomIdAndIdLessThanOrderByIdDesc(roomId, lastChatId);
+        }
+
+        Collections.reverse(chats);
 
         // SenderId를 비교하여 Sender를 찾고 senderProfileImageUrl에 이미지 URL 주입
         List<ChatResponse> responses = chats.stream()

@@ -171,71 +171,67 @@ public class ChatController {
     }
 
     @Operation(
-            summary = "채팅 내역 조회 (무한 스크롤)",
+            summary = "채팅 내역 조회 (무한 스크롤 최적화)",
             description = """
-            특정 채팅방의 대화 내역을 조회합니다. **Cursor-based Pagination** 방식을 사용합니다.
-            
-            **페이징 전략**:
-            1. **최초 조회**: `lastChatId` 파라미터 없이 요청 -> 가장 최신 메시지 N개를 반환합니다.
-            2. **더 불러오기**: 응답받은 리스트 중 **가장 마지막(가장 오래된) 메시지의 ID**를 `lastChatId`로 요청합니다.
-            3. **끝 도달**: 빈 리스트(`[]`)가 반환되면 더 이상 메시지가 없는 것입니다.
-            """
+        특정 채팅방의 대화 내역을 **No-Offset 페이징** 방식으로 조회합니다.
+        사용자가 채팅창 상단으로 스크롤할 때 과거 내역을 불러오기에 최적화되어 있습니다.
+        
+        **페이징 가이드**:
+        1. **최초 진입**: `lastChatId` 없이 요청 -> 최신 메시지 20개를 시간순(ASC)으로 반환합니다.
+        2. **이전 대화 불러오기**: 받은 리스트의 **첫 번째(Index 0, 가장 오래된) 메시지 ID**를 `lastChatId` 파라미터에 넣어 요청합니다.
+        3. **종료 조건**: 반환된 데이터(`data`)가 빈 배열 `[]`이면 더 이상 과거 내역이 없는 것입니다.
+        """
     )
     @ApiResponses({
             @ApiResponse(
                     responseCode = "200",
-                    description = "조회 성공",
+                    description = "조회 성공 (메시지는 항상 시간순(ASC)으로 정렬되어 반환됩니다)",
                     content = @Content(mediaType = "application/json", examples = {
                             @ExampleObject(name = "성공_데이터있음", value = """
-                    {
-                        "resultCode": "200-1",
-                        "msg": "메시지 목록 조회 성공",
-                        "data": [
-                            {
-                                "id": 15,
-                                "itemId": 10,
-                                "roomId": "550e8400...",
-                                "senderId": 3,
-                                "message": "네 알겠습니다.",
-                                "createDate": "2024-02-21T14:05:00",
-                                "imageUrls": [],
-                                "isRead": true
-                            },
-                            {
-                                "id": 14,
-                                "itemId": 10,
-                                "roomId": "550e8400...",
-                                "senderId": 2,
-                                "message": "가격 조정 가능하신가요?",
-                                "createDate": "2024-02-21T14:00:00",
-                                "imageUrls": ["https://cdn.example.com/img1.jpg"],
-                                "isRead": true
-                            }
-                        ]
-                    }
-                """),
-                            @ExampleObject(name = "성공_데이터없음", summary = "더 이상 불러올 메시지가 없을 때", value = """
-                    {
-                        "resultCode": "200-1",
-                        "msg": "메시지 목록 조회 성공",
-                        "data": []
-                    }
-                """)
+                {
+                    "resultCode": "200-1",
+                    "msg": "메시지 목록 조회 성공",
+                    "data": [
+                        {
+                            "id": 80, 
+                            "message": "이 메시지가 현재 리스트 중 가장 오래된 것 (다음 요청 시 lastChatId=80)",
+                            "createDate": "2024-02-21T14:00:00"
+                        },
+                        {
+                            "id": 81,
+                            "message": "그 다음 메시지",
+                            "createDate": "2024-02-21T14:01:00"
+                        },
+                        {
+                            "id": 99,
+                            "message": "이 리스트 중 가장 최신 메시지",
+                            "createDate": "2024-02-21T14:05:00"
+                        }
+                    ]
+                }
+            """),
+                            @ExampleObject(name = "성공_데이터없음", summary = "더 이상 불러올 과거 메시지가 없을 때", value = """
+                {
+                    "resultCode": "200-1",
+                    "msg": "메시지 목록 조회 성공",
+                    "data": []
+                }
+            """)
                     })
             ),
             @ApiResponse(
                     responseCode = "403",
                     description = "접근 권한 없음",
                     content = @Content(mediaType = "application/json", examples = @ExampleObject(value = """
-                { "resultCode": "403-1", "msg": "해당 채팅방에 접근 권한이 없습니다.", "data": null }
-            """))
+            { "resultCode": "403-1", "msg": "해당 채팅방에 접근 권한이 없습니다.", "data": null }
+        """))
             )
     })
     @GetMapping("/room/{roomId}")
     public RsData<List<ChatResponse>> getMessages(
             @Parameter(description = "채팅방 UUID", required = true)
             @PathVariable String roomId,
-            @Parameter(description = "마지막 메시지 ID (이 값보다 작은 ID를 조회). 최초 조회 시 비워두세요.", example = "100")
+            @Parameter(description = "현재 클라이언트가 가진 가장 오래된 메시지 ID. 이 ID보다 과거의 데이터를 조회합니다.", example = "100")
             @RequestParam(value = "lastChatId", required = false) Integer lastChatId) {
         return chatService.getMessages(roomId, lastChatId);
     }

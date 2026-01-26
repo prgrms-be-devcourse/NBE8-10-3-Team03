@@ -351,7 +351,7 @@ class ChatControllerTest {
     }
 
     @Test
-    @DisplayName("14. lastChatId를 이용한 페이징(이어보기)")
+    @DisplayName("14. lastChatId를 이용한 페이징(과거 내역 불러오기)")
     void t14() throws Exception {
         String roomId = createRoomAsUser(salePostId, "POST", buyer);
         sendMessageAsUser(roomId, "1", buyer, null);
@@ -360,17 +360,19 @@ class ChatControllerTest {
 
         MvcResult result = mockMvc.perform(get("/api/v1/chat/room/" + roomId)
                         .with(user(makeSecurityUser(buyer))))
+                .andExpect(status().isOk())
                 .andReturn();
 
         JsonNode data = objectMapper.readTree(result.getResponse().getContentAsString()).path("data");
+
         int secondMsgId = data.get(1).get("id").asInt();
 
         mockMvc.perform(get("/api/v1/chat/room/" + roomId)
                         .with(user(makeSecurityUser(buyer)))
                         .param("lastChatId", String.valueOf(secondMsgId)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.length()").value(1))
-                .andExpect(jsonPath("$.data[0].message").value("3"));
+                .andExpect(jsonPath("$.data.length()").value(1)) // "1"번 메시지 1개만 반환
+                .andExpect(jsonPath("$.data[0].message").value("1")); // 기대값: "1"
     }
 
     @Test
