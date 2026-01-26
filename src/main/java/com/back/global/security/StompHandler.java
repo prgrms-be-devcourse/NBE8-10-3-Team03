@@ -42,43 +42,57 @@ public class StompHandler implements ChannelInterceptor {
         if (StompCommand.CONNECT.equals(accessor.getCommand())) {
             String token = accessor.getFirstNativeHeader("token");
 
-            if (token != null && token.startsWith("Bearer ")) {
-                token = token.substring(7);
+            // 토큰이 없거나 형식이 틀리면 에러 발생
+            if (token == null || token.isBlank()) {
+                log.error("STOMP Connect Error: Token is missing");
+                throw new RuntimeException("Unauthorized: Token is required");
+            }
 
-                // 복호화
-                try {
-                    Map<String, Object> payload = memberService.payload(token);
+            if (!token.startsWith("Bearer ")) {
+                log.error("STOMP Connect Error: Invalid token format");
+                throw new RuntimeException("Unauthorized: Invalid token format");
+            }
 
-                    if (payload != null) {
-                        int id = (int) payload.get("id");
-                        String username = (String) payload.get("username");
-                        String name = (String) payload.get("name");
-                        String roleStr = (String) payload.get("role");
-                        Role role = Role.from(roleStr);
+            token = token.substring(7);
 
-                        List<SimpleGrantedAuthority> authorities =
-                                Collections.singletonList(new SimpleGrantedAuthority(role.name()));
 
-                        SecurityUser user = new SecurityUser(
-                                id,
-                                username,
-                                "", // 비밀번호는 필요 없음
-                                name,
-                                role,
-                                authorities
-                        );
+            // 복호화
+            try {
+                Map<String, Object> payload = memberService.payload(token);
 
-                        // 웹 소켓 세션에 유저 정보 저장
-                        Authentication auth = new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities());
-                        accessor.setUser(auth);
-
-                        log.info("STOMP Connected: {}", username);
-                    }
-                } catch (Exception e) {
-                    log.error("STOMP Connect Error: {}", e.getMessage());
-                    // 인증 실패 예외 발생
-                    throw new RuntimeException("Unauthorized");
+                if (payload == null) {
+                    log.error("STOMP Connect Error: Invalid token payload");
+                    throw new RuntimeException("Unauthorized: Invalid token");
                 }
+
+                int id = (int) payload.get("id");
+                String username = (String) payload.get("username");
+                String name = (String) payload.get("name");
+                String roleStr = (String) payload.get("role");
+                Role role = Role.from(roleStr);
+
+                List<SimpleGrantedAuthority> authorities =
+                        Collections.singletonList(new SimpleGrantedAuthority(role.name()));
+
+                SecurityUser user = new SecurityUser(
+                        id,
+                        username,
+                        "", // 비밀번호는 필요 없음
+                        name,
+                        role,
+                        authorities
+                );
+
+                // 웹 소켓 세션에 유저 정보 저장
+                Authentication auth = new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities());
+                accessor.setUser(auth);
+
+                log.info("STOMP Connected: {}", username);
+
+            } catch (Exception e) {
+                log.error("STOMP Connect Error: {}", e.getMessage());
+                // 인증 실패 예외 발생
+                throw new RuntimeException("Unauthorized");
             }
         }
 
