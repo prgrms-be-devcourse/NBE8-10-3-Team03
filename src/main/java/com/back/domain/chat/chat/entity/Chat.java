@@ -25,7 +25,7 @@ public class Chat extends BaseEntity {
     private String message;
 
     @Column(name = "is_read", nullable = false)
-    private boolean read = false; // 읽음 여부
+    private Boolean read = false; // 읽음 여부
 
     @Builder
     public Chat(ChatRoom chatRoom, Integer senderId, String message, boolean read) {

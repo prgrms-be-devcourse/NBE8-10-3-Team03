@@ -42,43 +42,57 @@ public class StompHandler implements ChannelInterceptor {
         if (StompCommand.CONNECT.equals(accessor.getCommand())) {
             String token = accessor.getFirstNativeHeader("token");
 
-            if (token != null && token.startsWith("Bearer ")) {
-                token = token.substring(7);
+            // 토큰이 없거나 형식이 틀리면 에러 발생
+            if (token == null || token.isBlank()) {
+                log.error("STOMP Connect Error: Token is missing");
+                throw new RuntimeException("Unauthorized: Token is required");
+            }
 
-                // 복호화
-                try {
-                    Map<String, Object> payload = memberService.payload(token);
+            if (!token.startsWith("Bearer ")) {
+                log.error("STOMP Connect Error: Invalid token format");
+                throw new RuntimeException("Unauthorized: Invalid token format");
+            }
 
-                    if (payload != null) {
-                        int id = (int) payload.get("id");
-                        String username = (String) payload.get("username");
-                        String name = (String) payload.get("name");
-                        String roleStr = (String) payload.get("role");
-                        Role role = Role.from(roleStr);
+            token = token.substring(7);
 
-                        List<SimpleGrantedAuthority> authorities =
-                                Collections.singletonList(new SimpleGrantedAuthority(role.name()));
 
-                        SecurityUser user = new SecurityUser(
-                                id,
-                                username,
-                                "", // 비밀번호는 필요 없음
-                                name,
-                                role,
-                                authorities
-                        );
+            // 복호화
+            try {
+                Map<String, Object> payload = memberService.payload(token);
 
-                        // 웹 소켓 세션에 유저 정보 저장
-                        Authentication auth = new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities());
-                        accessor.setUser(auth);
-
-                        log.info("STOMP Connected: {}", username);
-                    }
-                } catch (Exception e) {
-                    log.error("STOMP Connect Error: {}", e.getMessage());
-                    // 인증 실패 예외 발생
-                    throw new RuntimeException("Unauthorized");
+                if (payload == null) {
+                    log.error("STOMP Connect Error: Invalid token payload");
+                    throw new RuntimeException("Unauthorized: Invalid token");
                 }
+
+                int id = (int) payload.get("id");
+                String username = (String) payload.get("username");
+                String name = (String) payload.get("name");
+                String roleStr = (String) payload.get("role");
+                Role role = Role.from(roleStr);
+
+                List<SimpleGrantedAuthority> authorities =
+                        Collections.singletonList(new SimpleGrantedAuthority(role.name()));
+
+                SecurityUser user = new SecurityUser(
+                        id,
+                        username,
+                        "", // 비밀번호는 필요 없음
+                        name,
+                        role,
+                        authorities
+                );
+
+                // 웹 소켓 세션에 유저 정보 저장
+                Authentication auth = new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities());
+                accessor.setUser(auth);
+
+                log.info("STOMP Connected: {}", username);
+
+            } catch (Exception e) {
+                log.error("STOMP Connect Error: {}", e.getMessage());
+                // 인증 실패 예외 발생
+                throw new RuntimeException("Unauthorized");
             }
         }
 
@@ -86,35 +100,69 @@ public class StompHandler implements ChannelInterceptor {
         else if (StompCommand.SUBSCRIBE.equals(accessor.getCommand())) {
             // 목적지 추출 Ex: /sub/v1/chat/room/{roomId}
             String dest = accessor.getDestination();
-            String chatRoomPattern = "/sub/v1/chat/room/{roomId}";
+            log.info("=== STOMP SUBSCRIBE === destination: {}", dest);
 
-            // 구독 경로가 채팅방인지 체크
-            if (dest != null && pathMatcher.match(chatRoomPattern, dest)) {
+            // 채팅방 구독 패턴 (읽음 알림 포함)
+            String chatRoomPattern = "/sub/v1/chat/room/*";
+            String chatReadPattern = "/sub/v1/chat/room/*/read";
+
+            // 구독 경로가 채팅방인지 체크 (읽음 알림(ChatRead) 제외)
+            if (dest != null && pathMatcher.match(chatRoomPattern, dest) && !pathMatcher.match(chatReadPattern, dest)) {
 
                 Authentication auth = (Authentication) accessor.getUser();
 
-                // 로그인하지 않은 사용자 차단
+                //로그인하지 않은 사용자 차단
                 if (auth == null || !(auth.getPrincipal() instanceof SecurityUser)) {
                     throw new RuntimeException("Unauthorized: Login Required for Chat");
                 }
 
                 SecurityUser user = (SecurityUser) auth.getPrincipal();
 
-                // RoomId 파싱 로직
-                String roomId = dest.substring(dest.lastIndexOf("/") + 1);
+                // RoomId 파싱 로직: /sub/v1/chat/room/{roomId}
+                String[] parts = dest.split("/");
+                String roomId = parts[parts.length - 1];
 
                 ChatRoom room = chatRoomRepository.findByRoomId(roomId)
-                        .orElseThrow(() -> new RuntimeException("ChatRoom not found"));
+                        .orElseThrow(() -> new RuntimeException("ChatRoom Not Found"));
 
                 Member member = memberService.findById(user.getId())
-                        .orElseThrow(() -> new RuntimeException("Member not found"));
+                        .orElseThrow(() -> new RuntimeException("Member Not Found"));
 
-                // 권한 검증
+                // 권한 검증 (채팅방에 소속된 판매자나 구매자인지 확인)
                 if (!room.getSellerApiKey().equals(member.getApiKey()) && !room.getBuyerApiKey().equals(member.getApiKey())) {
-                    log.warn("사용자(ID:{})가 권한 없는 채팅방({}) 구독 시도", user.getId(), roomId);
+                    log.warn("사용자(ID:{{})가 권한 없는 채팅방({}) 구독 시독", user.getId(), roomId);
                     throw new RuntimeException("Subscription not authorized");
                 }
             }
+
+            // 구독 경로가 알림(ChatRead) 구독인 경우
+            else if (dest != null && pathMatcher.match(chatReadPattern, dest)) {
+                Authentication auth = (Authentication) accessor.getUser();
+
+                //로그인 하지 않은 사용자 차단
+                if (auth == null || !(auth.getPrincipal() instanceof SecurityUser)) {
+                    throw new RuntimeException("Unauthorized: Login Required for Chat");
+                }
+
+                SecurityUser user = (SecurityUser) auth.getPrincipal();
+
+                // RoomId 파싱 로직: /sub/v1/chat/room/{roomId}/read
+                String[] parts = dest.split("/");
+                String roomId = parts[parts.length - 2];
+
+                ChatRoom room = chatRoomRepository.findByRoomId(roomId)
+                        .orElseThrow(() -> new RuntimeException("ChatRoom Not Found"));
+
+                Member member = memberService.findById(user.getId())
+                        .orElseThrow(() -> new RuntimeException("Member Not Found"));
+
+                if (!room.getSellerApiKey().equals(member.getApiKey()) && !room.getBuyerApiKey().equals(member.getApiKey())) {
+                    log.warn("사용자(ID:{})가 권한 없는 채팅방({}) 읽음 알림 구독 시도", user.getId(), roomId);
+                    throw new RuntimeException("Subscription not authorized");
+                }
+
+            }
+            // 경매 구독은 별도의 권한 검증을 하지 않음 (공개)
         }
         return message;
     }

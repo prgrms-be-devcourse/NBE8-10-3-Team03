@@ -213,17 +213,32 @@ public class ChatService {
             throw new ServiceException("403-1", "해당 채팅방에 접근 권한이 없습니다.");
         }
 
-        // 확인한 상대방의 메시지들을 읽음 처리
-        chatRepository.markMessagesAsRead(roomId, me.getId());
+        // 확인한 상대방의 메시지들을 읽음 처리 및 WebSocket 알림
+        int updatedCount = chatRepository.markMessagesAsRead(roomId, me.getId());
+        if (updatedCount == 0) {
+            // 상대방에게 읽음 알림 전송
+            Map<String, Object> readNotification= new HashMap<>();
+            readNotification.put("readerId", me.getId());
+            readNotification.put("roomId", roomId);
+            messagingTemplate.convertAndSend("/sub/v1/chat/room/" + roomId + (Object) readNotification);
+            log.debug("읽음 알림 전송 - RoomId: {}, ReaderId: {}, UpdatedCount: {}", roomId, me.getId(), updatedCount);
+        }
 
         // 최신 프로필 이미지를 보여주기 위해 Member 정보를 미리 조회
         Member seller = memberRepository.findByApiKey(room.getSellerApiKey()).orElse(null);
         Member buyer = memberRepository.findByApiKey(room.getBuyerApiKey()).orElse(null);
 
-        // 메시지 조회 (스크롤 처리를 위해 lastChatId를 넘기면 그 이후의 데이터만 가져옴)
-        List<Chat> chats = (lastChatId == null || lastChatId <= 0)
-                ? chatRepository.findAllByChatRoom_RoomIdOrderByCreateDateAsc(roomId)
-                : chatRepository.findByChatRoom_RoomIdAndIdGreaterThanOrderByCreateDateAsc(roomId, lastChatId);
+        // No-Offset 페이징 로직
+        List<Chat> chats;
+        // 방 처음 진입 시 가장 최신 메세지 20개 조회 (내림차순)
+        if (lastChatId == null || lastChatId <= 0) {
+            chats = chatRepository.findTop20ByChatRoom_RoomIdOrderByIdDesc(roomId);
+        } else {
+            // 스크롤 상단 도달 시 특정 ID 이전의 과거 데이터 20개 조회 (내림차순)
+            chats = chatRepository.findTop20ByChatRoom_RoomIdAndIdLessThanOrderByIdDesc(roomId, lastChatId);
+        }
+
+        Collections.reverse(chats);
 
         // SenderId를 비교하여 Sender를 찾고 senderProfileImageUrl에 이미지 URL 주입
         List<ChatResponse> responses = chats.stream()
@@ -334,12 +349,17 @@ public class ChatService {
                 }
             }
 
+            // Reputation이 null이라면 임시로 50
+            Double opponentReputation = opponent.getReputation() != null
+                    ? opponent.getReputation().getScore() : 50;
+
             // DTO 조립
             responseList.add(ChatRoomListResponse.builder()
                     .roomId(currentRoomId)
                     .opponentId(opponent.getId())
                     .opponentNickname(opponent.getNickname())
                     .opponentProfileImageUrl(opponent.getProfileImgUrl())
+                    .opponentReputation(opponentReputation)
                     .lastMessage(chat.getMessage())
                     .lastMessageDate(chat.getCreateDate())
                     .unreadCount(unreadCount)

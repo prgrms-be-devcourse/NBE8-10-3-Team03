@@ -20,7 +20,7 @@ public class ChatResponse {
     private final String message;
     private final LocalDateTime createDate;
     private final List<String> imageUrls;
-    private final boolean isRead;
+    private final Boolean read;
 
     public ChatResponse(Chat chat) {
         this.id = chat.getId();
@@ -28,7 +28,7 @@ public class ChatResponse {
         this.senderId = chat.getSenderId();
         this.message = chat.getMessage();
         this.createDate = chat.getCreateDate();
-        this.isRead = chat.isRead();
+        this.read = chat.getRead();
 
         // ChatImage 엔티티 -> URL String 리스트 변환
         this.imageUrls = chat.getChatImages().stream()

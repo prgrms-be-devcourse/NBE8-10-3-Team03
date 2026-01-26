@@ -15,6 +15,7 @@ public class ChatRoomListResponse {
     private Integer opponentId;
     private String opponentNickname;
     private String opponentProfileImageUrl; // 유저 프로필 사진
+    private Double opponentReputation;
 
     // 마지막 메세지 정보
     private String lastMessage;

@@ -17,10 +17,10 @@ public interface ChatRepository extends JpaRepository<Chat, Integer> {
     @EntityGraph(attributePaths = {"chatRoom", "chatRoom.post", "chatRoom.auction"})
     List<Chat> findByChatRoom_RoomIdAndIdGreaterThanOrderByCreateDateAsc(String roomId, int lastId);
 
-    // 읽음 처리 (JPQL)
+    // 읽음 처리 (JPQL) - 업데이트된 행 수 반환
     @Modifying(clearAutomatically = true)
     @Query("UPDATE Chat c SET c.read = true WHERE c.chatRoom.roomId = :roomId AND c.senderId != :readerId AND c.read = false")
-    void markMessagesAsRead(@Param("roomId") String roomId, @Param("readerId") Integer readerId);
+    int markMessagesAsRead(@Param("roomId") String roomId, @Param("readerId") Integer readerId);
 
     // 참여한 대화의 최신 메세지들 (JPQL)
     @Query("SELECT c FROM Chat c " +
@@ -31,6 +31,14 @@ public interface ChatRepository extends JpaRepository<Chat, Integer> {
 
     // 안 읽은 메세지 개수 조회
     Integer countByChatRoom_RoomIdAndReadFalseAndSenderIdNot(String roomId, Integer readerId);
+
+    // 최신 메세지 20개만 가져오기 (내림차순)
+    @EntityGraph(attributePaths = {"chatRoom"})
+    List<Chat> findTop20ByChatRoom_RoomIdOrderByIdDesc(String roomId);
+
+    // 과거 내역을 부르는 경우: lastChatId 보다 작은 메세지 20개 (내림차순)
+    @EntityGraph(attributePaths = {"chatRoom"})
+    List<Chat> findTop20ByChatRoom_RoomIdAndIdLessThanOrderByIdDesc(String roomId, Integer lastId);
 
     // 안 읽은 메시지 개수 일괄 조회
     @Query("SELECT c.chatRoom.roomId, COUNT(c) " +
