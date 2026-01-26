@@ -349,12 +349,17 @@ public class ChatService {
                 }
             }
 
+            // Reputation이 null이라면 임시로 50
+            Double opponentReputation = opponent.getReputation() != null
+                    ? opponent.getReputation().getScore() : 50;
+
             // DTO 조립
             responseList.add(ChatRoomListResponse.builder()
                     .roomId(currentRoomId)
                     .opponentId(opponent.getId())
                     .opponentNickname(opponent.getNickname())
                     .opponentProfileImageUrl(opponent.getProfileImgUrl())
+                    .opponentReputation(opponentReputation)
                     .lastMessage(chat.getMessage())
                     .lastMessageDate(chat.getCreateDate())
                     .unreadCount(unreadCount)
