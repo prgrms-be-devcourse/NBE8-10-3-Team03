@@ -17,10 +17,10 @@ public interface ChatRepository extends JpaRepository<Chat, Integer> {
     @EntityGraph(attributePaths = {"chatRoom", "chatRoom.post", "chatRoom.auction"})
     List<Chat> findByChatRoom_RoomIdAndIdGreaterThanOrderByCreateDateAsc(String roomId, int lastId);
 
-    // 읽음 처리 (JPQL)
+    // 읽음 처리 (JPQL) - 업데이트된 행 수 반환
     @Modifying(clearAutomatically = true)
     @Query("UPDATE Chat c SET c.read = true WHERE c.chatRoom.roomId = :roomId AND c.senderId != :readerId AND c.read = false")
-    void markMessagesAsRead(@Param("roomId") String roomId, @Param("readerId") Integer readerId);
+    int markMessagesAsRead(@Param("roomId") String roomId, @Param("readerId") Integer readerId);
 
     // 참여한 대화의 최신 메세지들 (JPQL)
     @Query("SELECT c FROM Chat c " +

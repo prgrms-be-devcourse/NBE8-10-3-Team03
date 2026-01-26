@@ -213,8 +213,16 @@ public class ChatService {
             throw new ServiceException("403-1", "해당 채팅방에 접근 권한이 없습니다.");
         }
 
-        // 확인한 상대방의 메시지들을 읽음 처리
-        chatRepository.markMessagesAsRead(roomId, me.getId());
+        // 확인한 상대방의 메시지들을 읽음 처리 및 WebSocket 알림
+        int updatedCount = chatRepository.markMessagesAsRead(roomId, me.getId());
+        if (updatedCount == 0) {
+            // 상대방에게 읽음 알림 전송
+            Map<String, Object> readNotification= new HashMap<>();
+            readNotification.put("readerId", me.getId());
+            readNotification.put("roomId", roomId);
+            messagingTemplate.convertAndSend("/sub/v1/chat/room/" + roomId + (Object) readNotification);
+            log.debug("읽음 알림 전송 - RoomId: {}, ReaderId: {}, UpdatedCount: {}", roomId, me.getId(), updatedCount);
+        }
 
         // 최신 프로필 이미지를 보여주기 위해 Member 정보를 미리 조회
         Member seller = memberRepository.findByApiKey(room.getSellerApiKey()).orElse(null);
