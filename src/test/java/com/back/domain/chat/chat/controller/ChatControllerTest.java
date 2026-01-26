@@ -347,7 +347,7 @@ class ChatControllerTest {
 
         Chat chat = chatRepository.findById(chatId).orElseThrow();
 
-        org.assertj.core.api.Assertions.assertThat(chat.isRead()).isTrue();
+        org.assertj.core.api.Assertions.assertThat(chat.getRead()).isTrue();
     }
 
     @Test
@@ -648,16 +648,16 @@ class ChatControllerTest {
     @Test
     @DisplayName("31. [Stomp] CONNECT 시 잘못된 토큰이면 연결 거부(예외 발생)")
     void t31() {
-        // Given
         StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.CONNECT);
 
-        accessor.setNativeHeader("token", "INVALID_TOKEN_STRING");
+        accessor.setNativeHeader("Authorization", "INVALID_TOKEN_FORMAT");
 
         Message<?> message = MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());
         MessageChannel mockChannel = mock(MessageChannel.class);
 
-        assertDoesNotThrow(() -> stompHandler.preSend(message, mockChannel));
-        assertThat(accessor.getUser()).isNull();
+        assertThrows(RuntimeException.class, () -> {
+            stompHandler.preSend(message, mockChannel);
+        }, "Unauthorized: Invalid token format");
     }
 
     @Test
