@@ -34,8 +34,10 @@ public record PostDetailResponse(
                 post.getCategory().getName(),
                 post.getSeller().getId(),
                 post.getSeller().getNickname(),
-                PostListResponse.calculateBadge(post.getSeller().getReputation().getScore()),
-                post.getSeller().getReputation().getScore(),
+                PostListResponse.calculateBadge(post.getSeller().getReputation() != null ?
+                        post.getSeller().getReputation().getScore() : null),
+                post.getSeller().getReputation() != null ?
+                        post.getSeller().getReputation().getScore() : 0.0,
                 post.getPostImages()
                         .stream()
                         .map(pi -> pi.getImage().getUrl())
