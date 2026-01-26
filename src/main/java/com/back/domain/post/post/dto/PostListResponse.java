@@ -1,6 +1,8 @@
 package com.back.domain.post.post.dto;
 
 import com.back.domain.post.post.entity.Post;
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import java.time.LocalDateTime;
 
 public record PostListResponse(
@@ -15,6 +17,7 @@ public record PostListResponse(
     long viewCount,
     int sellerId,
     String sellerNickname,
+    @Schema(description = "판매자 등급 뱃지 (안전/우수/일반/주의)", example = "안전한 판매자")
     String sellerBadge
 ) {
     public PostListResponse(Post post) {

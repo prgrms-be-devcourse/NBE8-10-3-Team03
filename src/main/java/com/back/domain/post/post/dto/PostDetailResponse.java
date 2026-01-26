@@ -1,6 +1,8 @@
 package com.back.domain.post.post.dto;
 
 import com.back.domain.post.post.entity.Post;
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -13,7 +15,9 @@ public record PostDetailResponse(
     String categoryName,
     int sellerId,
     String sellerNickname,
+    @Schema(description = "판매자 등급 뱃지 (안전/우수/일반/주의)", example = "안전한 판매자")
     String sellerBadge,
+    @Schema(description = "판매자 실제 신용 점수 (상세에서만 노출)", example = "85.5")
     Double sellerScore,
     List<String> imageUrls,
     LocalDateTime createDate,
