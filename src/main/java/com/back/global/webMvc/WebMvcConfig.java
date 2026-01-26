@@ -13,6 +13,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
                 .allowedOrigins("https://cdpn.io", "http://localhost:3000")
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "PATCH")
                 .allowedHeaders("*")
-                .allowCredentials(true);
+                .allowCredentials(true)
+                .exposedHeaders("Authorization");
     }
 }
