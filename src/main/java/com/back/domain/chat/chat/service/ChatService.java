@@ -220,7 +220,7 @@ public class ChatService {
             Map<String, Object> readNotification= new HashMap<>();
             readNotification.put("readerId", me.getId());
             readNotification.put("roomId", roomId);
-            messagingTemplate.convertAndSend("/sub/v1/chat/room/" + roomId + (Object) readNotification);
+            messagingTemplate.convertAndSend("/sub/v1/chat/room/" + roomId ,(Object) readNotification);
             log.debug("읽음 알림 전송 - RoomId: {}, ReaderId: {}, UpdatedCount: {}", roomId, me.getId(), updatedCount);
         }
 
@@ -301,7 +301,7 @@ public class ChatService {
         Map<String, Integer> unreadCountMap = chatRepository.countUnreadMessagesByRoomIds(roomIds, myId).stream()
                 .collect(Collectors.toMap(
                         result -> (String) result[0], // 키 : roomId
-                        result -> (Integer) result[1] // 값 : count
+                        result -> ((Number) result[1]).intValue() // 값 : count
                 ));
 
         List<ChatRoomListResponse> responseList = new ArrayList<>();
