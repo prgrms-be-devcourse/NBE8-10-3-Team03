@@ -13,11 +13,14 @@ import com.back.domain.member.member.enums.MemberStatus;
 import com.back.domain.member.member.enums.Role;
 import com.back.domain.member.member.repository.MemberRepository;
 import com.back.domain.member.member.service.MemberService;
+import com.back.domain.member.reputation.entity.Reputation;
+import com.back.domain.member.reputation.repository.ReputationRepository;
 import com.back.domain.member.review.entity.Review;
 import com.back.domain.member.review.repository.ReviewRepository;
 import com.back.domain.post.post.entity.Post;
 import com.back.domain.post.post.entity.PostStatus;
 import com.back.global.app.AppConfig;
+import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -42,6 +45,7 @@ public class BaseInitData {
     private final MemberService memberService;
     private final CategoryRepository categoryRepository;
     private final AuctionRepository auctionRepository;
+    private final ReputationRepository reputationRepository;
     private final ReviewRepository reviewRepository;
     private final MemberRepository memberRepository;
     private final AuctionService auctionService;
@@ -49,6 +53,7 @@ public class BaseInitData {
     private final PostRepository postRepository;
 
     private final PasswordEncoder passwordEncoder;
+    private final EntityManager entityManager;
 
     @Bean
     ApplicationRunner baseInitDataApplicationRunner() {
@@ -68,22 +73,33 @@ public class BaseInitData {
         Member memberSystem = new Member ("system", passwordEncoder.encode("1234"), "시스템", Role.ADMIN,null);
         if (AppConfig.isNotProd()) memberSystem.modifyApiKey(memberSystem.getUsername());
         memberRepository.save(memberSystem);
+        Reputation reputation1 = new Reputation(memberSystem, 50.0);
+        reputationRepository.save(reputation1);
+
 
         Member memberAdmin = new Member("admin", passwordEncoder.encode("1234"), "관리자", Role.ADMIN,null);
         if (AppConfig.isNotProd()) memberAdmin.modifyApiKey(memberAdmin.getUsername());
         memberRepository.save(memberAdmin);
+        Reputation reputation2 = new Reputation(memberAdmin, 50.0);
+        reputationRepository.save(reputation2);
 
         Member memberUser1 = new Member("user1", passwordEncoder.encode("1234"), "유저1", Role.USER, null);
         if (AppConfig.isNotProd()) memberUser1.modifyApiKey(memberUser1.getUsername());
         memberRepository.save(memberUser1);
+        Reputation reputation3 = new Reputation(memberUser1, 50.0);
+        reputationRepository.save(reputation3);
 
         Member memberUser2 = new Member("user2", passwordEncoder.encode("1234"), "유저2", Role.USER, null);
         if (AppConfig.isNotProd()) memberUser2.modifyApiKey(memberUser2.getUsername());
         memberRepository.save(memberUser2);
+        Reputation reputation4 = new Reputation(memberUser2, 50.0);
+        reputationRepository.save(reputation4);
 
         Member memberUser3 = new Member("user3", passwordEncoder.encode("1234"), "유저3", Role.USER, null);
         if (AppConfig.isNotProd()) memberUser3.modifyApiKey(memberUser3.getUsername());
         memberRepository.save(memberUser3);
+        Reputation reputation5 = new Reputation(memberUser3, 50.0);
+        reputationRepository.save(reputation5);
 
         // 정지 회원
         Member memberUser4 = new Member("user4", passwordEncoder.encode("1234"), "유저4", Role.USER, null);
@@ -91,6 +107,8 @@ public class BaseInitData {
         memberUser4.setStatus(MemberStatus.SUSPENDED);
         memberUser4.setSuspendAt(LocalDateTime.now().minusDays(3));
         memberRepository.save(memberUser4);
+        Reputation reputation6 = new Reputation(memberUser4, 50.0);
+        reputationRepository.save(reputation6);
 
         // 영구 정지 회원
         Member memberUser5 = new Member("user5", passwordEncoder.encode("1234"), "유저5", Role.USER, null);
@@ -98,6 +116,8 @@ public class BaseInitData {
         memberUser5.setStatus(MemberStatus.BANNED);
         memberUser5.setDeleteAt(LocalDateTime.now().minusDays(3));
         memberRepository.save(memberUser5);
+        Reputation reputation7 = new Reputation(memberUser5, 50.0);
+        reputationRepository.save(reputation7);
 
         log.info("테스트 회원 생성 완료 - 총 8명");
     }
