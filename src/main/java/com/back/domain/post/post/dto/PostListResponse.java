@@ -34,7 +34,8 @@ public record PostListResponse(
                 post.getViewCount(),
                 post.getSeller().getId(),
                 post.getSeller().getNickname(),
-                calculateBadge(post.getSeller().getReputation().getScore())
+                calculateBadge(post.getSeller().getReputation() != null ?
+                        post.getSeller().getReputation().getScore() : null)
         );
     }
 
