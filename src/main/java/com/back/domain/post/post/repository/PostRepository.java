@@ -12,17 +12,33 @@ import java.util.Optional;
 
 public interface PostRepository extends JpaRepository<Post, Integer> {
 
-    Optional<Post> findByIdAndDeletedFalse(int id);
-
     @Query("SELECT p FROM Post p " +
+            "JOIN FETCH p.seller " +
+            "JOIN FETCH p.category " +
+            "WHERE p.id = :id AND p.deleted = false")
+    Optional<Post> findByIdAndDeletedFalse(@Param("id") int id);
+
+    @Query(value = "SELECT p FROM Post p " +
+            "JOIN FETCH p.seller " +
+            "JOIN FETCH p.category " +
             "WHERE p.deleted = false " +
-            "AND (p.title LIKE %:kw% OR p.content LIKE %:kw%)")
+            "AND (p.title LIKE %:kw% OR p.content LIKE %:kw%)",
+            countQuery = "SELECT count(p) FROM Post p WHERE p.deleted = false AND (p.title LIKE %:kw% OR p.content LIKE %:kw%)")
     Page<Post> search(@Param("kw") String kw, Pageable pageable);
 
-    @Query("SELECT p FROM Post p " +
+    @Query(value = "SELECT p FROM Post p " +
+            "JOIN FETCH p.seller " +
+            "JOIN FETCH p.category " +
             "WHERE p.deleted = false " +
-            "AND (:status IS NULL OR p.status = :status)")
+            "AND (:status IS NULL OR p.status = :status)",
+            countQuery = "SELECT count(p) FROM Post p WHERE p.deleted = false AND (:status IS NULL OR p.status = :status)")
     Page<Post> findPostsByStatus(@Param("status") PostStatus status, Pageable pageable);
+
+    @Query(value = "SELECT p FROM Post p " +
+            "JOIN FETCH p.seller " +
+            "JOIN FETCH p.category " +
+            "WHERE p.deleted = false",
+            countQuery = "SELECT count(p) FROM Post p WHERE p.deleted = false")
     Page<Post> findAllByDeletedFalse(Pageable pageable);
 
     Page<Post> findBySellerIdAndStatus(Integer sellerId, PostStatus status, Pageable pageable);
