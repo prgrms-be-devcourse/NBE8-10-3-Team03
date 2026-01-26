@@ -32,6 +32,14 @@ public interface ChatRepository extends JpaRepository<Chat, Integer> {
     // 안 읽은 메세지 개수 조회
     Integer countByChatRoom_RoomIdAndReadFalseAndSenderIdNot(String roomId, Integer readerId);
 
+    // 최신 메세지 20개만 가져오기 (내림차순)
+    @EntityGraph(attributePaths = {"chatRoom"})
+    List<Chat> findTop20ByChatRoom_RoomIdOrderByIdDesc(String roomId);
+
+    // 과거 내역을 부르는 경우: lastChatId 보다 작은 메세지 20개 (내림차순)
+    @EntityGraph(attributePaths = {"chatRoom"})
+    List<Chat> findTop20ByChatRoom_RoomIdAAndIdLessThanOrderByIdDesc(String roomId, Integer lastId);
+
     // 안 읽은 메시지 개수 일괄 조회
     @Query("SELECT c.chatRoom.roomId, COUNT(c) " +
             "FROM Chat c " +
