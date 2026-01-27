@@ -1,0 +1,143 @@
+services:
+  # ====================================
+  # MySQL 데이터베이스 (Docker Compose용)
+  # ====================================
+  mysql:
+    image: mysql:8.0
+    container_name: auction-mysql-compose
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_PASSWORD:-lldj123414}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-DevCourse}
+      TZ: Asia/Seoul
+    ports:
+      - "3307:3306"  # 기존 mysql-1(3306)과 충돌 방지
+    volumes:
+      - mysql-compose-data:/var/lib/mysql
+    networks:
+      - auction-network
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'      # AWS RDS db.t3.micro 스펙
+          memory: 980M
+        reservations:
+          cpus: '1.0'
+          memory: 512M
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_PASSWORD:-lldj123414}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --max-connections=200
+
+  # ====================================
+  # Redis 캐시 (Docker Compose용)
+  # ====================================
+  redis:
+    image: redis:7-alpine
+    container_name: auction-redis-compose
+    restart: unless-stopped
+    ports:
+      - "6380:6379"  # 기존 redis-auction(6379)과 충돌 방지
+    volumes:
+      - redis-compose-data:/data
+    networks:
+      - auction-network
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'      # AWS ElastiCache cache.t3.micro 스펙
+          memory: 510M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    command: redis-server --maxmemory 450mb --maxmemory-policy allkeys-lru
+
+  # ====================================
+  # Spring Boot 애플리케이션
+  # ====================================
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: auction-app
+    restart: unless-stopped
+    environment:
+      # Spring Profile
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
+
+      # MySQL 연결 정보 (같은 네트워크의 컨테이너)
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE:-DevCourse}?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Seoul&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD:-lldj123414}
+
+      # Redis 연결 정보 (같은 네트워크의 컨테이너)
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+
+      # JPA 설정
+      SPRING_JPA_HIBERNATE_DDL_AUTO: ${JPA_DDL_AUTO:-update}
+      SPRING_JPA_SHOW_SQL: ${JPA_SHOW_SQL:-true}
+
+      # 파일 업로드
+      FILE_UPLOAD_DIR: /app/uploads
+
+      # 타임존
+      TZ: Asia/Seoul
+    ports:
+      - "8080:8080"
+    volumes:
+      - uploads-data:/app/uploads
+    networks:
+      - auction-network
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'      # AWS EC2 t3.micro 스펙
+          memory: 980M
+        reservations:
+          cpus: '1.0'
+          memory: 512M
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+# ====================================
+# Docker 네트워크
+# ====================================
+networks:
+  auction-network:
+    driver: bridge
+
+# ====================================
+# Docker 볼륨 (데이터 영구 저장)
+# ====================================
+volumes:
+  mysql-compose-data:
+    driver: local
+  redis-compose-data:
+    driver: local
+  uploads-data:
+    driver: local
+
+
+
+
