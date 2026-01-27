@@ -215,12 +215,12 @@ public class ChatService {
 
         // 확인한 상대방의 메시지들을 읽음 처리 및 WebSocket 알림
         int updatedCount = chatRepository.markMessagesAsRead(roomId, me.getId());
-        if (updatedCount == 0) {
+        if (updatedCount > 0) {
             // 상대방에게 읽음 알림 전송
             Map<String, Object> readNotification= new HashMap<>();
             readNotification.put("readerId", me.getId());
             readNotification.put("roomId", roomId);
-            messagingTemplate.convertAndSend("/sub/v1/chat/room/" + roomId ,(Object) readNotification);
+            messagingTemplate.convertAndSend("/sub/v1/chat/room/" + roomId + "/read", (Object) readNotification);
             log.debug("읽음 알림 전송 - RoomId: {}, ReaderId: {}, UpdatedCount: {}", roomId, me.getId(), updatedCount);
         }
 
