@@ -4,12 +4,10 @@ import com.back.domain.auction.auction.entity.Auction;
 import com.back.domain.auction.auction.entity.AuctionStatus;
 import lombok.Getter;
 
-import java.io.Serializable;
 import java.time.LocalDateTime;
 
 @Getter
-public class AuctionListItemDto implements Serializable {
-    private static final long serialVersionUID = 1L;
+public class AuctionListItemDto {
     private final Integer auctionId;
     private final String name;
     private final String thumbnailUrl;

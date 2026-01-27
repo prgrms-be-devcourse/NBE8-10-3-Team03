@@ -4,37 +4,37 @@ import com.back.domain.auction.auction.entity.Auction;
 import com.back.domain.auction.auction.entity.AuctionStatus;
 import com.back.domain.auction.auction.entity.CancellerRole;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 
-import java.io.Serializable;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
 @Getter
-public class AuctionDetailResponse implements Serializable {
-    private static final long serialVersionUID = 1L;
-    private final Integer auctionId;
-    private final String name;
-    private final String description;
-    private final Integer startPrice;
-    private final Integer currentHighestBid;
-    private final Integer buyNowPrice;
-    private final Integer bidCount;
-    private final AuctionStatus status;
-    private final LocalDateTime startAt;
-    private final LocalDateTime endAt;
-    private final List<String> imageUrls;
-    private final SellerDto seller;
-    private final String categoryName;
+@NoArgsConstructor  // Jackson 역직렬화를 위한 기본 생성자
+public class AuctionDetailResponse {
+    private Integer auctionId;
+    private String name;
+    private String description;
+    private Integer startPrice;
+    private Integer currentHighestBid;
+    private Integer buyNowPrice;
+    private Integer bidCount;
+    private AuctionStatus status;
+    private LocalDateTime startAt;
+    private LocalDateTime endAt;
+    private List<String> imageUrls;
+    private SellerDto seller;
+    private String categoryName;
 
     // 낙찰 정보
-    private final Integer winnerId;
-    private final LocalDateTime closedAt;
+    private Integer winnerId;
+    private LocalDateTime closedAt;
 
     // 취소 정보
-    private final Integer cancelledBy;
-    private final CancellerRole cancellerRole;
-    private final String cancellerRoleDescription;
+    private Integer cancelledBy;
+    private CancellerRole cancellerRole;
+    private String cancellerRoleDescription;
 
     public AuctionDetailResponse(Auction auction) {
         this.auctionId = auction.getId();

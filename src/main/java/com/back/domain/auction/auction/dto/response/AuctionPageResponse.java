@@ -4,13 +4,11 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import org.springframework.data.domain.Page;
 
-import java.io.Serializable;
 import java.util.List;
 
 @Getter
 @AllArgsConstructor
-public class AuctionPageResponse implements Serializable {
-    private static final long serialVersionUID = 1L;
+public class AuctionPageResponse {
     private List<AuctionListItemDto> content;
     private int page;
     private int size;
