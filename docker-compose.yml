@@ -128,20 +128,34 @@ services:
   redis-exporter:
     image: oliver006/redis_exporter:latest
     container_name: redis-exporter
+    restart: unless-stopped
+    ports:
+      - "9121:9121"  # Prometheus가 메트릭 수집할 포트
     environment:
-      - REDIS_ADDR=redis://redis:6379 # 👈 팀장님이 정한 서비스 이름 'redis' 사용
+      - REDIS_ADDR=redis://redis:6379
     networks:
-      - auction-network # 👈 팀 네트워크에 합류
+      - auction-network
     depends_on:
       redis:
         condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 128M
+        reservations:
+          cpus: '0.25'
+          memory: 64M
 
   # 📊 MySQL Exporter
   mysql-exporter:
     image: prom/mysqld-exporter:latest
     container_name: mysql-exporter
+    restart: unless-stopped
+    ports:
+      - "9104:9104"  # Prometheus가 메트릭 수집할 포트
     volumes:
-      - ./my.cnf:/home/.my.cnf
+      - ./my.cnf:/home/.my.cnf:ro
     command:
       - "--config.my-cnf=/home/.my.cnf"
       - '--collect.info_schema.processlist'
@@ -154,32 +168,15 @@ services:
     depends_on:
       mysql:
         condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 128M
+        reservations:
+          cpus: '0.25'
+          memory: 64M
 
-  # 📈 Prometheus
-  prometheus:
-    image: prom/prometheus:latest
-    container_name: prometheus
-    volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.retention.time=15d'
-      - '--web.enable-remote-write-receiver'
-    ports:
-      - "9090:9090"
-    networks:
-      - auction-network
-
-  # 🎨 Grafana
-  grafana:
-    image: grafana/grafana:latest
-    container_name: grafana
-    volumes:
-      - grafana-data:/var/lib/grafana
-    ports:
-      - "3000:3000"
-    networks:
-      - auction-network
 
 # ====================================
 # Docker 네트워크
@@ -198,7 +195,7 @@ volumes:
     driver: local
   uploads-data:
     driver: local
-  grafana-data:
+
 
 
 
