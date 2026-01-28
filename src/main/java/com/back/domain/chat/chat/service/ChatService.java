@@ -4,10 +4,7 @@ import com.back.domain.auction.auction.entity.Auction;
 import com.back.domain.auction.auction.repository.AuctionRepository;
 import com.back.domain.auction.auction.service.FileStorageService;
 import com.back.domain.chat.chat.dto.request.ChatMessageRequest;
-import com.back.domain.chat.chat.dto.response.ChatIdResponse;
-import com.back.domain.chat.chat.dto.response.ChatResponse;
-import com.back.domain.chat.chat.dto.response.ChatRoomIdResponse;
-import com.back.domain.chat.chat.dto.response.ChatRoomListResponse;
+import com.back.domain.chat.chat.dto.response.*;
 import com.back.domain.chat.chat.entity.Chat;
 import com.back.domain.chat.chat.entity.ChatImage;
 import com.back.domain.chat.chat.entity.ChatRoom;
@@ -33,6 +30,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -269,107 +267,127 @@ public class ChatService {
                 .orElseThrow(() -> new ServiceException("404-1", "존재하지 않는 회원입니다."));
 
         String myApiKey = me.getApiKey();
-        Integer myId = me.getId();
 
-        // 참여한 방들의 최신 메시지 1개씩을 긁어옴
-        List<Chat> latestChats = chatRepository.findAllLatestMessagesByMember(myApiKey);
+        // 참여한 방들의 최신 메시지 조회
+        List<Chat> latestChats = chatRepository.findAllLatestChatsByMember(myApiKey);
 
         if (latestChats.isEmpty()) {
             return new RsData<>("200-1", "채팅 목록 조회 성공", new ArrayList<>());
         }
 
-        // 채팅방 ID 및 상대방 API Key 수집
-        // roomIds: 안 읽은 메시지 개수 일괄 조회용
-        // opponentApiKeys: 상대방 프로필 정보 일괄 조회용
-        Set<String> roomIds = new HashSet<>();
+        // ID 수집 (비동기 조회를 위한 준비)
+        List<String> roomIds = new ArrayList<>();
         Set<String> opponentApiKeys = new HashSet<>();
+        List<Integer> postIds = new ArrayList<>();
+        List<Integer> auctionIds = new ArrayList<>();
 
         for (Chat chat : latestChats) {
             ChatRoom room = chat.getChatRoom();
             roomIds.add(room.getRoomId());
-
-            // 상대방 찾기 (내가 구매자면 상대방은 판매자 => 반대)
-            String opponentKey = room.getSellerApiKey().equals(myApiKey) ? room.getBuyerApiKey() : room.getSellerApiKey();
-            opponentApiKeys.add(opponentKey);
-        }
-
-        // 상대방 정보 Map (Key: ApiKey)
-        Map<String, Member> opponentMap = memberRepository.findByApiKeyIn(opponentApiKeys).stream()
-                .collect(Collectors.toMap(Member::getApiKey, Function.identity()));
-
-        // 안 읽은 개수 Map (Key: RoomID)
-        Map<String, Integer> unreadCountMap = chatRepository.countUnreadMessagesByRoomIds(roomIds, myId).stream()
-                .collect(Collectors.toMap(
-                        result -> (String) result[0], // 키 : roomId
-                        result -> ((Number) result[1]).intValue() // 값 : count
-                ));
-
-        List<ChatRoomListResponse> responseList = new ArrayList<>();
-
-        // 응답 DTO 조립
-        for (Chat chat : latestChats) {
-            ChatRoom room = chat.getChatRoom();
-            String currentRoomId = room.getRoomId();
-
-            // 상대방 정보 가져오기
-            String opponentKey = room.getSellerApiKey().equals(myApiKey) ? room.getBuyerApiKey() : room.getSellerApiKey();
-            Member opponent = opponentMap.get(opponentKey);
-
-            if (opponent == null) continue;
-
-            // 안 읽은 메시지 수 가져오기 없으면 0
-            int unreadCount = unreadCountMap.getOrDefault(currentRoomId, 0);
-
-            // 상품 정보 추출
-            String itemName = "";
-            String itemImageUrl = "";
-            int itemPrice = 0;
-            Integer itemId = 0;
+            opponentApiKeys.add(room.getSellerApiKey().equals(myApiKey) ? room.getBuyerApiKey() : room.getSellerApiKey());
 
             if (room.getTxType() == ChatRoomType.POST && room.getPost() != null) {
-                Post post = room.getPost();
-                itemId = post.getId();
-                itemName = post.getTitle();
-                itemPrice = post.getPrice();
-
-                // (일반) 상품 이미지가 존재한다면 첫번째 이미지를 썸네일로 가져옴
-                if (post.getPostImages() != null && !post.getPostImages().isEmpty()) {
-                   itemImageUrl = post.getPostImages().get(0).getImage().getUrl();
-                }
+                postIds.add(room.getPost().getId());
+            } else if (room.getTxType() == ChatRoomType.AUCTION && room.getAuction() != null) {
+                auctionIds.add(room.getAuction().getId());
             }
-            else if (room.getTxType() == ChatRoomType.AUCTION && room.getAuction() != null) {
-                Auction auction = room.getAuction();
-                itemId = auction.getId();
-                itemName = auction.getName();
-                itemPrice = auction.getCurrentHighestBid();
-
-                // (경매) 상품 이미지가 존재한다면 첫번째 이미지를 썸네일로 가져옴
-                if (auction.getAuctionImages() != null && !auction.getAuctionImages().isEmpty()) {
-                    itemImageUrl = auction.getAuctionImages().get(0).getImage().getUrl();
-                }
-            }
-
-            // Reputation이 null이라면 임시로 50
-            Double opponentReputation = opponent.getReputation() != null
-                    ? opponent.getReputation().getScore() : 50;
-
-            // DTO 조립
-            responseList.add(ChatRoomListResponse.builder()
-                    .roomId(currentRoomId)
-                    .opponentId(opponent.getId())
-                    .opponentNickname(opponent.getNickname())
-                    .opponentProfileImageUrl(opponent.getProfileImgUrl())
-                    .opponentReputation(opponentReputation)
-                    .lastMessage(chat.getMessage())
-                    .lastMessageDate(chat.getCreateDate())
-                    .unreadCount(unreadCount)
-                    .itemId(itemId)
-                    .itemName(itemName)
-                    .itemImageUrl(itemImageUrl)
-                    .itemPrice(itemPrice)
-                    .txType(room.getTxType())
-                    .build());
         }
+
+        final Integer myId = me.getId();
+        final List<String> roomIdsList = new ArrayList<>(roomIds);
+        final Set<String> opponentKeysSet = opponentApiKeys;
+
+        // [Async] 병렬 데이터 로딩 (안 읽은 개수, 회원 정보, 이미지들)
+        // CompletableFuture를 사용하여 쿼리를 동시에 실행
+        // 안 읽은 메시지 개수 조회
+        CompletableFuture<Map<String, Integer>> unreadFuture = CompletableFuture.supplyAsync(() ->
+                chatRepository.countUnreadMessagesByRoomIds(roomIdsList, myId).stream()
+                        .collect(Collectors.toMap(
+                                UnreadCountResponse::roomId,
+                                dto -> dto.count().intValue(),
+                                (oldVal, newVal) -> oldVal // [중요] 중복 키 발생 시 기존 값 유지
+                        ))
+        );
+
+        // 상대방 Member 정보 조회
+        CompletableFuture<Map<String, Member>> memberFuture = CompletableFuture.supplyAsync(() ->
+                memberRepository.findByApiKeyIn(opponentKeysSet).stream()
+                        .collect(Collectors.toMap(
+                                Member::getApiKey,
+                                Function.identity(),
+                                (oldVal, newVal) -> oldVal // 중복 키 방지
+                        ))
+        );
+
+        // 엔티티를 수정하지 않기 위해 Repository의 벌크 쿼리(Object[])를 사용
+        CompletableFuture<Map<Integer, String>> postImageFuture = CompletableFuture.supplyAsync(() ->
+                imageRepository.findPostMainImages(postIds).stream()
+                        .collect(Collectors.toMap(obj -> (Integer) obj[0], obj -> (String) obj[1], (a, b) -> a))
+        );
+
+        CompletableFuture<Map<Integer, String>> auctionImageFuture = CompletableFuture.supplyAsync(() ->
+                imageRepository.findAuctionMainImages(auctionIds).stream()
+                        .collect(Collectors.toMap(obj -> (Integer) obj[0], obj -> (String) obj[1], (a, b) -> a))
+        );
+
+        Map<String, Integer> unreadCountMap = unreadFuture.join();
+        Map<String, Member> opponentMap = memberFuture.join();
+        Map<Integer, String> postImageMap = postImageFuture.join();
+        Map<Integer, String> auctionImageMap = auctionImageFuture.join();
+
+        // 메모리 조합 및 DTO 변환
+        List<ChatRoomListResponse> responseList = latestChats.stream()
+                .map(chat -> {
+                    ChatRoom room = chat.getChatRoom();
+                    String opponentKey = room.getSellerApiKey().equals(myApiKey) ? room.getBuyerApiKey() : room.getSellerApiKey();
+                    Member opponent = opponentMap.get(opponentKey);
+
+                    if (opponent == null) return null;
+
+                    Integer itemId = null;
+                    String itemName = "";
+                    String itemImageUrl = null;
+                    Integer itemPrice = 0;
+
+                    // POST 처리
+                    if (room.getTxType() == ChatRoomType.POST && room.getPost() != null) {
+                        Post post = room.getPost();
+                        itemId = post.getId();
+                        itemName = post.getTitle();
+                        itemPrice = post.getPrice();
+                        itemImageUrl = postImageMap.get(itemId);
+                    }
+                    // AUCTION 처리
+                    else if (room.getTxType() == ChatRoomType.AUCTION && room.getAuction() != null) {
+                        Auction auction = room.getAuction();
+                        itemId = auction.getId();
+                        itemName = auction.getName();
+                        // 입찰가 우선, 없으면 시작가
+                        itemPrice = auction.getCurrentHighestBid() != null ? auction.getCurrentHighestBid() : auction.getStartPrice();
+                        itemImageUrl = auctionImageMap.get(itemId);
+                    }
+
+                    Double opponentReputation = (opponent.getReputation() != null) ? opponent.getReputation().getScore() : 50.0;
+
+                    return ChatRoomListResponse.builder()
+                            .roomId(room.getRoomId())
+                            .opponentId(opponent.getId())
+                            .opponentNickname(opponent.getNickname())
+                            .opponentProfileImageUrl(opponent.getProfileImgUrl())
+                            .opponentReputation(opponentReputation)
+                            .lastMessage(chat.getMessage())
+                            .lastMessageDate(chat.getCreateDate())
+                            .unreadCount(unreadCountMap.getOrDefault(room.getRoomId(), 0))
+                            .itemId(itemId)
+                            .itemName(itemName)
+                            .itemImageUrl(itemImageUrl)
+                            .itemPrice(itemPrice)
+                            .txType(room.getTxType())
+                            .build();
+                })
+                .filter(Objects::nonNull)
+                .sorted(Comparator.comparing(ChatRoomListResponse::getLastMessageDate).reversed()) // 최신순 재정렬
+                .collect(Collectors.toList());
 
         log.debug("채팅 목록 조회 완료 - 사용자: {}, 조회된 방 개수: {}", me.getNickname(), responseList.size());
         return new RsData<>("200-1", "채팅 목록 조회 성공", responseList);
