@@ -15,7 +15,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
-import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -176,7 +175,9 @@ public class AuctionController extends BaseController {
     public RsData<AuctionDetailResponse> getAuctionDetail(
             @Parameter(description = "경매 ID", required = true) @PathVariable Integer auctionId
     ) {
-        return auctionService.getAuctionDetail(auctionId);
+        // 캐싱 메서드 직접 호출 (프록시를 통해 @Cacheable 작동)
+        AuctionDetailResponse data = auctionService.getAuctionDetailData(auctionId);
+        return new RsData<>("200-1", "경매 상세 조회 성공", data);
     }
 
     @Operation(

@@ -1,21 +1,35 @@
 spring:
   datasource:
-    url: jdbc:h2:./db_dev;MODE=MySQL
-    username: sa
-    password:
-    driver-class-name: org.h2.Driver
+    # Docker Compose 환경: mysql 컨테이너 사용
+    # 로컬 환경: localhost:3306으로 접근
+    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3306/DevCourse?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Seoul&allowPublicKeyRetrieval=true}
+    username: ${SPRING_DATASOURCE_USERNAME:root}
+    password: ${SPRING_DATASOURCE_PASSWORD:lldj123414}
+    driver-class-name: com.mysql.cj.jdbc.Driver
 
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: ${SPRING_JPA_HIBERNATE_DDL_AUTO:update}
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.H2Dialect
+        dialect: org.hibernate.dialect.MySQLDialect
+        format_sql: true
+    show-sql: ${SPRING_JPA_SHOW_SQL:true}
 
-  h2:
-    console:
-      enabled: true
-      path: /h2-console
+  # Redis 설정 (개발 환경)
+  # Docker Compose 환경: redis 컨테이너 사용
+  # 로컬 환경: localhost:6379로 접근
+  data:
+    redis:
+      host: ${SPRING_DATA_REDIS_HOST:localhost}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
+
+  # Cache 설정
+  cache:
+    type: redis
+    redis:
+      time-to-live: 600000  # 10분 (밀리초)
+      cache-null-values: false
 
 # 개발 환경 로그 설정
 logging:

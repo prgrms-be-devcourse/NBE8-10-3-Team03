@@ -52,6 +52,14 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-websocket")
     // OAuth
     implementation("org.springframework.boot:spring-boot-starter-oauth2-client")
+
+    // Redis
+    implementation("org.springframework.boot:spring-boot-starter-data-redis")
+    implementation("org.springframework.boot:spring-boot-starter-cache")
+
+    // prometheus
+    implementation ("org.springframework.boot:spring-boot-starter-actuator")
+    implementation ("io.micrometer:micrometer-registry-prometheus")
 }
 
 tasks.withType<Test> {

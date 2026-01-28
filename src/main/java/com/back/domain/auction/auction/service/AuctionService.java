@@ -27,6 +27,8 @@ import com.back.global.rsData.RsData;
 import com.back.global.util.PageUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -64,7 +66,7 @@ public class AuctionService {
         // 1. 필수 값 검증
         validateAuctionRequest(request);
 
-        // 2. 판매자 조회 (현재는 임시로 sellerId 사용, 추후 JWT에서 추출)
+        // 2. 판매자 조회
         Member seller = memberRepository.findById(sellerId)
                 .orElseThrow(() -> new ServiceException("404-1", "존재하지 않는 사용자입니다."));
 
@@ -254,20 +256,28 @@ public class AuctionService {
         }
 
         // 첫 번째 이미지를 썸네일로 사용
-        return auction.getAuctionImages().get(0).getImage().getUrl();
+        return auction.getAuctionImages().getFirst().getImage().getUrl();
     }
 
-    public RsData<AuctionDetailResponse> getAuctionDetail(Integer auctionId) {
+    /**
+     * 경매 상세 데이터 조회 (캐싱용 - 순수 데이터만)
+     * Controller에서 직접 호출하여 프록시를 통해 @Cacheable 작동
+     */
+    @Cacheable(value = "auction", key = "#auctionId")
+    public AuctionDetailResponse getAuctionDetailData(Integer auctionId) {
+        log.info(" [Cache Miss] DB에서 경매 조회 - auctionId: {}", auctionId);
+
         Auction auction = auctionRepository.findWithDetailsById(auctionId)
                 .orElseThrow(() -> new ServiceException("404-1", "존재하지 않는 경매입니다."));
 
-        AuctionDetailResponse response = new AuctionDetailResponse(auction);
-
-        return new RsData<>("200-1", "경매 상세 조회 성공", response);
+        return new AuctionDetailResponse(auction);
     }
 
     @Transactional
+    @CacheEvict(value = "auction", key = "#auctionId")
     public RsData<AuctionUpdateResponse> updateAuction(Integer auctionId, AuctionUpdateRequest request, Integer memberId) {
+        log.info(" 경매 수정 - 캐시 삭제: auctionId={}", auctionId);
+
         // 1. 경매 조회
         Auction auction = auctionRepository.findWithDetailsById(auctionId)
                 .orElseThrow(() -> new ServiceException("404-1", "존재하지 않는 경매입니다."));
@@ -362,7 +372,9 @@ public class AuctionService {
     }
 
     @Transactional
+    @CacheEvict(value = "auction", key = "#auctionId")
     public RsData<AuctionDeleteResponse> deleteAuction(Integer auctionId, Integer memberId) {
+        log.info("🗑️ 경매 삭제 - 캐시 삭제: auctionId={}", auctionId);
         log.debug("경매 삭제 시작 - 경매 ID: {}, 요청자 ID: {}", auctionId, memberId);
 
         // 1. 경매 조회

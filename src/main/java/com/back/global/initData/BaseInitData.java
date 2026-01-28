@@ -166,39 +166,91 @@ public class BaseInitData {
             return;
         }
 
-        // 경매 1: Service를 통한 경매 생성 (시집)
         Member seller1 = memberService.findByUsername("user1").get();
-        auctionService.createAuction(
-                new AuctionCreateRequest("시집", "이성복 시집 팝니다.", 5000, 8000, 3, 168, null),
-                seller1.getId()
-        );
-
-        // 경매 1에 입찰
-        Member bidder1 = memberService.findByUsername("user2").get();
-        bidService.createBid(1, new BidCreateRequest(6000), bidder1.getId());
-
-        // 경매 2: Service를 통한 경매 생성 (아이폰)
         Member seller2 = memberService.findByUsername("user2").get();
-        auctionService.createAuction(
-                new AuctionCreateRequest("아이폰13", "거의 새거입니다 ㅎ.", 150000, 180000, 1, 168, null),
-                seller2.getId()
-        );
+        Member seller3 = memberService.findByUsername("user3").get();
 
-        // 경매 3: 엔티티 직접 생성 (낙찰 테스트용 - 1분 후 종료)
-        Category category = categories.get(0); // 전자기기
-        Auction auction3 = Auction.builder()
-                .seller(seller1)
-                .category(category)
-                .name("테스트 경매 (1분 후 종료)")
-                .description("낙찰 기능 테스트용 경매입니다.")
-                .startPrice(10000)
-                .buyNowPrice(50000)
-                .startAt(LocalDateTime.now())
-                .endAt(LocalDateTime.now().plusMinutes(1))
-                .build();
-        auctionRepository.save(auction3);
+        // 경매 상품 데이터 (20개)
+        String[][] auctionData = {
+                // {상품명, 설명, 시작가, 즉시구매가, 카테고리ID}
+                {"아이폰 14 Pro", "1년 사용, 배터리 효율 95%", "800000", "1200000", "1"},
+                {"갤럭시 탭 S8", "거의 새 제품, 케이스 포함", "500000", "750000", "1"},
+                {"에어팟 프로 2세대", "미개봉 새 제품", "250000", "320000", "1"},
+                {"LG 그램 노트북", "2023년형, 17인치", "1200000", "1600000", "1"},
+                {"애플워치 SE", "실버, 40mm", "200000", "280000", "1"},
 
-        log.info("테스트 경매 생성 완료 - 총 3개");
+                {"다이슨 무선청소기", "V11, 2022년 구매", "350000", "500000", "2"},
+                {"공기청정기", "삼성 블루스카이", "180000", "250000", "2"},
+                {"LG 스타일러", "2021년형, 정상 작동", "800000", "1100000", "2"},
+
+                {"이케아 소파", "3인용, 블루 컬러", "150000", "230000", "3"},
+                {"서재 책상 세트", "원목 책상 + 의자", "200000", "300000", "3"},
+
+                {"나이키 에어맥스", "270 사이즈, 새 제품", "120000", "160000", "6"},
+                {"아디다스 패딩", "M 사이즈, 블랙", "80000", "120000", "6"},
+
+                {"유아 카시트", "안전 인증, 2년 사용", "100000", "150000", "7"},
+
+                {"캠핑 텐트", "4인용, 몇 번 사용", "180000", "250000", "8"},
+                {"로드 자전거", "자이언트 브랜드", "400000", "600000", "8"},
+
+                {"해리포터 전집", "영문판, 하드커버", "50000", "80000", "9"},
+                {"경제학 원론 교재", "맨큐의 경제학 10판", "30000", "45000", "9"},
+
+                {"PS5 디지털 에디션", "1년 사용, 컨트롤러 2개", "350000", "480000", "10"},
+
+                {"강아지 하우스", "중형견용, 새 제품", "80000", "120000", "11"},
+
+                {"빈티지 카메라", "필름 카메라, 수집용", "150000", "220000", "12"}
+        };
+
+        // 판매자 순환 (user1, user2, user3)
+        Member[] sellers = {seller1, seller2, seller3};
+
+        // 20개 경매 생성
+        for (int i = 0; i < auctionData.length; i++) {
+            String[] data = auctionData[i];
+            Member seller = sellers[i % 3]; // 순환 배정
+
+            auctionService.createAuction(
+                    new AuctionCreateRequest(
+                            data[0],  // 상품명
+                            data[1],  // 설명
+                            Integer.parseInt(data[2]),  // 시작가
+                            Integer.parseInt(data[3]),  // 즉시구매가
+                            Integer.parseInt(data[4]),  // 카테고리 ID
+                            168,  // 7일 후 종료 (168시간)
+                            null  // 이미지 없음
+                    ),
+                    seller.getId()
+            );
+        }
+
+        // 일부 경매에 입찰 추가 (캐시 테스트용)
+        // 경매 판매자 정보:
+        // - 경매 1번: user1 (sellers[0])
+        // - 경매 2번: user2 (sellers[1])
+        // - 경매 3번: user3 (sellers[2])
+        // - 경매 4번: user1 (sellers[0])
+        // - 경매 5번: user2 (sellers[1])
+        // - 경매 6번: user3 (sellers[2])
+
+        Member bidder1 = memberService.findByUsername("user2").get();  // user2
+        Member bidder2 = memberService.findByUsername("user3").get();  // user3
+
+        // 경매 1번(판매자: user1)에 user2가 입찰
+        bidService.createBid(1, new BidCreateRequest(850000), bidder1.getId());
+
+        // 경매 4번(판매자: user1)에 user3이 입찰
+        bidService.createBid(4, new BidCreateRequest(1300000), bidder2.getId());
+        // 경매 4번에 user2가 재입찰
+        bidService.createBid(4, new BidCreateRequest(1350000), bidder1.getId());
+
+        // 경매 3번(판매자: user3)에 user2가 입찰
+        bidService.createBid(3, new BidCreateRequest(270000), bidder1.getId());
+
+        log.info("테스트 경매 생성 완료 - 총 {}개", auctionData.length);
+        log.info("테스트 입찰 생성 완료 - 총 4건");
     }
 
     @Transactional
