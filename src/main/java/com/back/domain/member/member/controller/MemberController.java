@@ -18,6 +18,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -874,5 +875,53 @@ public class MemberController {
                 .toList();
     }
 
+    record WsTokenResponse(String token) {}
 
+    @Operation(summary = "WebSocket 인증용 토큰 발급", description = "채팅 WebSocket 연결 시 사용할 단기 토큰을 발급합니다.")
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "토큰 발급 성공",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                        "resultCode": "200-1",
+                                        "msg": "WebSocket 토큰이 발급되었습니다.",
+                                        "data": {
+                                            "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                                        }
+                                    }
+                    """)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "인증 실패",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                        "resultCode": "401-1",
+                                        "msg": "로그인 후 이용해주세요.",
+                                        "data": null
+                                    }
+                    """)
+                    )
+            )
+    })
+    @GetMapping("/ws-token")
+    @Transactional(readOnly = true)
+    public RsData<WsTokenResponse> getWsToken() {
+        Member actor = rq.getActorFromDb();
+
+        // Generate a new access token for WebSocket authentication
+        String wsToken = memberService.genAccessToken(actor);
+
+        return new RsData<>(
+                "200-1",
+                "WebSocket 토큰이 발급되었습니다.",
+                new WsTokenResponse(wsToken)
+        );
+    }
 }
