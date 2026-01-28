@@ -915,7 +915,7 @@ public class MemberController {
     public RsData<WsTokenResponse> getWsToken() {
         Member actor = rq.getActorFromDb();
 
-        // Generate a new access token for WebSocket authentication
+        // 웹소켓 인증을 위한 토큰 발급
         String wsToken = memberService.genAccessToken(actor);
 
         return new RsData<>(
