@@ -10,15 +10,17 @@ public record MemberWithUsernameDto(
         LocalDateTime modifyDate,
         String name,
         String username,
-        Double score
+        Double score,
+        String profileImgUrl
 ) {
-    public MemberWithUsernameDto(int id, LocalDateTime createDate, LocalDateTime modifyDate, String name, String username, Double score) {
+    public MemberWithUsernameDto(int id, LocalDateTime createDate, LocalDateTime modifyDate, String name, String username, Double score,  String profileImgUrl) {
         this.id = id;
         this.createDate = createDate;
         this.modifyDate = modifyDate;
         this.name = name;
         this.username = username;
         this.score = score;
+        this.profileImgUrl = profileImgUrl;
     }
 
     public MemberWithUsernameDto(Member member) {
@@ -28,8 +30,8 @@ public record MemberWithUsernameDto(
                 member.getModifyDate(),
                 member.getNickname(),
                 member.getUsername(),
-                member.getReputation().getScore()
-
+                member.getReputation().getScore(),
+                member.getProfileImgUrl()
         );
     }
 }
