@@ -41,6 +41,10 @@ public class SecurityConfig {
                                         "/api/*/members"
                                 ).permitAll()
                                 .requestMatchers(
+                                        HttpMethod.PATCH,
+                                        "/api/*/members/me/profile"
+                                ).authenticated()
+                                .requestMatchers(
                                         HttpMethod.GET,
                                         "/api/*/auctions/**",
                                         "/api/*/posts/**",
