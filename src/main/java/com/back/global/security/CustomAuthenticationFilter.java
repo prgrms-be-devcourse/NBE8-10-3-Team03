@@ -2,6 +2,7 @@ package com.back.global.security;
 
 import com.back.domain.member.member.entity.Member;
 import com.back.domain.member.member.enums.MemberStatus;
+import com.back.domain.member.member.enums.Role;
 import com.back.domain.member.member.service.MemberService;
 import com.back.global.exception.ServiceException;
 import com.back.global.rq.Rq;
@@ -115,7 +116,7 @@ public class CustomAuthenticationFilter extends OncePerRequestFilter {
                 String name = (String) payload.get("name");
                 String role = (String) payload.get("role");
 
-                member = memberService.findById(id).get();
+                member = new Member(id, username, name, Role.from(role));
 
                 isAccessTokenValid = true;
             }

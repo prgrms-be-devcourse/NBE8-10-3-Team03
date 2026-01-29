@@ -14,7 +14,15 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "auctions")
+@Table(
+        name = "auctions",
+        indexes = {
+                @Index(
+                        name = "idx_auctions_status_endat",
+                        columnList = "status, end_at"
+                )
+        }
+)
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Auction extends BaseEntity {

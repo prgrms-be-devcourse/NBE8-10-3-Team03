@@ -1,6 +1,7 @@
 package com.back.domain.member.member.controller;
 
 import com.back.domain.auction.auction.dto.response.AuctionPageResponse;
+import com.back.domain.auction.auction.dto.response.AuctionSliceResponse;
 import com.back.domain.auction.auction.service.AuctionService;
 import com.back.domain.member.member.dto.MemberDto;
 import com.back.domain.member.member.dto.MemberWithUsernameDto;
@@ -459,7 +460,7 @@ public class MemberController {
     @GetMapping("/me/auctions")
     @Transactional(readOnly = true)
     @Operation(summary = "내 경매 조회")
-    public RsData<AuctionPageResponse> getAuctionsById(
+    public RsData<AuctionSliceResponse> getAuctionsById(
             @Parameter(description = "페이지 번호", example = "0") @RequestParam(defaultValue = "0") int page,
             @Parameter(description = "페이지 크기", example = "20") @RequestParam(defaultValue = "20") int size,
             @Parameter(description = "정렬", example = "createdAt,desc") @RequestParam(required = false) String sort,

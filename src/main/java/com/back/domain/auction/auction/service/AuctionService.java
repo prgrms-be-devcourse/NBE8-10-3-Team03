@@ -2,12 +2,7 @@ package com.back.domain.auction.auction.service;
 
 import com.back.domain.auction.auction.dto.request.AuctionCreateRequest;
 import com.back.domain.auction.auction.dto.request.AuctionUpdateRequest;
-import com.back.domain.auction.auction.dto.response.AuctionDeleteResponse;
-import com.back.domain.auction.auction.dto.response.AuctionDetailResponse;
-import com.back.domain.auction.auction.dto.response.AuctionIdResponse;
-import com.back.domain.auction.auction.dto.response.AuctionListItemDto;
-import com.back.domain.auction.auction.dto.response.AuctionPageResponse;
-import com.back.domain.auction.auction.dto.response.AuctionUpdateResponse;
+import com.back.domain.auction.auction.dto.response.*;
 import com.back.domain.auction.auction.entity.Auction;
 import com.back.domain.auction.auction.entity.AuctionImage;
 import com.back.domain.auction.auction.entity.AuctionStatus;
@@ -31,6 +26,7 @@ import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -189,7 +185,7 @@ public class AuctionService {
         return new RsData<>("200-1", "경매 목록 조회 성공", response);
     }
 
-    public RsData<AuctionPageResponse> getAuctionsByUserId(
+    public RsData<AuctionSliceResponse> getAuctionsByUserId(
             int userId,
             int page,
             int size,
@@ -211,7 +207,7 @@ public class AuctionService {
         }
 
         // 조건에 맞는 경매 조회
-        Page<Auction> auctionPage;
+        Slice<Auction> auctionPage;
 
         if (auctionStatus != null) {
             auctionPage = auctionRepository.findBySellerIdAndStatus(userId, auctionStatus, pageable);
@@ -220,13 +216,13 @@ public class AuctionService {
         }
 
         // DTO 변환
-        Page<AuctionListItemDto> dtoPage = auctionPage
+        Slice<AuctionListItemDto> dtoPage = auctionPage
                 .map(auction -> {
             String thumbnailUrl = getThumbnailUrl(auction);
             return new AuctionListItemDto(auction, thumbnailUrl);
         });
 
-        AuctionPageResponse response = AuctionPageResponse.from(dtoPage);
+        AuctionSliceResponse response = AuctionSliceResponse.from(dtoPage);
 
         return new RsData<>("200-1", "경매 목록 조회 성공", response);
     }
