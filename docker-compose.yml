@@ -88,6 +88,7 @@ services:
       # JPA 설정
       SPRING_JPA_HIBERNATE_DDL_AUTO: ${JPA_DDL_AUTO:-update}
       SPRING_JPA_SHOW_SQL: ${JPA_SHOW_SQL:-true}
+      SPRING_JPA_PROPERTIES_HIBERNATE_DEFAULT_BATCH_FETCH_SIZE: 100
 
       # 파일 업로드
       FILE_UPLOAD_DIR: /app/uploads
