@@ -379,4 +379,11 @@ public class MemberService {
 
         return false;
     }
+
+    // 프로필 사진 변경
+    @Transactional
+    public void modifyProfile(Member member, String profileImgUrl) {
+        member.modify(member.getNickname(), profileImgUrl);
+    }
+
 }
