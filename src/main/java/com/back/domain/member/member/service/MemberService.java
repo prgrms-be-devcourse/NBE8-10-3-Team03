@@ -68,9 +68,11 @@ public class MemberService {
                     throw new ServiceException("409-1", "%s(은)는 사용중인 닉네임입니다.".formatted(nickname));
                 });
 
-        passwordValidation(username, password);
-
         password = (password != null && !password.isBlank()) ? passwordEncoder.encode(password) : null;
+
+        if (password != null) {
+            passwordValidation(username, password);
+        }
 
         Member member = new Member(username, password, nickname, profileImgUrl);
 
@@ -126,7 +128,9 @@ public class MemberService {
             }
         }
 
-        checkPassword(member, password);
+        if (password != null) {
+            checkPassword(member, password);
+        }
         member.resetFailCount();
     }
 
