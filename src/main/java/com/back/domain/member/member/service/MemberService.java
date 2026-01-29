@@ -390,12 +390,12 @@ public class MemberService {
     @Transactional
     public void modifyProfile(Member member, MultipartFile profileImg) {
         if (profileImg == null || profileImg.isEmpty()) {
-            return;
+            throw new ServiceException("400-1", "업로드할 이미지 파일이 없습니다.");
         }
 
         String imageUrl = fileStorageService.storeFile(profileImg);
 
-        Image savedImage = imageRepository.save(new Image(imageUrl));
+        imageRepository.save(new Image(imageUrl));
 
         member.modify(member.getNickname(), imageUrl);
     }
