@@ -18,6 +18,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -33,8 +34,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.http.MediaType;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -924,15 +927,8 @@ public class MemberController {
         );
     }
 
-    record MemberProfileModifyRequest(
-            @NotBlank(message = "프로필 이미지 URL은 필수입니다.")
-            String profileImgUrl
-    ) {
-    }
-
-    @PatchMapping("/me/profile")
-    @Transactional
-    @Operation(summary = "프로필 사진 수정")
+    @PatchMapping(value = "/me/profile", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "프로필 사진 수정 (이미지 업로드)")
     @ApiResponses({
             @ApiResponse(
                     responseCode = "200",
@@ -949,26 +945,27 @@ public class MemberController {
                     )
             ),
             @ApiResponse(
-                    responseCode = "401",
-                    description = "인증 실패",
-                    content = @Content(
-                            mediaType = "application/json",
-                            examples = @ExampleObject(value = """
-                                    {
-                                        "resultCode": "401-1",
-                                        "msg": "로그인 후 이용해주세요.",
-                                        "data": null
-                                    }
-                            """)
-                    )
+                    responseCode = "400",
+                    description = "잘못된 요청 (파일 누락 등)",
+                    content = @Content(mediaType = "application/json")
             )
     })
-    public RsData<Void> modifyProfile(@Valid @RequestBody MemberProfileModifyRequest reqBody) {
+    public RsData<Void> modifyProfile(
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                    description = "업로드할 프로필 이미지 파일",
+                    required = true,
+                    content = @Content(
+                            mediaType = MediaType.MULTIPART_FORM_DATA_VALUE,
+                            schema = @Schema(type = "string", format = "binary")
+                    )
+            )
+            @RequestPart("profileImg") MultipartFile profileImg
+    ) {
         Member member = rq.getActorFromDb();
 
         member.checkActorCanModify(member);
 
-        memberService.modifyProfile(member, reqBody.profileImgUrl());
+        memberService.modifyProfile(member, profileImg);
 
         return new RsData<>(
                 "200-1",

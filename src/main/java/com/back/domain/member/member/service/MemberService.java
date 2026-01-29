@@ -2,6 +2,9 @@ package com.back.domain.member.member.service;
 
 import com.back.domain.auction.auction.entity.Auction;
 import com.back.domain.auction.auction.repository.AuctionRepository;
+import com.back.domain.auction.auction.service.FileStorageService;
+import com.back.domain.image.image.entity.Image;
+import com.back.domain.image.image.repository.ImageRepository;
 import com.back.domain.member.member.entity.Member;
 import com.back.domain.member.member.enums.MemberStatus;
 import com.back.domain.member.reputation.entity.Report;
@@ -29,6 +32,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -50,6 +54,8 @@ public class MemberService {
     private final LoginFailService loginFailService;
     private final SecurityAuditService auditService;
     private final HttpServletRequest servletRequest;
+    private final FileStorageService fileStorageService;
+    private final ImageRepository imageRepository;
 
     public long count() {
         return memberRepository.count();
@@ -382,8 +388,16 @@ public class MemberService {
 
     // 프로필 사진 변경
     @Transactional
-    public void modifyProfile(Member member, String profileImgUrl) {
-        member.modify(member.getNickname(), profileImgUrl);
+    public void modifyProfile(Member member, MultipartFile profileImg) {
+        if (profileImg == null || profileImg.isEmpty()) {
+            return;
+        }
+
+        String imageUrl = fileStorageService.storeFile(profileImg);
+
+        Image savedImage = imageRepository.save(new Image(imageUrl));
+
+        member.modify(member.getNickname(), imageUrl);
     }
 
 }
