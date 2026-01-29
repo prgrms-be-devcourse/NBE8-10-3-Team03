@@ -928,7 +928,7 @@ public class MemberController {
     }
 
     @PatchMapping(value = "/me/profile", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @Operation(summary = "프로필 사진 수정 (이미지 업로드)")
+    @Operation(summary = "프로필 사진 수정 (이미지 파일 업로드)")
     @ApiResponses({
             @ApiResponse(
                     responseCode = "200",
@@ -948,16 +948,18 @@ public class MemberController {
                     responseCode = "400",
                     description = "잘못된 요청 (파일 누락 등)",
                     content = @Content(mediaType = "application/json")
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "인증 실패",
+                    content = @Content(mediaType = "application/json")
             )
     })
     public RsData<Void> modifyProfile(
-            @io.swagger.v3.oas.annotations.parameters.RequestBody(
-                    description = "업로드할 프로필 이미지 파일",
+            @Parameter(
+                    description = "업로드할 프로필 이미지 파일 (multipart/form-data)",
                     required = true,
-                    content = @Content(
-                            mediaType = MediaType.MULTIPART_FORM_DATA_VALUE,
-                            schema = @Schema(type = "string", format = "binary")
-                    )
+                    content = @Content(schema = @Schema(type = "string", format = "binary"))
             )
             @RequestPart("profileImg") MultipartFile profileImg
     ) {
