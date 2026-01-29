@@ -13,6 +13,8 @@ import com.back.domain.post.post.service.PostService;
 import com.back.global.audit.enums.AuditType;
 import com.back.global.audit.service.SecurityAuditService;
 import com.back.global.exception.ServiceException;
+import com.back.global.rateLimit.Bucket4jRateLimiter;
+import com.back.global.rateLimit.RateLimitPolicy;
 import com.back.global.rq.Rq;
 import com.back.global.rsData.RsData;
 import io.swagger.v3.oas.annotations.Operation;
@@ -51,6 +53,7 @@ public class MemberController {
     private final PostService postService;
     private final SecurityAuditService auditService;
     private final HttpServletRequest servletRequest;
+    private final Bucket4jRateLimiter rateLimiter;
     private final Rq rq;
 
     record MemberJoinReqBody(
@@ -336,10 +339,16 @@ public class MemberController {
             )
     })
     public RsData<MemberLoginResBody> login(
-            @Valid @RequestBody MemberLoginReqBody reqBody
+            @Valid @RequestBody MemberLoginReqBody reqBody, HttpServletRequest request
     ) {
         Member member = memberService.findByUsername(reqBody.username())
                 .orElseThrow(() -> new ServiceException("401-1", "존재하지 않는 아이디입니다."));
+
+        String key = "login:" + request.getRemoteAddr() + ":" + reqBody.username();
+
+        if (!rateLimiter.tryConsume(key, RateLimitPolicy.LOGIN)) {
+            throw new ServiceException("429-1", "요청이 너무 많습니다.");
+        }
 
         try {
             memberService.login(member, reqBody.password());
