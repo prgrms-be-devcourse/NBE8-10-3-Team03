@@ -1,6 +1,5 @@
 package com.back.domain.member.member.controller;
 
-import com.back.domain.auction.auction.dto.response.AuctionPageResponse;
 import com.back.domain.auction.auction.dto.response.AuctionSliceResponse;
 import com.back.domain.auction.auction.service.AuctionService;
 import com.back.domain.member.member.dto.MemberDto;
@@ -19,7 +18,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
-import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -923,6 +921,58 @@ public class MemberController {
                 "200-1",
                 "WebSocket 토큰이 발급되었습니다.",
                 new WsTokenResponse(wsToken)
+        );
+    }
+
+    record MemberProfileModifyRequest(
+            @NotBlank(message = "프로필 이미지 URL은 필수입니다.")
+            String profileImgUrl
+    ) {
+    }
+
+    @PatchMapping("/me/profile")
+    @Transactional
+    @Operation(summary = "프로필 사진 수정")
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "수정 성공",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                        "resultCode": "200-1",
+                                        "msg": "프로필 사진이 수정되었습니다.",
+                                        "data": null
+                                    }
+                            """)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "인증 실패",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                        "resultCode": "401-1",
+                                        "msg": "로그인 후 이용해주세요.",
+                                        "data": null
+                                    }
+                            """)
+                    )
+            )
+    })
+    public RsData<Void> modifyProfile(@Valid @RequestBody MemberProfileModifyRequest reqBody) {
+        Member member = rq.getActorFromDb();
+
+        member.checkActorCanModify(member);
+
+        memberService.modifyProfile(member, reqBody.profileImgUrl());
+
+        return new RsData<>(
+                "200-1",
+                "프로필 사진이 수정되었습니다."
         );
     }
 }
