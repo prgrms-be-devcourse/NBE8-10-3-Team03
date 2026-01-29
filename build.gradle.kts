@@ -57,6 +57,9 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-data-redis")
     implementation("org.springframework.boot:spring-boot-starter-cache")
 
+    // Caffeine 로컬 캐시 (고성능 인메모리 캐시)
+    implementation("com.github.ben-manes.caffeine:caffeine:3.1.8")
+
     // prometheus
     implementation ("org.springframework.boot:spring-boot-starter-actuator")
     implementation ("io.micrometer:micrometer-registry-prometheus")

@@ -37,8 +37,7 @@ public class BidService {
     @Transactional
     @CacheEvict(value = "auction", key = "#auctionId")
     public RsData<BidResponse> createBid(Integer auctionId, BidCreateRequest request, Integer bidderId) {
-        log.info("입찰 발생 - 경매 캐시 삭제: auctionId={}", auctionId);
-        log.debug("입찰 시작 - 경매 ID: {}, 입찰자 ID: {}, 입찰가: {}원", auctionId, bidderId, request.getPrice());
+        log.debug("입찰 시작 - 경매 캐시 삭제: auctionId: {}, 입찰자 ID: {}, 입찰가: {}원", auctionId, bidderId, request.getPrice());
 
         // 1. 경매 조회 (비관적 락 적용 - 동시 입찰 시 순차 처리)
         log.debug("비관적 락으로 경매 조회 - 경매 ID: {}", auctionId);

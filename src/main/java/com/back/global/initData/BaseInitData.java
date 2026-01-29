@@ -70,56 +70,61 @@ public class BaseInitData {
     public void work1() {
         if (memberService.count() > 0) return;
 
+        // 시스템 계정
         Member memberSystem = new Member ("system", passwordEncoder.encode("1234"), "시스템", Role.ADMIN,null);
         if (AppConfig.isNotProd()) memberSystem.modifyApiKey(memberSystem.getUsername());
         memberRepository.save(memberSystem);
-        Reputation reputation1 = new Reputation(memberSystem, 50.0);
-        reputationRepository.save(reputation1);
+        reputationRepository.save(new Reputation(memberSystem, 50.0));
 
-
+        // 관리자 계정
         Member memberAdmin = new Member("admin", passwordEncoder.encode("1234"), "관리자", Role.ADMIN,null);
         if (AppConfig.isNotProd()) memberAdmin.modifyApiKey(memberAdmin.getUsername());
         memberRepository.save(memberAdmin);
-        Reputation reputation2 = new Reputation(memberAdmin, 50.0);
-        reputationRepository.save(reputation2);
+        reputationRepository.save(new Reputation(memberAdmin, 50.0));
 
-        Member memberUser1 = new Member("user1", passwordEncoder.encode("1234"), "유저1", Role.USER, null);
-        if (AppConfig.isNotProd()) memberUser1.modifyApiKey(memberUser1.getUsername());
-        memberRepository.save(memberUser1);
-        Reputation reputation3 = new Reputation(memberUser1, 50.0);
-        reputationRepository.save(reputation3);
+        //  🔥 대규모 테스트용: 일반 유저 1000명 생성 (실제 서비스 환경)
+        log.info(" 대규모 테스트 - 일반 유저 생성 시작: 1000명");
 
-        Member memberUser2 = new Member("user2", passwordEncoder.encode("1234"), "유저2", Role.USER, null);
-        if (AppConfig.isNotProd()) memberUser2.modifyApiKey(memberUser2.getUsername());
-        memberRepository.save(memberUser2);
-        Reputation reputation4 = new Reputation(memberUser2, 50.0);
-        reputationRepository.save(reputation4);
+        for (int i = 1; i <= 1000; i++) {
+            String username = "user" + i;
+            String nickname = "유저" + i;
 
-        Member memberUser3 = new Member("user3", passwordEncoder.encode("1234"), "유저3", Role.USER, null);
-        if (AppConfig.isNotProd()) memberUser3.modifyApiKey(memberUser3.getUsername());
-        memberRepository.save(memberUser3);
-        Reputation reputation5 = new Reputation(memberUser3, 50.0);
-        reputationRepository.save(reputation5);
+            Member member = new Member(username, passwordEncoder.encode("1234"), nickname, Role.USER, null);
+            if (AppConfig.isNotProd()) member.modifyApiKey(member.getUsername());
+            memberRepository.save(member);
 
-        // 정지 회원
-        Member memberUser4 = new Member("user4", passwordEncoder.encode("1234"), "유저4", Role.USER, null);
-        if (AppConfig.isNotProd()) memberUser4.modifyApiKey(memberUser4.getUsername());
-        memberUser4.setStatus(MemberStatus.SUSPENDED);
-        memberUser4.setSuspendAt(LocalDateTime.now().minusDays(3));
-        memberRepository.save(memberUser4);
-        Reputation reputation6 = new Reputation(memberUser4, 50.0);
-        reputationRepository.save(reputation6);
+            // 신용도 랜덤 설정 (30.0 ~ 100.0)
+            double reputationScore = 30.0 + (Math.random() * 70.0);
+            reputationRepository.save(new Reputation(member, reputationScore));
 
-        // 영구 정지 회원
-        Member memberUser5 = new Member("user5", passwordEncoder.encode("1234"), "유저5", Role.USER, null);
-        if (AppConfig.isNotProd()) memberUser5.modifyApiKey(memberUser5.getUsername());
-        memberUser5.setStatus(MemberStatus.BANNED);
-        memberUser5.setDeleteAt(LocalDateTime.now().minusDays(3));
-        memberRepository.save(memberUser5);
-        Reputation reputation7 = new Reputation(memberUser5, 50.0);
-        reputationRepository.save(reputation7);
+            // 100명마다 로그 출력
+            if (i % 100 == 0) {
+                entityManager.flush();
+                log.info("유저 생성 중... {}/1000명 완료", i);
+            }
+        }
 
-        log.info("테스트 회원 생성 완료 - 총 8명");
+        entityManager.flush();
+        entityManager.clear();
+        log.info(" 대규모 테스트 - 일반 유저 생성 완료: 총 1000명");
+
+        // 정지 회원 (user1001)
+        Member memberSuspended = new Member("user1001", passwordEncoder.encode("1234"), "정지유저", Role.USER, null);
+        if (AppConfig.isNotProd()) memberSuspended.modifyApiKey(memberSuspended.getUsername());
+        memberSuspended.setStatus(MemberStatus.SUSPENDED);
+        memberSuspended.setSuspendAt(LocalDateTime.now().minusDays(3));
+        memberRepository.save(memberSuspended);
+        reputationRepository.save(new Reputation(memberSuspended, 50.0));
+
+        // 영구 정지 회원 (user1002)
+        Member memberBanned = new Member("user1002", passwordEncoder.encode("1234"), "영구정지유저", Role.USER, null);
+        if (AppConfig.isNotProd()) memberBanned.modifyApiKey(memberBanned.getUsername());
+        memberBanned.setStatus(MemberStatus.BANNED);
+        memberBanned.setDeleteAt(LocalDateTime.now().minusDays(3));
+        memberRepository.save(memberBanned);
+        reputationRepository.save(new Reputation(memberBanned, 50.0));
+
+        log.info(" 대규모 테스트 - 전체 회원 생성 완료: 총 1004명 (일반 1000명 + 시스템 2명 + 특수 2명)");
     }
 
     @Transactional
@@ -162,46 +167,45 @@ public class BaseInitData {
         List<Member> members = memberService.findAll();
         List<Category> categories = categoryRepository.findAll();
 
-        if (members.size() < 3 || categories.isEmpty()) {
+        if (members.size() < 1000 || categories.isEmpty()) {
+            log.warn("경매 생성 스킵 - 유저 수: {}, 카테고리 수: {}", members.size(), categories.size());
             return;
         }
 
-        Member seller1 = memberService.findByUsername("user1").get();
-        Member seller2 = memberService.findByUsername("user2").get();
-        Member seller3 = memberService.findByUsername("user3").get();
+        //  🔥 대규모 테스트: seller 1000명 사용 (실제 서비스 환경)
+        Member[] sellers = new Member[1000];
+        for (int i = 0; i < 1000; i++) {
+            final int index = i + 1;
+            sellers[i] = memberService.findByUsername("user" + index)
+                    .orElseThrow(() -> new RuntimeException("user" + index + " not found"));
+        }
 
-        // 판매자 순환 (user1, user2, user3)
-        Member[] sellers = {seller1, seller2, seller3};
+        // 경매 상품 타입 (실제 서비스와 유사하게)
+        String[] productTypes = {
+                "아이폰", "갤럭시", "노트북", "태블릿", "에어팟", "청소기", "TV", "냉장고",
+                "소파", "책상", "의자", "침대", "운동화", "패딩", "가방", "시계",
+                "텐트", "자전거", "카메라", "게임기", "도서", "악기", "모니터", "키보드",
+                "마우스", "헤드셋", "스피커", "선풍기", "에어컨", "공기청정기"
+        };
 
-        // 입찰자 (seller가 아닌 다른 유저)
-        Member bidder1 = memberService.findByUsername("user2").get();
-        Member bidder2 = memberService.findByUsername("user3").get();
-        Member bidder3 = memberService.findByUsername("user1").get();
-        Member[] bidders = {bidder1, bidder2, bidder3};
-
-        // 100개 경매 생성
-        String[] productTypes = {"아이폰", "갤럭시", "노트북", "태블릿", "에어팟", "청소기", "TV", "냉장고",
-                                 "소파", "책상", "의자", "침대", "운동화", "패딩", "가방", "시계",
-                                 "텐트", "자전거", "카메라", "게임기", "도서", "악기"};
-
-        int auctionCount = 100;
-        log.info("경매 생성 시작 - 목표: {}개", auctionCount);
+        int auctionCount = 10000;
+        log.info(" 대규모 테스트 - 경매 생성 시작: {}개 (seller 1000명, 실제 환경 시뮬레이션)", auctionCount);
 
         for (int i = 1; i <= auctionCount; i++) {
-            Member seller = sellers[(i - 1) % 3]; // 판매자 순환 (입찰 로직과 일치)
-            int categoryId = (i % 12) + 1; // 카테고리 1-12 순환
+            //  seller를 순환하여 균등 배정
+            Member seller = sellers[i % 1000];
+            int categoryId = (i % 12) + 1;
             String productType = productTypes[i % productTypes.length];
             Category category = categories.get(categoryId - 1);
 
-            int startPrice = 10000 + (i * 1000);
+            int startPrice = 10000 + (i * 100);
             int buyNowPrice = startPrice * 2;
 
-            // Repository를 직접 사용하여 같은 트랜잭션에서 저장
             Auction auction = Auction.builder()
                     .seller(seller)
                     .category(category)
                     .name(productType + " #" + i)
-                    .description("테스트 경매 상품입니다. " + i + "번째 상품.")
+                    .description("대규모 실제 환경 테스트 경매 상품입니다. " + i + "번째 상품.")
                     .startPrice(startPrice)
                     .buyNowPrice(buyNowPrice)
                     .startAt(LocalDateTime.now())
@@ -210,18 +214,18 @@ public class BaseInitData {
 
             auctionRepository.save(auction);
 
-            // 10개마다 로그 출력 및 flush
-            if (i % 10 == 0) {
-                entityManager.flush(); // DB에 즉시 반영
+            // 1000개마다 로그 출력 및 flush
+            if (i % 1000 == 0) {
+                entityManager.flush();
+                entityManager.clear(); // 메모리 관리
                 log.info("경매 생성 중... {}/{}개 완료", i, auctionCount);
             }
         }
 
-        // 모든 경매 생성 후 flush
         entityManager.flush();
-        entityManager.clear(); // 영속성 컨텍스트 초기화
-        log.info("경매 생성 완료 - 총 {}개", auctionCount);
-        log.info("성능 테스트를 위해 입찰 생성은 생략합니다.");
+        entityManager.clear();
+        log.info(" 대규모 테스트 - 경매 생성 완료: 총 {}개 (seller 1000명 균등 배정)", auctionCount);
+        log.info(" 실제 서비스 환경 시뮬레이션 준비 완료");
     }
 
     @Transactional
