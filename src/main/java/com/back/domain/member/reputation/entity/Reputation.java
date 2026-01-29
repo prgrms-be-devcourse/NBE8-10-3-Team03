@@ -2,9 +2,7 @@ package com.back.domain.member.reputation.entity;
 
 import com.back.domain.member.member.entity.Member;
 import com.back.global.jpa.entity.BaseEntity;
-import jakarta.persistence.Entity;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.OneToOne;
+import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -12,6 +10,10 @@ import lombok.Setter;
 @Getter
 @Setter
 @Entity
+@Table(name = "reputation", indexes = {
+    // UNIQUE 인덱스: 1:1 관계 보장 및 JOIN 성능 최적화
+    @Index(name = "idx_reputation_member", columnList = "member_id", unique = true)
+})
 @NoArgsConstructor
 public class Reputation extends BaseEntity {
     @OneToOne
