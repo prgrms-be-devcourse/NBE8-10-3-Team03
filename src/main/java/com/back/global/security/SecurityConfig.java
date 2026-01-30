@@ -24,6 +24,7 @@ import static org.springframework.security.config.http.SessionCreationPolicy.STA
 @RequiredArgsConstructor
 public class SecurityConfig {
     private final CustomAuthenticationFilter customAuthenticationFilter;
+    private final ApiRateLimitFilter apiRateLimitFilter;
     private final AuthenticationSuccessHandler customOAuth2LoginSuccessHandler;
     private final CustomOAuth2AuthorizationRequestResolver customOAuth2AuthorizationRequestResolver;
 
@@ -77,6 +78,7 @@ public class SecurityConfig {
                                         .authorizationRequestResolver(customOAuth2AuthorizationRequestResolver)
                         )
                 ).addFilterBefore(customAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(apiRateLimitFilter, CustomAuthenticationFilter.class)
                 .exceptionHandling(
                         exceptionHandling -> exceptionHandling
                                 .authenticationEntryPoint(
