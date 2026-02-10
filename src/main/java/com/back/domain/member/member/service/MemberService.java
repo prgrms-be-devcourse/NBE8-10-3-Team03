@@ -388,16 +388,20 @@ public class MemberService {
 
     // 프로필 사진 변경
     @Transactional
-    public void modifyProfile(Member member, MultipartFile profileImg) {
+    public void modifyProfile(int memberId, MultipartFile profileImg) {
         if (profileImg == null || profileImg.isEmpty()) {
             throw new ServiceException("400-1", "업로드할 이미지 파일이 없습니다.");
         }
+
+        // 트랜잭션 내에서 managed entity를 조회해야 dirty checking이 동작함
+        Member managedMember = memberRepository.findById(memberId)
+                .orElseThrow(() -> new ServiceException("404-1", "존재하지 않는 회원입니다."));
 
         String imageUrl = fileStorageService.storeFile(profileImg);
 
         imageRepository.save(new Image(imageUrl));
 
-        member.modify(member.getNickname(), imageUrl);
+        managedMember.modify(managedMember.getNickname(), imageUrl);
     }
 
 }

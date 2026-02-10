@@ -25,8 +25,9 @@ public interface ChatRepository extends JpaRepository<Chat, Integer> {
             "LEFT JOIN FETCH cr.auction a " +
             "WHERE c.id IN (" +
             "SELECT MAX(c2.id) FROM Chat c2 " +
-            "WHERE (c2.chatRoom.sellerApiKey = :apiKey AND c2.chatRoom.sellerExited = false) " +
-            "OR (c2.chatRoom.buyerApiKey = :apiKey AND c2.chatRoom.buyerExited = false) " +
+            "WHERE c2.chatRoom.deleted = false " +
+            "AND ((c2.chatRoom.sellerApiKey = :apiKey AND c2.chatRoom.sellerExited = false) " +
+            "OR (c2.chatRoom.buyerApiKey = :apiKey AND c2.chatRoom.buyerExited = false)) " +
             "GROUP BY c2.chatRoom" +
             ") " +
             "ORDER BY c.createDate DESC")
@@ -53,4 +54,7 @@ public interface ChatRepository extends JpaRepository<Chat, Integer> {
     @EntityGraph(attributePaths = {"chatRoom"})
     List<Chat> findTop20ByChatRoom_RoomIdAndIdLessThanOrderByIdDesc(String roomId, Integer lastId);
 
+    @Modifying
+    @Query("DELETE FROM Chat c WHERE c.chatRoom.roomId = :roomId")
+    void deleteAllByRoomId(@Param("roomId") String roomId);
 }

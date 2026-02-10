@@ -31,6 +31,7 @@ public class AuctionCreateRequest {
     private Integer buyNowPrice;
 
     @NotNull(message = "카테고리 ID는 필수입니다.")
+
     private Integer categoryId;
 
     // 경매 지속 시간 (단위: 시간), 기본값 168시간 (7일)
