@@ -6,6 +6,8 @@ import com.back.domain.post.post.entity.Post;
 import com.back.global.jpa.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.*;
+
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
@@ -41,6 +43,12 @@ public class ChatRoom extends BaseEntity {
 
     @Column(name = "buyer_exited", nullable = false)
     private boolean buyerExited = false;
+
+    @Column(name = "deleted", nullable = false)
+    private boolean deleted = false;
+
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
 
     @Builder
     private ChatRoom(String roomId,
@@ -90,5 +98,11 @@ public class ChatRoom extends BaseEntity {
     // 둘 다 나갔는지 확인
     public boolean isBothExited() {
         return sellerExited && buyerExited;
+    }
+
+    // 소프트 삭제
+    public void softDelete() {
+        this.deleted = true;
+        this.deletedAt = LocalDateTime.now();
     }
 }

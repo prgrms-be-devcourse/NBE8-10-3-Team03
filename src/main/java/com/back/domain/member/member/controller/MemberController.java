@@ -886,56 +886,6 @@ public class MemberController {
                 .toList();
     }
 
-    record WsTokenResponse(String token) {}
-
-    @Operation(summary = "WebSocket 인증용 토큰 발급", description = "채팅 WebSocket 연결 시 사용할 단기 토큰을 발급합니다.")
-    @ApiResponses({
-            @ApiResponse(
-                    responseCode = "200",
-                    description = "토큰 발급 성공",
-                    content = @Content(
-                            mediaType = "application/json",
-                            examples = @ExampleObject(value = """
-                                    {
-                                        "resultCode": "200-1",
-                                        "msg": "WebSocket 토큰이 발급되었습니다.",
-                                        "data": {
-                                            "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-                                        }
-                                    }
-                    """)
-                    )
-            ),
-            @ApiResponse(
-                    responseCode = "401",
-                    description = "인증 실패",
-                    content = @Content(
-                            mediaType = "application/json",
-                            examples = @ExampleObject(value = """
-                                    {
-                                        "resultCode": "401-1",
-                                        "msg": "로그인 후 이용해주세요.",
-                                        "data": null
-                                    }
-                    """)
-                    )
-            )
-    })
-    @GetMapping("/ws-token")
-    @Transactional(readOnly = true)
-    public RsData<WsTokenResponse> getWsToken() {
-        Member actor = rq.getActorFromDb();
-
-        // 웹소켓 인증을 위한 토큰 발급
-        String wsToken = memberService.genAccessToken(actor);
-
-        return new RsData<>(
-                "200-1",
-                "WebSocket 토큰이 발급되었습니다.",
-                new WsTokenResponse(wsToken)
-        );
-    }
-
     @PatchMapping(value = "/me/profile", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Operation(summary = "프로필 사진 수정 (이미지 파일 업로드)")
     @ApiResponses({
@@ -972,11 +922,9 @@ public class MemberController {
             )
             @RequestPart("profileImg") MultipartFile profileImg
     ) {
-        Member member = rq.getActorFromDb();
+        Member actor = rq.getActor();
 
-        member.checkActorCanModify(member);
-
-        memberService.modifyProfile(member, profileImg);
+        memberService.modifyProfile(actor.getId(), profileImg);
 
         return new RsData<>(
                 "200-1",

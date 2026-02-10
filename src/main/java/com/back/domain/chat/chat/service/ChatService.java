@@ -29,6 +29,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
@@ -42,6 +43,7 @@ public class ChatService {
 
     private final ChatRepository chatRepository;
     private final ChatRoomRepository chatRoomRepository;
+    private final ChatImageRepository chatImageRepository;
     private final PostRepository postRepository;
     private final AuctionRepository auctionRepository;
     private final MemberRepository memberRepository;
@@ -102,22 +104,34 @@ public class ChatService {
 
         // 기존에 대화하던 방이 있으면 UUID를 그대로 반환 없으면 신규 생성
         String roomId;
+        boolean isNewRoom = false;
+
         if (type == ChatRoomType.POST) {
-            final Post finalPost = post;
-            roomId = chatRoomRepository.findByPostAndBuyerApiKey(post, buyerApiKey)
-                    .map(ChatRoom::getRoomId)
-                    .orElseGet(() -> {
-                        ChatRoom room = ChatRoom.createForPost(finalPost, buyer);
-                        return chatRoomRepository.save(room).getRoomId();
-                    });
+            Optional<ChatRoom> existing = chatRoomRepository.findByPostAndBuyerApiKeyAndDeletedFalse(post, buyerApiKey);
+            if (existing.isPresent()) {
+                roomId = existing.get().getRoomId();
+            } else {
+                ChatRoom room = ChatRoom.createForPost(post, buyer);
+                roomId = chatRoomRepository.save(room).getRoomId();
+                isNewRoom = true;
+            }
         } else {
-            final Auction finalAuction = auction;
-            roomId = chatRoomRepository.findByAuctionAndBuyerApiKey(auction, buyerApiKey)
-                    .map(ChatRoom::getRoomId)
-                    .orElseGet(() -> {
-                        ChatRoom room = ChatRoom.createForAuction(finalAuction, buyer);
-                        return chatRoomRepository.save(room).getRoomId();
-                    });
+            Optional<ChatRoom> existing = chatRoomRepository.findByAuctionAndBuyerApiKeyAndDeletedFalse(auction, buyerApiKey);
+            if (existing.isPresent()) {
+                roomId = existing.get().getRoomId();
+            } else {
+                ChatRoom room = ChatRoom.createForAuction(auction, buyer);
+                roomId = chatRoomRepository.save(room).getRoomId();
+                isNewRoom = true;
+            }
+        }
+
+        // 새 채팅방이 생성된 경우 판매자에게 실시간 알림
+        if (isNewRoom) {
+            ChatRoom newRoom = chatRoomRepository.findByRoomIdAndDeletedFalse(roomId).orElse(null);
+            if (newRoom != null) {
+                sendUserNotification("NEW_ROOM", newRoom, seller, buyer, null, LocalDateTime.now());
+            }
         }
 
         return new RsData<>("200-1", "채팅방에 입장했습니다.", new ChatRoomIdResponse(roomId));
@@ -132,7 +146,7 @@ public class ChatService {
      */
     @Transactional
     public RsData<ChatIdResponse> saveMessage(ChatMessageRequest req) {
-        ChatRoom room = chatRoomRepository.findByRoomId(req.getRoomId())
+        ChatRoom room = chatRoomRepository.findByRoomIdAndDeletedFalse(req.getRoomId())
                 .orElseThrow(() -> {
                     log.warn("메세지 전송 실패 - 존재하지 않는 채팅방: {}",  req.getRoomId());
                     return new ServiceException("404-1", "존재하지 않는 채팅방입니다.");
@@ -187,6 +201,15 @@ public class ChatService {
             log.error("WebSocket 전송 실패 - RoomID: {}, Error: {}", req.getRoomId(), e.getMessage());
         }
 
+        // 상대방에게 개인 알림 전송 (채팅 목록 실시간 갱신용)
+        String opponentApiKey = room.getSellerApiKey().equals(currentApiKey)
+                ? room.getBuyerApiKey() : room.getSellerApiKey();
+        Member opponent = memberRepository.findByApiKey(opponentApiKey).orElse(null);
+        if (opponent != null) {
+            sendUserNotification("NEW_MESSAGE", room, opponent, sender,
+                    req.getMessage(), chatMessage.getCreateDate());
+        }
+
         return new RsData<>("200-1", "메시지가 전송되었습니다.", new ChatIdResponse(chatMessage.getId()));
     }
 
@@ -199,7 +222,7 @@ public class ChatService {
      */
     @Transactional
     public RsData<List<ChatResponse>> getMessages(String roomId, Integer lastChatId) {
-        ChatRoom room = chatRoomRepository.findByRoomId(roomId)
+        ChatRoom room = chatRoomRepository.findByRoomIdAndDeletedFalse(roomId)
                 .orElseThrow(() -> new ServiceException("404-1", "존재하지 않는 채팅방입니다."));
 
         // 접속 사용자 권한 검증
@@ -402,7 +425,7 @@ public class ChatService {
      */
     @Transactional
     public RsData<Void> exitChatRoom(String roomId) {
-        ChatRoom room = chatRoomRepository.findByRoomId(roomId)
+        ChatRoom room = chatRoomRepository.findByRoomIdAndDeletedFalse(roomId)
                 .orElseThrow(() -> new ServiceException("404-1", "존재하지 않는 채팅방입니다."));
 
         Member actor = rq.getActor();
@@ -418,9 +441,74 @@ public class ChatService {
         room.exit(currentApiKey);
 
         if (room.isBothExited()) {
-            chatRoomRepository.delete(room);
+            room.softDelete();
         }
 
         return new RsData<>("200-1", "채팅방에서 퇴장하였습니다.", null);
+    }
+
+    /**
+     * 개인 알림 토픽(/sub/user/{userId}/notification)으로 채팅 알림 전송.
+     *
+     * @param type      "NEW_ROOM" 또는 "NEW_MESSAGE"
+     * @param room      채팅방
+     * @param recipient 알림을 받을 사용자
+     * @param opponent  알림 수신자 기준의 상대방 (= 상대 프로필 정보 출처)
+     * @param message   마지막 메시지 (NEW_ROOM일 경우 null)
+     * @param messageDate 메시지 시각
+     */
+    private void sendUserNotification(String type, ChatRoom room, Member recipient, Member opponent,
+                                      String message, LocalDateTime messageDate) {
+        try {
+            Integer itemId = null;
+            String itemName = null;
+            String itemImageUrl = null;
+            Integer itemPrice = null;
+
+            if (room.getTxType() == ChatRoomType.POST && room.getPost() != null) {
+                Post post = room.getPost();
+                itemId = post.getId();
+                itemName = post.getTitle();
+                itemPrice = post.getPrice();
+                List<Object[]> images = imageRepository.findPostMainImages(List.of(itemId));
+                if (!images.isEmpty()) itemImageUrl = (String) images.get(0)[1];
+            } else if (room.getTxType() == ChatRoomType.AUCTION && room.getAuction() != null) {
+                Auction auction = room.getAuction();
+                itemId = auction.getId();
+                itemName = auction.getName();
+                itemPrice = auction.getCurrentHighestBid() != null
+                        ? auction.getCurrentHighestBid() : auction.getStartPrice();
+                List<Object[]> images = imageRepository.findAuctionMainImages(List.of(itemId));
+                if (!images.isEmpty()) itemImageUrl = (String) images.get(0)[1];
+            }
+
+            // 수신자 기준 안 읽은 메시지 수
+            int unreadCount = 0;
+            List<UnreadCountResponse> counts = chatRepository.countUnreadMessagesByRoomIds(
+                    List.of(room.getRoomId()), recipient.getId());
+            if (!counts.isEmpty()) unreadCount = counts.get(0).count().intValue();
+
+            ChatNotification notification = ChatNotification.builder()
+                    .type(type)
+                    .roomId(room.getRoomId())
+                    .opponentId(opponent.getId())
+                    .opponentNickname(opponent.getNickname())
+                    .opponentProfileImageUrl(opponent.getProfileImgUrl())
+                    .lastMessage(message)
+                    .lastMessageDate(messageDate)
+                    .unreadCount(unreadCount)
+                    .itemId(itemId)
+                    .itemName(itemName)
+                    .itemImageUrl(itemImageUrl)
+                    .itemPrice(itemPrice)
+                    .txType(room.getTxType())
+                    .build();
+
+            messagingTemplate.convertAndSend(
+                    "/sub/user/" + recipient.getId() + "/notification", notification);
+            log.info("개인 알림 전송 - Type: {}, Recipient: {}, RoomID: {}", type, recipient.getId(), room.getRoomId());
+        } catch (Exception e) {
+            log.error("개인 알림 전송 실패 - Recipient: {}, Error: {}", recipient.getId(), e.getMessage());
+        }
     }
 }

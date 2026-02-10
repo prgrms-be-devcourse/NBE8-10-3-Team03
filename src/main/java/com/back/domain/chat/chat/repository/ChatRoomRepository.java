@@ -8,12 +8,12 @@ import java.util.Optional;
 
 public interface ChatRoomRepository extends JpaRepository<ChatRoom, Integer> {
 
-    // UUID로 방 찾기
-    Optional<ChatRoom> findByRoomId(String roomId);
+    // UUID로 방 찾기 (삭제되지 않은 방만)
+    Optional<ChatRoom> findByRoomIdAndDeletedFalse(String roomId);
 
-    // POST: 이미 존재하는 방인지 확인
-    Optional<ChatRoom> findByPostAndBuyerApiKey(Post post, String buyerId);
+    // POST: 이미 존재하는 방인지 확인 (삭제되지 않은 방만)
+    Optional<ChatRoom> findByPostAndBuyerApiKeyAndDeletedFalse(Post post, String buyerId);
 
-    // Auction: 이미 존재하는 방인지 확인
-    Optional<ChatRoom> findByAuctionAndBuyerApiKey(Auction auction, String buyerId);
+    // Auction: 이미 존재하는 방인지 확인 (삭제되지 않은 방만)
+    Optional<ChatRoom> findByAuctionAndBuyerApiKeyAndDeletedFalse(Auction auction, String buyerId);
 }
