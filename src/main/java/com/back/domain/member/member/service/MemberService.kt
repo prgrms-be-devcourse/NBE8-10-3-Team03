@@ -29,9 +29,6 @@ import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.multipart.MultipartFile
 import java.time.LocalDateTime
 import java.util.*
-import java.util.function.Consumer
-import java.util.function.Supplier
-import java.util.regex.Pattern
 import kotlin.math.abs
 
 @Service
@@ -97,7 +94,7 @@ class MemberService(
 
     // OAuth 수정
     @Transactional
-    private fun modify(member: Member, nickname: String?, profileImgUrl: String?) {
+    private fun modify(member: Member, nickname: String, profileImgUrl: String?) {
         member.modify(nickname, profileImgUrl)
     }
 
@@ -126,10 +123,10 @@ class MemberService(
     fun checkPassword(member: Member, password: String?) {
         val now = LocalDateTime.now()
         // 패스워드가 일치하지 않으면
-        if (!passwordEncoder.matches(password, member.getPassword())) {
+        if (!passwordEncoder.matches(password, member.password)) {
             loginFailService.record(member.id, now)
 
-            if (member.getLoginFailCount() >= 5) {
+            if (member.loginFailCount >= 5) {
                 loginFailService.lock(member.id, now)
                 auditService.log(
                     member.id,
@@ -177,7 +174,7 @@ class MemberService(
         return authTokenService.genAccessToken(member)
     }
 
-    fun payload(accessToken: String): MutableMap<String, Any> {
+    fun payload(accessToken: String): MutableMap<String, Any>? {
         return authTokenService.payload(accessToken)
     }
 
@@ -191,11 +188,11 @@ class MemberService(
 
 
     @Transactional
-    fun modifyNickname(member: Member, nickname: String?) = member.modifyName(nickname)
+    fun modifyNickname(member: Member, nickname: String) = member.modifyName(nickname)
 
     @Transactional
-    fun modifyPassword(member: Member, password: String?, newPassword: String, checkPassword: String?) {
-        if (!passwordEncoder.matches(password, member.getPassword())) throw ServiceException(
+    fun modifyPassword(member: Member, password: String, newPassword: String, checkPassword: String) {
+        if (!passwordEncoder.matches(password, member.password)) throw ServiceException(
             "401-1",
             "현재 비밀번호와 일치하지 않습니다."
         )
@@ -372,6 +369,6 @@ class MemberService(
 
         imageRepository.save(Image(imageUrl))
 
-        managedMember.modify(managedMember.nickname, imageUrl)
+        managedMember.modify(managedMember.getName(), imageUrl)
     }
 }
