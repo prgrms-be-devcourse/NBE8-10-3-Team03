@@ -45,8 +45,3 @@ my.cnf  # MySQL Exporter 설정 (비밀번호 포함)
 ### Upload Files ###
 uploads/*
 !uploads/.gitkeep
-
-### Local Design Docs (Do not publish) ###
-docs/design/**/*.md
-!README.md
-!readme.me
