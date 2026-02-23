@@ -56,7 +56,7 @@ class Member(
     var reporterReports: MutableList<Report?> = mutableListOf()
 
     @OneToMany(mappedBy = "member", fetch = FetchType.LAZY)
-    var reviews: MutableList<Review?> = mutableListOf()
+    var reviews: MutableList<Review> = mutableListOf()
 
     @Column(nullable = true)
     var suspendAt: LocalDateTime? = null
