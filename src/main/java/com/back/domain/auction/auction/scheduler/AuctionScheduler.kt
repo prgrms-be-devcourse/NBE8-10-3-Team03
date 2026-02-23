@@ -40,7 +40,7 @@ class AuctionScheduler(
             log.info(
                 "경매 ID {} 낙찰 완료 - 낙찰자: {}, 낙찰가: {}원",
                 auction.getId(),
-                winningBid.getBidder().getNickname(),
+                winningBid.getBidder().getName(),
                 winningBid.getPrice()
             )
         } else {
