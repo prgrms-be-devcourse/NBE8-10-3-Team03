@@ -89,7 +89,7 @@ open class MemberController(
     data class MemberNameModifyReqBody(
         @field:NotBlank
         @field:Size(min = 2, max = 30)
-        val nickname: String?,
+        val nickname: String,
     )
 
     data class MemberPwModifyReqBody(
@@ -394,7 +394,7 @@ open class MemberController(
     @Transactional(readOnly = true)
     @Operation(summary = "내 거래 조회")
     fun getPostsById(
-        @PageableDefault(size = 10, sort = ["createDate"], direction = Sort.Direction.DESC) pageable: Pageable?,
+        @PageableDefault(size = 10, sort = ["createDate"], direction = Sort.Direction.DESC) pageable: Pageable,
         @RequestParam(required = false) status: String?,
     ): RsData<PostPageResponse?> {
         val member = rq.getActor()
@@ -493,7 +493,7 @@ open class MemberController(
     )
     fun getReviews(@PathVariable userId: Int): List<ReviewDto?> {
         val member = memberService.findById(userId).get()
-        return member.getReviews().map { review -> ReviewDto(review) }
+        return member.reviews.map { review -> ReviewDto(review) }
     }
 
     @PatchMapping("/me/profile", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
