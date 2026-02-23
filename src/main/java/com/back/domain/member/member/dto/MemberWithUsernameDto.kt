@@ -14,12 +14,12 @@ data class MemberWithUsernameDto(
     val score: Double?
 ) {
     constructor(member: Member) : this(
-        member.getId(),
-        member.getCreateDate(),
-        member.getModifyDate(),
-        member.getNickname(),
-        member.getUsername(),
-        member.getProfileImgUrl(),
-        member.getReputation().getScore()
+        member.id,
+        member.createDate,
+        member.modifyDate,
+        member.nickname,
+        member.username,
+        member.profileImgUrl,
+        member.reputation.score
     )
 }
