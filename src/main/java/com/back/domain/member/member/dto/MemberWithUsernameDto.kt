@@ -6,10 +6,10 @@ import java.time.LocalDateTime
 @JvmRecord
 data class MemberWithUsernameDto(
     val id: Int,
-    val createDate: LocalDateTime?,
-    val modifyDate: LocalDateTime?,
-    val name: String?,
-    val username: String?,
+    val createDate: LocalDateTime,
+    val modifyDate: LocalDateTime,
+    val name: String,
+    val username: String,
     val profileImgUrl: String?,
     val score: Double?
 ) {
@@ -20,6 +20,6 @@ data class MemberWithUsernameDto(
         member.nickname,
         member.username,
         member.profileImgUrl,
-        member.reputation.score
+        member.reputation?.score
     )
 }
