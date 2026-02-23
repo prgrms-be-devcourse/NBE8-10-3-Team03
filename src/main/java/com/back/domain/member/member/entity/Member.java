@@ -235,4 +235,13 @@ public class Member extends BaseEntity {
 
         return authorities;
     }
+
+    public String getApiKey() {
+        return this.apiKey;
+    }
+
+    public List<Review> getReviews() {
+        return reviews;
+    }
+
 }

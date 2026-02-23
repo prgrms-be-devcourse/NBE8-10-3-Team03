@@ -30,4 +30,7 @@ public abstract class BaseEntity {
     @LastModifiedDate
     private LocalDateTime modifyDate;
 
+    public int getId() {
+        return this.id;
+    }
 }
