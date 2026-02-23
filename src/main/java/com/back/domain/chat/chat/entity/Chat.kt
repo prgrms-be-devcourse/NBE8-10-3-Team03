@@ -15,7 +15,7 @@ class Chat() : BaseEntity() {
 
     @Column(columnDefinition = "TEXT")
     var message: String? = null
-    
+
     @Column(name = "is_read", nullable = false)
     var read: Boolean = false
 
