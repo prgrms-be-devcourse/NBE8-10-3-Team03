@@ -30,8 +30,10 @@ public class ApiRateLimitFilter extends OncePerRequestFilter {
 
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
 
-        if (auth != null && auth.isAuthenticated()) {
-            int userId = ((SecurityUser) auth.getPrincipal()).getId();
+        if (auth != null
+                && auth.isAuthenticated()
+                && auth.getPrincipal() instanceof SecurityUser securityUser) {
+            int userId = securityUser.getId();
 
             String key = "api:" + userId;
             RateLimitPolicy policy = resolvePolicy(request.getRequestURI());
@@ -66,4 +68,3 @@ public class ApiRateLimitFilter extends OncePerRequestFilter {
         return RateLimitPolicy.API_DEFAULT;
     }
 }
-
