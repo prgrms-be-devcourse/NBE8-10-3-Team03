@@ -3,7 +3,6 @@ package com.back.domain.member.review.dto
 import com.back.domain.member.review.entity.Review
 import java.time.LocalDateTime
 
-@JvmRecord
 data class ReviewDto(
     val id: Int,
     val createDate: LocalDateTime?,
@@ -14,12 +13,12 @@ data class ReviewDto(
     val reviewerId: Int
 ) {
     constructor(review: Review) : this(
-        review.getId(),
-        review.getCreateDate(),
-        review.getModifyDate(),
-        review.getStar(),
-        review.getComment(),
-        review.getMember().getId(),
-        review.getReviewerId()
+        review.id,
+        review.createDate,
+        review.modifyDate,
+        review.star,
+        review.comment,
+        review.member.id,
+        review.reviewerId
     )
 }
