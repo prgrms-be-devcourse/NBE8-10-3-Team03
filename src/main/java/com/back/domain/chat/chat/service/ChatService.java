@@ -327,7 +327,7 @@ public class ChatService {
                 chatRepository.countUnreadMessagesByRoomIds(roomIdsList, myId).stream()
                         .collect(Collectors.toMap(
                                 UnreadCountResponse::roomId,
-                                dto -> dto.count().intValue(),
+                                dto -> dto.count.intValue(),
                                 (oldVal, newVal) -> oldVal // [중요] 중복 키 발생 시 기존 값 유지
                         ))
         );
@@ -486,7 +486,7 @@ public class ChatService {
             int unreadCount = 0;
             List<UnreadCountResponse> counts = chatRepository.countUnreadMessagesByRoomIds(
                     List.of(room.getRoomId()), recipient.getId());
-            if (!counts.isEmpty()) unreadCount = counts.get(0).count().intValue();
+            if (!counts.isEmpty()) unreadCount = counts.get(0).count.intValue();
 
             ChatNotification notification = ChatNotification.builder()
                     .type(type)
