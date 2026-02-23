@@ -11,8 +11,11 @@ import lombok.Getter
 @Entity
 @Getter
 class Report(
-    @field:JoinColumn(name = "target_id") @field:ManyToOne private val target: Member?, @field:JoinColumn(
-        name = "reporter_id",
-        nullable = true
-    ) @field:ManyToOne(fetch = FetchType.LAZY) private val reporter: Member?
+    @field:JoinColumn(name = "target_id")
+    @field:ManyToOne
+    private val target: Member?,
+
+    @field:JoinColumn(name = "reporter_id", nullable = true)
+    @field:ManyToOne(fetch = FetchType.LAZY)
+    private val reporter: Member?
 ) : BaseEntity()
