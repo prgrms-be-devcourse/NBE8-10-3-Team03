@@ -236,12 +236,52 @@ public class Member extends BaseEntity {
         return authorities;
     }
 
-    public String getApiKey() {
-        return this.apiKey;
+
+    public String getUsername() {
+        return username;
     }
+
+    public String getPassword() {
+        return password;
+    }
+
+    public MemberStatus getStatus() {
+        return status;
+    }
+
+    public String getApiKey() {
+        return apiKey;
+    }
+
+    public String getProfileImgUrl() {
+        return profileImgUrl;
+    }
+
+    public Reputation getReputation() {
+        return reputation;
+    }
+
+
+    public List<Report> getTargetReports() {
+        return targetReports;
+    }
+
 
     public List<Review> getReviews() {
         return reviews;
     }
 
+    public Role getRole() {
+        return role;
+    }
+
+
+    public int getLoginFailCount() {
+        return loginFailCount;
+    }
+
+
+    public LocalDateTime getLockedUntil() {
+        return lockedUntil;
+    }
 }
