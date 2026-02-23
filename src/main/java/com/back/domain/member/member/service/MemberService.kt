@@ -260,9 +260,9 @@ class MemberService(
             val reputation = reputationRepository.findById(seller.id).get()
 
             // 증감 계산
-            val before = reputation.getScore()
+            val before = reputation.score
             reputation.decrease()
-            val after = reputation.getScore()
+            val after = reputation.score
 
             val event = ReputationEvent(seller, EventType.CANCEL, RefType.AUCTION, auctionId, abs(before - after))
             eventRepository.save(event)
