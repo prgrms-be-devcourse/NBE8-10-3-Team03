@@ -60,24 +60,24 @@ open class MemberController(
         @field:NotBlank(message = "아이디는 공백을 포함할 수 없습니다.")
         @field:Pattern(regexp = "^[^\\s]+$", message = "아이디는 공백을 포함할 수 없습니다.")
         @field:Size(min = 5, max = 20, message = "아이디는 5-20자여야 합니다.")
-        val username: String?,
+        val username: String,
 
         @field:NotBlank(message = "비밀번호는 필수입니다.")
         @field:Size(min = 8, max = 20, message = "비밀번호는 8-20자여야 합니다.")
-        val password: String?,
+        val password: String,
 
         @field:Size(min = 2, max = 30, message = "두 글자 이상 입력하세요.")
-        val nickname: String?,
+        val nickname: String,
     )
 
     data class MemberLoginReqBody(
         @field:NotBlank
         @field:Size(min = 2, max = 30)
-        val username: String?,
+        val username: String,
 
         @field:NotBlank
         @field:Size(min = 2, max = 30)
-        val password: String?,
+        val password: String,
     )
 
     data class MemberLoginResBody(
@@ -95,15 +95,15 @@ open class MemberController(
     data class MemberPwModifyReqBody(
         @field:NotBlank
         @field:Size(min = 2, max = 30)
-        val password: String?,
+        val password: String,
 
         @field:NotBlank
         @field:Size(min = 2, max = 30)
-        val newPassword: String?,
+        val newPassword: String,
 
         @field:NotBlank
         @field:Size(min = 2, max = 30)
-        val checkPassword: String?,
+        val checkPassword: String,
     )
 
     data class MemberReviewReqBody(
@@ -281,7 +281,7 @@ open class MemberController(
         @RequestBody @Valid reqBody: MemberLoginReqBody,
         request: HttpServletRequest,
     ): RsData<MemberLoginResBody?> {
-        val member = memberService.findByUsername(reqBody.username).orElse(null)
+        val member = memberService.findByUsername(reqBody.username)?.orElse(null)
             ?: throw ServiceException("401-1", "존재하지 않는 아이디입니다.")
 
         val key = "login:${request.remoteAddr}:${reqBody.username}"
@@ -509,7 +509,7 @@ open class MemberController(
             required = true,
             content = [Content(schema = Schema(type = "string", format = "binary"))],
         )
-        @RequestPart("profileImg") profileImg: MultipartFile?,
+        @RequestPart("profileImg") profileImg: MultipartFile,
     ): RsData<Void?> {
         val actor = rq.getActor()
         memberService.modifyProfile(actor.id, profileImg)

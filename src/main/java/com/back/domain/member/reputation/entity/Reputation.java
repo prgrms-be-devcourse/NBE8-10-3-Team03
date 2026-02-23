@@ -11,8 +11,8 @@ import lombok.Setter;
 @Setter
 @Entity
 @Table(name = "reputation", indexes = {
-    // UNIQUE 인덱스: 1:1 관계 보장 및 JOIN 성능 최적화
-    @Index(name = "idx_reputation_member", columnList = "member_id", unique = true)
+        // UNIQUE 인덱스: 1:1 관계 보장 및 JOIN 성능 최적화
+        @Index(name = "idx_reputation_member", columnList = "member_id", unique = true)
 })
 @NoArgsConstructor
 public class Reputation extends BaseEntity {
@@ -45,5 +45,21 @@ public class Reputation extends BaseEntity {
     public void increaseNotify() {
         this.notifyCount++;
         this.totalNotifyCount++;
+    }
+
+    public double getScore() {
+        return score;
+    }
+
+    public int getNotifyCount() {
+        return notifyCount;
+    }
+
+    public void setNotifyCount(int notifyCount) {
+        this.notifyCount = notifyCount;
+    }
+
+    public int getTotalNotifyCount() {
+        return totalNotifyCount;
     }
 }
