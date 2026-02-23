@@ -1,13 +1,7 @@
-package com.back.domain.post.post.dto;
+package com.back.domain.post.post.dto
 
-import com.back.domain.post.post.entity.PostStatus;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import com.back.domain.post.post.entity.PostStatus
 
-@Getter
-@Setter
-@NoArgsConstructor
-public class PostStatusRequest {
-    private PostStatus status;
-}
+data class PostStatusRequest(
+    var status: PostStatus? = null
+)

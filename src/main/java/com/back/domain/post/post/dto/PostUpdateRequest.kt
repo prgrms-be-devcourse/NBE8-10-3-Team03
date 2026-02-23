@@ -1,28 +1,23 @@
-package com.back.domain.post.post.dto;
+package com.back.domain.post.post.dto
 
-import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
-import org.springframework.web.multipart.MultipartFile;
-import java.util.List;
+import jakarta.validation.constraints.Min
+import jakarta.validation.constraints.NotBlank
+import jakarta.validation.constraints.NotNull
+import org.springframework.web.multipart.MultipartFile
 
-@Getter @Setter @NoArgsConstructor
-public class PostUpdateRequest {
-    @NotBlank(message = "제목은 필수입니다.")
-    private String title;
+data class PostUpdateRequest(
+    @field:NotBlank(message = "제목은 필수입니다.")
+    var title: String = "",
 
-    @NotBlank(message = "내용은 필수입니다.")
-    private String content;
+    @field:NotBlank(message = "내용은 필수입니다.")
+    var content: String = "",
 
-    @Min(value = 0, message = "가격은 0원 이상이어야 합니다.")
-    private int price;
+    @field:Min(value = 0, message = "가격은 0원 이상이어야 합니다.")
+    var price: Int = 0,
 
-    @NotNull(message = "카테고리를 선택해주세요.")
-    private Integer categoryId;
+    @field:NotNull(message = "카테고리를 선택해주세요.")
+    var categoryId: Int? = null,
 
-    private List<MultipartFile> images;
-    private List<String> keepImageUrls;
-}
+    var images: List<MultipartFile>? = null,
+    var keepImageUrls: List<String>? = null
+)

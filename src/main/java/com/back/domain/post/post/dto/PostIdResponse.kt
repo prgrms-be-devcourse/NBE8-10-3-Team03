@@ -1,3 +1,6 @@
-package com.back.domain.post.post.dto;
+package com.back.domain.post.post.dto
 
-public record PostIdResponse(int id, String message) {}
+data class PostIdResponse(
+    val id: Int,
+    val message: String
+)
