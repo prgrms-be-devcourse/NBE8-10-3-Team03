@@ -18,7 +18,7 @@ class AuthTokenService {
         val id = member.id
         val username = member.username
         val name = member.nickname
-        val role = member.role.name
+        val role = member.role?.name
 
         return Ut.jwt.toString(
             jwtSecretKey,
