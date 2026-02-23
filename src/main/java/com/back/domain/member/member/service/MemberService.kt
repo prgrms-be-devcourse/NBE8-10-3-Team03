@@ -288,7 +288,7 @@ class MemberService(
 
     // 리뷰 생성
     @Transactional
-    fun createReview(star: Int, msg: String?, member: Member?, reviewerId: Int): Review {
+    fun createReview(star: Int, msg: String?, member: Member, reviewerId: Int): Review {
         if (findById(reviewerId).get().status == MemberStatus.SUSPENDED) {
             throw ServiceException("403-3", "정지된 회원은 해당 기능을 사용할 수 없습니다.")
         }
