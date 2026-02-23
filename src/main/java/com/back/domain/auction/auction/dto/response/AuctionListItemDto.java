@@ -32,7 +32,6 @@ public class AuctionListItemDto {
         this.bidCount = auction.getBidCount();
         this.categoryName = auction.getCategory().getName();
 
-        // 판매자 정보 및 신용도
         Double reputationScore = null;
         if (auction.getSeller().getReputation() != null) {
             reputationScore = auction.getSeller().getReputation().getScore();
@@ -45,4 +44,3 @@ public class AuctionListItemDto {
         );
     }
 }
-
