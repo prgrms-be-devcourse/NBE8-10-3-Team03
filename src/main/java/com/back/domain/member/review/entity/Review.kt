@@ -11,8 +11,8 @@ import lombok.NoArgsConstructor
 @Getter
 @NoArgsConstructor
 class Review(
-    @field:ManyToOne private var member: Member?,
-    private var star: Int,
-    private var comment: String?,
-    private var reviewerId: Int
+    @field:ManyToOne var member: Member,
+    var star: Int,
+    var comment: String?,
+    var reviewerId: Int
 ) : BaseEntity()
