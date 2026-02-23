@@ -8,16 +8,12 @@ import jakarta.persistence.*
 import lombok.Getter
 import lombok.NoArgsConstructor
 
-@Getter
 @Entity
-@NoArgsConstructor
 @Table(name = "reputation_events")
 class ReputationEvent(
-    @field:JoinColumn(name = "target_id") @field:ManyToOne private var target: Member?,
-    @field:Enumerated(
-        EnumType.STRING
-    ) private var eventType: EventType?,
-    @field:Enumerated(EnumType.STRING) private var refType: RefType?,
+    @field:JoinColumn(name = "target_id") @field:ManyToOne var target: Member,
+    @field:Enumerated(EnumType.STRING) var eventType: EventType?,
+    @field:Enumerated(EnumType.STRING) var refType: RefType?,
     private var refId: Int,
-    private var delta: Double
+    var delta: Double
 ) : BaseEntity()
