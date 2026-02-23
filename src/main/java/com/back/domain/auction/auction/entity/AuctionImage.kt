@@ -27,8 +27,4 @@ class AuctionImage() {
         this.auction = auction
         this.image = image
     }
-
-    fun setAuction(auction: Auction) {
-        this.auction = auction
-    }
 }
