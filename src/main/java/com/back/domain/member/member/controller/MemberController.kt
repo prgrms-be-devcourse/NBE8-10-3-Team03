@@ -4,10 +4,8 @@ import com.back.domain.auction.auction.dto.response.AuctionSliceResponse
 import com.back.domain.auction.auction.service.AuctionService
 import com.back.domain.member.member.dto.MemberDto
 import com.back.domain.member.member.dto.MemberWithUsernameDto
-import com.back.domain.member.member.entity.Member
 import com.back.domain.member.member.service.MemberService
 import com.back.domain.member.review.dto.ReviewDto
-import com.back.domain.member.review.entity.Review
 import com.back.domain.post.post.dto.PostPageResponse
 import com.back.domain.post.post.service.PostService
 import com.back.global.audit.enums.AuditType
@@ -491,7 +489,7 @@ open class MemberController(
         ApiResponse(responseCode = "200", description = "조회 성공"),
         ApiResponse(responseCode = "401", description = "인증 실패"),
     )
-    fun getReviews(@PathVariable userId: Int): List<ReviewDto?> {
+    fun getReviews(@PathVariable userId: Int): List<ReviewDto>? {
         val member = memberService.findById(userId).get()
         return member.reviews.map { review -> ReviewDto(review) }
     }
