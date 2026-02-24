@@ -52,7 +52,7 @@ public class SearchService {
                 .viewCount(post.getViewCount())
                 .sellerId(post.getSeller().getId())
                 .sellerNickname(post.getSeller().getNickname())
-                .sellerBadge(PostListResponse.calculateBadge(post.getSeller().getReputation().getScore()))
+                .sellerBadge(PostListResponse.Companion.calculateBadge(post.getSeller().getReputation().getScore()))
                 .build()
         ));
 
