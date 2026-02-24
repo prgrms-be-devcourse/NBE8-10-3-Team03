@@ -13,6 +13,19 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: DevCourse
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
 
     steps:
       - name: Checkout
@@ -33,10 +46,18 @@ jobs:
 
       - name: Test (PR fast)
         if: github.event_name == 'pull_request'
+        env:
+          SPRING_DATASOURCE_URL: jdbc:mysql://127.0.0.1:3306/DevCourse?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Seoul&allowPublicKeyRetrieval=true
+          SPRING_DATASOURCE_USERNAME: root
+          SPRING_DATASOURCE_PASSWORD: root
         run: ./gradlew test --no-daemon
 
       - name: Test (push + integration)
         if: github.event_name == 'push'
+        env:
+          SPRING_DATASOURCE_URL: jdbc:mysql://127.0.0.1:3306/DevCourse?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Seoul&allowPublicKeyRetrieval=true
+          SPRING_DATASOURCE_USERNAME: root
+          SPRING_DATASOURCE_PASSWORD: root
         run: ./gradlew test integrationTest --no-daemon
 
       - name: Upload test reports
