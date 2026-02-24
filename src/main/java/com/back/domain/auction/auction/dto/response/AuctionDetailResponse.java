@@ -45,7 +45,7 @@ public class AuctionDetailResponse {
         this.status = auction.getStatus();
         this.startAt = auction.getStartAt();
         this.endAt = auction.getEndAt();
-        this.categoryName = auction.getCategory().getName();
+        this.categoryName = auction.getCategory() == null ? null : auction.getCategory().getName();
 
         this.winnerId = auction.getWinnerId();
         this.closedAt = auction.getClosedAt();
@@ -57,7 +57,7 @@ public class AuctionDetailResponse {
                 : null;
 
         this.imageUrls = auction.getAuctionImages().stream()
-                .map(auctionImage -> auctionImage.getImage().getUrl())
+                .map(auctionImage -> auctionImage.getImage() == null ? null : auctionImage.getImage().getUrl())
                 .collect(Collectors.toList());
 
         Double reputationScore = null;

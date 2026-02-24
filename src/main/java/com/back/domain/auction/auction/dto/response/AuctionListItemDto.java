@@ -30,7 +30,7 @@ public class AuctionListItemDto {
         this.status = auction.getStatus();
         this.endAt = auction.getEndAt();
         this.bidCount = auction.getBidCount();
-        this.categoryName = auction.getCategory().getName();
+        this.categoryName = auction.getCategory() == null ? null : auction.getCategory().getName();
 
         Double reputationScore = null;
         if (auction.getSeller().getReputation() != null) {
