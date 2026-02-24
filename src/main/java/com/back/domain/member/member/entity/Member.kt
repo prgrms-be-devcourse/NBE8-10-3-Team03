@@ -79,11 +79,21 @@ class Member(
     // ========================
 
     /** SecurityUser용: id까지 세팅 */
+    constructor(id: Int, username: String, nickname: String) : this(
+        username,
+        null,
+        nickname,
+        null,
+        ""
+    ) {
+        setId(id)
+    }
+
     constructor(id: Int, username: String, nickname: String, role: Role?) : this(
         username,
         null,
         nickname,
-        role = role,
+        role,
         ""
     ) {
         setId(id)
