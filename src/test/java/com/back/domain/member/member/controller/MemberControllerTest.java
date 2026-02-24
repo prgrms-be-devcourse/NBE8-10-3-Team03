@@ -44,14 +44,14 @@ public class MemberControllerTest {
                                 .content("""
                                         {
                                             "username": "usernew",
-                                            "password": "1234",
-                                            "nickname": "무명"
+                                            "password": "alskdfjelkl312@",
+                                            "nickname": "무명2"
                                         }
                                         """.stripIndent())
                 )
                 .andDo(print());
 
-        Member member = memberService.findByUsername("usernew").get();
+        Member member = memberService.findByUsername("usernew").orElse(null);
 
         resultActions
                 .andExpect(handler().handlerType(MemberController.class))
@@ -91,10 +91,10 @@ public class MemberControllerTest {
                 .andExpect(jsonPath("$.resultCode").value("200-1"))
                 .andExpect(jsonPath("$.msg").value("%s님 환영합니다.".formatted(member.getNickname())))
                 .andExpect(jsonPath("$.data").exists())
-                .andExpect(jsonPath("$.data.id").value(member.getId()))
-                .andExpect(jsonPath("$.data.createDate").value(Matchers.startsWith(member.getCreateDate().toString().substring(0, 20))))
-                .andExpect(jsonPath("$.data.modifyDate").value(Matchers.startsWith(member.getModifyDate().toString().substring(0, 20))))
-                .andExpect(jsonPath("$.data.name").value(member.getNickname()));
+                .andExpect(jsonPath("$.data.item.id").value(member.getId()))
+                .andExpect(jsonPath("$.data.item.createDate").value(Matchers.startsWith(member.getCreateDate().toString().substring(0, 20))))
+                .andExpect(jsonPath("$.data.item.modifyDate").value(Matchers.startsWith(member.getModifyDate().toString().substring(0, 20))))
+                .andExpect(jsonPath("$.data.item.name").value(member.getNickname()));
 
         resultActions.andExpect(
                 result -> {
@@ -334,7 +334,7 @@ public class MemberControllerTest {
 
     @Test
     @DisplayName("정지 계정 리뷰 쓰기 금지")
-    @WithUserDetails("user4")
+    @WithUserDetails("user6")
     void t14() throws Exception {
         ResultActions resultActions = null;
 
