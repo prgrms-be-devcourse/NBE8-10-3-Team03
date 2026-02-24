@@ -14,20 +14,19 @@ import java.nio.charset.StandardCharsets
 import java.util.*
 
 @Component
-@RequiredArgsConstructor
-class CustomOAuth2LoginSuccessHandler : AuthenticationSuccessHandler {
-    private val memberService: MemberService? = null
-    private val rq: Rq? = null
+class CustomOAuth2LoginSuccessHandler(
+    private val memberService: MemberService,
+    private val rq: Rq
+) : AuthenticationSuccessHandler {
 
-    @Throws(IOException::class, ServletException::class)
     override fun onAuthenticationSuccess(
         request: HttpServletRequest,
         response: HttpServletResponse,
         authentication: Authentication
     ) {
-        val actor = rq!!.getActorFromDb()
+        val actor = rq.getActorFromDb()
 
-        val accessToken = memberService!!.genAccessToken(actor)
+        val accessToken = memberService.genAccessToken(actor)
 
         rq.setHeader("Authorization", "Bearer " + actor.apiKey + " " + accessToken)
         rq.setCookie("apiKey", actor.apiKey)
