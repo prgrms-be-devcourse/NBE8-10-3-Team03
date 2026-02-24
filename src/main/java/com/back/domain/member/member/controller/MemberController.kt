@@ -373,7 +373,7 @@ open class MemberController(
         ApiResponse(responseCode = "200", description = "조회 성공"),
         ApiResponse(responseCode = "401", description = "인증 실패")
     )
-    fun me(): MemberWithUsernameDto = MemberWithUsernameDto(rq.getActorFromDb())
+    fun me(): MemberWithUsernameDto = MemberWithUsernameDto(rq.actorFromDb)
 
     @GetMapping("/me/auctions")
     @Transactional(readOnly = true)
@@ -384,7 +384,7 @@ open class MemberController(
         @Parameter(description = "정렬", example = "createdAt,desc") @RequestParam(required = false) sort: String?,
         @Parameter(description = "상태", example = "OPEN") @RequestParam(required = false) status: String?,
     ): RsData<AuctionSliceResponse?>? {
-        val member = rq.getActor()
+        val member = rq.actor
         return auctionService.getAuctionsByUserId(member.id, page, size, sort, status)
     }
 
@@ -395,7 +395,7 @@ open class MemberController(
         @PageableDefault(size = 10, sort = ["createDate"], direction = Sort.Direction.DESC) pageable: Pageable,
         @RequestParam(required = false) status: String?,
     ): RsData<PostPageResponse?> {
-        val member = rq.getActor()
+        val member = rq.actor
         val response = postService.getListByUserId(pageable, member.id, status)
         return RsData("200-4", "목록 조회 성공", response)
     }
@@ -408,7 +408,7 @@ open class MemberController(
         ApiResponse(responseCode = "400", description = "이미 탈퇴한 계정"),
     )
     fun withdraw(): RsData<Void?> {
-        val actor = rq.getActorFromDb()
+        val actor = rq.actorFromDb
         rq.deleteCookie("apiKey")
         rq.deleteCookie("accessToken")
         memberService.withdraw(actor)
@@ -424,7 +424,7 @@ open class MemberController(
         ApiResponse(responseCode = "401", description = "인증 실패"),
     )
     fun modifyNickname(@RequestBody @Valid reqBody: MemberNameModifyReqBody): RsData<Void?> {
-        val member = memberService.findById(rq.getActor().id).get()
+        val member = memberService.findById(rq.actor.id).get()
         member.checkActorCanModify(member)
         memberService.modifyNickname(member, reqBody.nickname)
 
@@ -439,7 +439,7 @@ open class MemberController(
         ApiResponse(responseCode = "401", description = "인증 실패"),
     )
     fun modifyPassword(@RequestBody @Valid reqBody: MemberPwModifyReqBody): RsData<Void?> {
-        val member = memberService.findById(rq.getActor().id).get()
+        val member = memberService.findById(rq.actor.id).get()
         member.checkActorCanModify(member)
         memberService.modifyPassword(member, reqBody.password, reqBody.newPassword, reqBody.checkPassword)
 
@@ -457,7 +457,7 @@ open class MemberController(
     )
     fun decrease(@PathVariable userId: Int): RsData<Void?> {
         val member = memberService.findById(userId).get()
-        val reporter = rq.getActor()
+        val reporter = rq.actor
         memberService.decreaseByNofiy(member, reporter)
 
         return RsData("200-1", "신고 완료 처리되었습니다.")
@@ -476,7 +476,7 @@ open class MemberController(
         @RequestBody @Valid request: MemberReviewReqBody,
     ): RsData<Void?> {
         val member = memberService.findById(userId).get()
-        val reviewer = rq.getActor()
+        val reviewer = rq.actor
         memberService.createReview(request.star, request.comment, member, reviewer.id)
 
         return RsData("201-1", "후기 작성이 완료되었습니다.")
@@ -509,7 +509,7 @@ open class MemberController(
         )
         @RequestPart("profileImg") profileImg: MultipartFile,
     ): RsData<Void?> {
-        val actor = rq.getActor()
+        val actor = rq.actor
         memberService.modifyProfile(actor.id, profileImg)
 
         return RsData("200-1", "프로필 사진이 수정되었습니다.")

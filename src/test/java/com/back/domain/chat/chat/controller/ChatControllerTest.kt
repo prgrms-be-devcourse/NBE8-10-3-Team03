@@ -123,25 +123,25 @@ class ChatControllerTest {
         memberRepository.save(anotherUser)
 
         postRepository.save(
-            Post.builder()
-                .title("판매 중 물품")
-                .content("판매 중 입니다.")
-                .price(10000)
-                .category(category)
-                .seller(seller)
-                .status(PostStatus.SALE)
-                .build(),
+            Post(
+                seller = seller,
+                title = "판매 중 물품",
+                content = "판매 중 입니다.",
+                price = 10000,
+                category = category,
+                status = PostStatus.SALE,
+            ),
         )
 
         postRepository.save(
-            Post.builder()
-                .title("판매 완료된 물품")
-                .content("이미 팔렸습니다.")
-                .price(20000)
-                .category(category)
-                .seller(seller)
-                .status(PostStatus.SOLD)
-                .build(),
+            Post(
+                seller = seller,
+                title = "판매 완료된 물품",
+                content = "이미 팔렸습니다.",
+                price = 20000,
+                category = category,
+                status = PostStatus.SOLD,
+            ),
         )
 
         auctionRepository.save(

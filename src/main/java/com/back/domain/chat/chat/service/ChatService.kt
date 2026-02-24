@@ -274,8 +274,7 @@ class ChatService(
                     if (postIds.isEmpty()) {
                         emptyMap<Int, String>()
                     } else {
-                        imageRepository.findPostMainImages(postIds)
-                            .associate { row -> (row[0] as Int) to (row[1] as String) }
+                        toMainImageMap(imageRepository.findPostMainImages(postIds), "POST")
                     }
                 },
                 chatTaskExecutor,
@@ -286,8 +285,7 @@ class ChatService(
                     if (auctionIds.isEmpty()) {
                         emptyMap<Int, String>()
                     } else {
-                        imageRepository.findAuctionMainImages(auctionIds)
-                            .associate { row -> (row[0] as Int) to (row[1] as String) }
+                        toMainImageMap(imageRepository.findAuctionMainImages(auctionIds), "AUCTION")
                     }
                 },
                 chatTaskExecutor,
@@ -440,6 +438,27 @@ class ChatService(
         }
     }
 
+    private fun toMainImageMap(rows: List<Array<Any?>>, txType: String): Map<Int, String> =
+        rows.mapNotNull { row -> parseMainImageRow(row, txType) }
+            .toMap()
+
+    private fun parseMainImageRow(row: Array<Any?>, txType: String): Pair<Int, String>? {
+        val itemId = (row.getOrNull(0) as? Number)?.toInt()
+        val imageUrl = row.getOrNull(1) as? String
+
+        if (itemId == null || imageUrl.isNullOrBlank()) {
+            log.warn(
+                "메인 이미지 결과 스킵 - txType: {}, itemIdRaw: {}, imageUrlRaw: {}",
+                txType,
+                row.getOrNull(0),
+                row.getOrNull(1),
+            )
+            return null
+        }
+
+        return itemId to imageUrl
+    }
+
     /** 거래 유형 문자열을 Enum으로 변환 */
     private fun parseTxType(txType: String): ChatRoomType =
         try {
@@ -476,9 +495,7 @@ class ChatService(
     /** 알림 전송 시점에 사용할 아이템 정보 매핑 (직접 조회 기반) */
     private fun resolveNotificationItemInfo(room: ChatRoom): ItemInfo = when (room.txType) {
         ChatRoomType.POST -> room.post?.let { post ->
-            val imageUrl = imageRepository.findPostMainImages(listOf(post.id))
-                .firstOrNull()
-                ?.get(1) as? String
+            val imageUrl = toMainImageMap(imageRepository.findPostMainImages(listOf(post.id)), "POST")[post.id]
 
             ItemInfo(
                 itemId = post.id,
@@ -489,9 +506,7 @@ class ChatService(
         } ?: ItemInfo()
 
         ChatRoomType.AUCTION -> room.auction?.let { auction ->
-            val imageUrl = imageRepository.findAuctionMainImages(listOf(auction.id))
-                .firstOrNull()
-                ?.get(1) as? String
+            val imageUrl = toMainImageMap(imageRepository.findAuctionMainImages(listOf(auction.id)), "AUCTION")[auction.id]
 
             ItemInfo(
                 itemId = auction.id,

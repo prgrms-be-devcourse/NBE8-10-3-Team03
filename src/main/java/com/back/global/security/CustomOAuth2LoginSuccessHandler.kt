@@ -24,7 +24,7 @@ class CustomOAuth2LoginSuccessHandler(
         response: HttpServletResponse,
         authentication: Authentication
     ) {
-        val actor = rq.getActorFromDb()
+        val actor = rq.actorFromDb
 
         val accessToken = memberService.genAccessToken(actor)
 
@@ -33,7 +33,7 @@ class CustomOAuth2LoginSuccessHandler(
         rq.setCookie("accessToken", accessToken)
 
         // ✅ 기본 리다이렉트 URL
-        var redirectUrl: String? = "/"
+        var redirectUrl: String = "/"
 
         // ✅ state 파라미터 확인
         val stateParam = request.getParameter("state")
