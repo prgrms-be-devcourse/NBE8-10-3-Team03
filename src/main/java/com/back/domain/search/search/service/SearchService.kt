@@ -1,89 +1,78 @@
-package com.back.domain.search.search.service;
+package com.back.domain.search.search.service
 
-import com.back.domain.auction.auction.entity.Auction;
-import com.back.domain.auction.auction.repository.AuctionRepository;
-import com.back.domain.post.post.dto.PostListResponse;
-import com.back.domain.post.post.entity.Post;
-import com.back.domain.post.post.repository.PostRepository;
-import com.back.domain.search.search.dto.UnifiedSearchResponse;
-import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.Pageable;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-import java.util.stream.Collectors;
+import com.back.domain.auction.auction.repository.AuctionRepository
+import com.back.domain.post.post.dto.PostListResponse
+import com.back.domain.post.post.repository.PostRepository
+import com.back.domain.search.search.dto.UnifiedSearchResponse
+import org.springframework.data.domain.Page
+import org.springframework.data.domain.PageImpl
+import org.springframework.data.domain.Pageable
+import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
 
 @Service
-@RequiredArgsConstructor
 @Transactional(readOnly = true)
-public class SearchService {
-    private final PostRepository postRepository;
-    private final AuctionRepository auctionRepository;
-
+class SearchService(
+    private val postRepository: PostRepository,
+    private val auctionRepository: AuctionRepository
+) {
     // 통합 검색 (POST + AUCTION)
-    public Page<UnifiedSearchResponse> searchUnified(String keyword, Pageable pageable) {
-        // 1. Post 검색
-        Page<Post> posts = postRepository.search(keyword, pageable);
+    fun searchUnified(keyword: String, pageable: Pageable): Page<UnifiedSearchResponse> {
+        val posts = postRepository.search(keyword, pageable)
+        val auctions = auctionRepository.search(keyword, pageable)
 
-        // 2. Auction 검색
-        Page<Auction> auctions = auctionRepository.search(keyword, pageable);
+        val combinedResults = mutableListOf<UnifiedSearchResponse>()
 
-        // 3. 결과를 UnifiedSearchResponse로 변환
-        List<UnifiedSearchResponse> combinedResults = new ArrayList<>();
+        // 1. Post 변환
+        posts.forEach { post ->
+            combinedResults.add(
+                UnifiedSearchResponse(
+                    id = post.id as Int,
+                    type = "POST",
+                    title = post.title,
+                    price = post.price,
+                    status = post.status.name,
+                    statusDisplayName = post.status.displayName,
+                    categoryName = post.category.name,
+                    thumbnailUrl = post.postImages.firstOrNull()?.image?.url,
+                    createDate = post.createDate,
+                    viewCount = post.viewCount,
+                    sellerId = post.seller.id as Int,
+                    sellerNickname = post.seller.nickname,
+                    sellerBadge = PostListResponse.calculateBadge(post.seller.reputation?.score)
+                )
+            )
+        }
 
-        // Post 변환
-        posts.forEach(post -> combinedResults.add(
-            UnifiedSearchResponse.builder()
-                .id(post.getId())
-                .type("POST")
-                .title(post.getTitle())
-                .price(post.getPrice())
-                .status(post.getStatus().name())
-                .statusDisplayName(post.getStatus().getDisplayName())
-                .categoryName(post.getCategory().getName())
-                .thumbnailUrl(post.getPostImages().isEmpty() ? null
-                    : post.getPostImages().get(0).getImage().getUrl())
-                .createDate(post.getCreateDate())
-                .viewCount(post.getViewCount())
-                .sellerId(post.getSeller().getId())
-                .sellerNickname(post.getSeller().getNickname())
-                .sellerBadge(PostListResponse.calculateBadge(post.getSeller().getReputation().getScore()))
-                .build()
-        ));
+        // 2. Auction 변환 (Auction은 아직 Java 코드)
+        auctions.forEach { auction ->
+            combinedResults.add(
+                UnifiedSearchResponse(
+                    id = auction.id,
+                    type = "AUCTION",
+                    title = auction.name,
+                    price = auction.startPrice,
+                    status = auction.status.name,
+                    categoryName = auction.category.name,
+                    thumbnailUrl = auction.auctionImages.firstOrNull()?.image?.url,
+                    createDate = auction.createDate
+                )
+            )
+        }
 
-        // Auction 변환
-        auctions.forEach(auction -> combinedResults.add(
-            UnifiedSearchResponse.builder()
-                .id(auction.getId())
-                .type("AUCTION")
-                .title(auction.getName())
-                .price(auction.getStartPrice())
-                .status(auction.getStatus().name())
-                .categoryName(auction.getCategory().getName())
-                .thumbnailUrl(auction.getAuctionImages().isEmpty() ? null
-                    : auction.getAuctionImages().get(0).getImage().getUrl())
-                .createDate(auction.getCreateDate())
-                .build()
-        ));
+        // 3. 최신순 정렬 (코틀린의 간결한 정렬 문법)
+        val sortedResults = combinedResults.sortedByDescending { it.createDate }
 
-        // 4. 최신순 정렬
-        List<UnifiedSearchResponse> sortedResults = combinedResults.stream()
-            .sorted(Comparator.comparing(UnifiedSearchResponse::getCreateDate).reversed())
-            .collect(Collectors.toList());
+        // 4. 페이징 처리
+        val start = pageable.offset.toInt()
+        val end = (start + pageable.pageSize).coerceAtMost(sortedResults.size)
 
-        // 5. 페이징 처리
-        int start = (int) pageable.getOffset();
-        int end = Math.min((start + pageable.getPageSize()), sortedResults.size());
+        val pagedResults = if (start >= sortedResults.size) {
+            emptyList()
+        } else {
+            sortedResults.subList(start, end)
+        }
 
-        List<UnifiedSearchResponse> pagedResults = start >= sortedResults.size()
-            ? new ArrayList<>()
-            : sortedResults.subList(start, end);
-
-        return new PageImpl<>(pagedResults, pageable, sortedResults.size());
+        return PageImpl(pagedResults, pageable, sortedResults.size.toLong())
     }
 }
