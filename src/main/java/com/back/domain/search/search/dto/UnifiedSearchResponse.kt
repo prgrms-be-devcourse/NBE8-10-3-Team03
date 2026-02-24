@@ -1,23 +1,19 @@
-package com.back.domain.search.search.dto;
+package com.back.domain.search.search.dto
 
-import java.time.LocalDateTime;
-import lombok.Builder;
-import lombok.Getter;
+import java.time.LocalDateTime
 
-@Getter
-@Builder
-public class UnifiedSearchResponse {
-    private int id;
-    private String type;         // "POST" 또는 "AUCTION"
-    private String title;        // 공통 제목 (Post: title / Auction: name)
-    private int price;           // 공통 가격
-    private String status;       // 공통 상태
-    private String statusDisplayName;
-    private String categoryName; // 공통 카테고리명
-    private String thumbnailUrl; // 공통 대표 이미지
-    private LocalDateTime createDate;
-    private long viewCount;
-    private int sellerId;
-    private String sellerNickname;
-    private String sellerBadge;
-}
+data class UnifiedSearchResponse(
+    val id: Int,
+    val type: String,         // "POST" 또는 "AUCTION"
+    val title: String,        // 공통 제목 (Post: title / Auction: name)
+    val price: Int,           // 공통 가격
+    val status: String,       // 공통 상태
+    val statusDisplayName: String? = null,
+    val categoryName: String, // 공통 카테고리명
+    val thumbnailUrl: String?,// 공통 대표 이미지
+    val createDate: LocalDateTime,
+    val viewCount: Long = 0,
+    val sellerId: Int? = null,
+    val sellerNickname: String? = null,
+    val sellerBadge: String? = null
+)
