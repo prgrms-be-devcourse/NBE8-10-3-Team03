@@ -31,21 +31,21 @@ class AuctionScheduler(
     }
 
     private fun processExpiredAuction(auction: Auction) {
-        val highestBid = bidRepository.findTopByAuctionIdOrderByPriceDesc(auction.getId())
+        val highestBid = bidRepository.findTopByAuctionIdOrderByPriceDesc(auction.id)
 
         if (highestBid.isPresent) {
             val winningBid = highestBid.get()
-            auction.completeWithWinner(winningBid.getBidder().getId())
+            auction.completeWithWinner(winningBid.bidder.id)
 
             log.info(
                 "경매 ID {} 낙찰 완료 - 낙찰자: {}, 낙찰가: {}원",
-                auction.getId(),
-                winningBid.getBidder().getName(),
-                winningBid.getPrice()
+                auction.id,
+                winningBid.bidder.nickname,
+                winningBid.price
             )
         } else {
             auction.closeWithoutBid()
-            log.info("경매 ID {} 입찰 없이 종료", auction.getId())
+            log.info("경매 ID {} 입찰 없이 종료", auction.id)
         }
 
         auctionRepository.save(auction)
