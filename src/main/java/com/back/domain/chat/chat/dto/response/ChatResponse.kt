@@ -37,5 +37,4 @@ data class ChatResponse(
             )
         }
     }
-
 }
