@@ -48,28 +48,29 @@ class ChatService(
      * [채팅방 생성 및 입장]
      * @param itemId 게시글 또는 경매 ID
      * @param txType 거래 유형 (POST, AUCTION)
+     * - 기존 방이 있다면 해당 방 ID를 반환하고, 없다면 새로 생성합니다.
+     * - 새로운 방이 생성될 때만 판매자에게 웹소켓 실시간 알림을 보냅니다.
      */
     @Transactional
     fun createChatRoom(itemId: Int, txType: String): RsData<ChatRoomIdResponse> {
-        val type = parseTxType(txType) // String -> Enum으로 타입 변환
-        val buyer = currentMemberFromDb() // 로그인한 구매자 정보
+        val type = parseTxType(txType) // String 에서 Enum으로 타입 변환
+        val buyer = currentMemberFromDb() // 현재 로그인한 구매자 정보
         val buyerApiKey = buyer.apiKey
 
-        // 거래 유형에 따른 분기
         val createdRoom = when (type) {
             ChatRoomType.POST -> {
                 val post = postRepository.findById(itemId)
                     .orElseThrow { ServiceException("404-2", "해당 게시글이 존재하지 않습니다.") }
 
-                // 상품 상태가 판매 중 인지 검증
+                // 판매 중인 상품에 대해서만 채팅이 가능함
                 if (post.status != PostStatus.SALE) {
                     throw ServiceException("400-1", "판매 중인 상품이 아니므로 채팅을 시작할 수 없습니다.")
                 }
 
                 val seller = post.seller
-                ensureNotSelfTrade(seller, buyerApiKey)
+                ensureNotSelfTrade(seller, buyerApiKey) // 본인 상품 채팅 제한
 
-                // 채팅방 중복 생성 방지
+                // 기존 방 존재 여부 확인 (Soft Delete 되지 않은 방 기준)
                 val existingRoom = chatRoomRepository.findByPostAndBuyerApiKeyAndDeletedFalse(post, buyerApiKey)
                 val isNew = existingRoom.isEmpty
                 val room = existingRoom.orElseGet { chatRoomRepository.save(ChatRoom.createForPost(post, buyer)) }
@@ -92,7 +93,7 @@ class ChatService(
             }
         }
 
-        // 새 채팅방이 생성된 경우 판매자에게 새 채팅방 알림 발송
+        // 방이 새로 생성된 경우에만 판매자에게 '새 방 개설' 실시간 알림 전송
         if (createdRoom.isNew) {
             sendUserNotification(
                 type = "NEW_ROOM",
@@ -109,7 +110,9 @@ class ChatService(
 
     /**
      * [메시지 저장 및 전송]
-     * 클라이언트가 보낸 메시지를 DB에 저장하고, WebSocket 구독자들에게 브로드캐스팅합니다.
+     * - 텍스트 및 이미지 메시지를 DB에 영구 저장합니다.
+     * - 웹소켓을 통해 같은 방(/sub/v1/chat/room/{id})에 접속한 유저에게 브로드캐스팅합니다.
+     * - 상대방이 방 밖에 있을 경우를 대비해 개인 알림 채널로 알람을 보냅니다.
      */
     @Transactional
     fun saveMessage(req: ChatMessageRequest): RsData<ChatIdResponse> {
@@ -117,9 +120,9 @@ class ChatService(
         val room = findActiveRoom(roomId)
 
         val sender = currentMemberFromDb()
-        requireChatParticipant(room, sender.apiKey) // 해당 방 참여자 인지 검증
+        requireChatParticipant(room, sender.apiKey) // 권한 검증: 방 참여자만 메시지 전송 가능
 
-        // 텍스트 메세지
+        // 메시지 엔티티 생성 및 기본 텍스트 저장
         val chatMessage = chatRepository.save(
             Chat(
                 chatRoom = room,
@@ -129,7 +132,7 @@ class ChatService(
             ),
         )
 
-        // 첨부 이미지가 있는 경우
+        // 이미지 파일을 저장소에 올리고 DB 관계를 맺음
         req.images.orEmpty()
             .filterNot { it.isEmpty }
             .forEach { file ->
@@ -138,19 +141,19 @@ class ChatService(
                 chatMessage.addChatImage(ChatImage(chatMessage, savedImage))
             }
 
-        // 이미지 업데이트
         chatRepository.save(chatMessage)
 
-        // 웹소켓
+        // 웹소켓 실시간 브로드캐스팅
         val chatResponse = ChatResponse.from(chatMessage, sender.profileImgUrl)
-        try {
+
+        runMessagingSafely(
+            onSuccess = { log.info("메시지 브로드캐스팅 성공 - RoomID: {}, MessageID: {}", roomId, chatMessage.id) },
+            onFailure = { e -> log.error("WebSocket 전송 실패 - RoomID: {}, Error: {}", roomId, e.message) },
+        ) {
             messagingTemplate.convertAndSend("/sub/v1/chat/room/$roomId", chatResponse)
-            log.info("메시지 브로드캐스팅 성공 - RoomID: {}, MessageID: {}", roomId, chatMessage.id)
-        } catch (e: Exception) {
-            log.error("WebSocket 전송 실패 - RoomID: {}, Error: {}", roomId, e.message)
         }
 
-        // 상대방에게 알림 전송
+        // 상대방에게 개인 채널로 실시간 알림 전송
         val opponentApiKey = if (room.sellerApiKey == sender.apiKey) room.buyerApiKey else room.sellerApiKey
         memberRepository.findByApiKey(opponentApiKey).orElse(null)?.let { opponent ->
             sendUserNotification(
@@ -168,8 +171,9 @@ class ChatService(
 
     /**
      * [메시지 이력 조회]
-     * 특정 채팅방의 메시지 내역을 가져오며, 동시에 '읽음' 처리를 수행합니다.
-     * @param lastChatId: 무한 스크롤 구현을 위한 마지막 조회 메시지 ID (null이면 최신 20개)
+     * - 채팅방 진입 시 메시지 내역을 불러오며, 읽지 않은 상대방의 메시지를 '읽음' 처리합니다.
+     * - 읽음 처리 성공 시, 상대방 화면의 읽음 표시를 업데이트하도록 실시간 알림을 보냅니다.
+     * @param lastChatId 무한스크롤용 커서 (null이면 최신 20개, 값이 있으면 해당 ID보다 작은 메시지 20개 조회)
      */
     @Transactional
     fun getMessages(roomId: String, lastChatId: Int?): RsData<List<ChatResponse>> {
@@ -178,9 +182,10 @@ class ChatService(
         val me = currentMemberFromDb()
         requireChatParticipant(room, me.apiKey)
 
-        // 읽음 상태 업데이트
+        // 상대방이 보낸 메시지들을 읽음 처리
         val updatedCount = chatRepository.markMessagesAsRead(roomId, me.id)
         if (updatedCount > 0) {
+            // 읽음 처리가 발생했다면, 상대방에게 내 읽음 상태를 알림
             val readNotification: Any = mapOf(
                 "readerId" to me.id,
                 "roomId" to roomId,
@@ -189,18 +194,18 @@ class ChatService(
             log.debug("읽음 알림 전송 - RoomId: {}, ReaderId: {}, UpdatedCount: {}", roomId, me.id, updatedCount)
         }
 
-        // 판매자/구매자 정보 조회
+        // 발신자 프로필 이미지 매핑을 위한 정보 획득
         val seller = memberRepository.findByApiKey(room.sellerApiKey).orElse(null)
         val buyer = memberRepository.findByApiKey(room.buyerApiKey).orElse(null)
 
-        // lastChatId 이전의 데이터 20개를 가져옴
+        // No-Offset 페이징 조회: 최신순(Desc)으로 20개 가져오기
         val chats = if (lastChatId == null || lastChatId <= 0) {
             chatRepository.findTop20ByChatRoom_RoomIdOrderByIdDesc(roomId)
         } else {
             chatRepository.findTop20ByChatRoom_RoomIdAndIdLessThanOrderByIdDesc(roomId, lastChatId)
         }
 
-        // 최신순으로 조회된 메시지들을 화면 표시용(과거순)으로 뒤집고 각 메시지마다 발신자가 누구인지 판별하여 프로필 이미지 URL을 매핑
+        // 사용자 화면(위에서 아래로 흐르는 시간순) 구성을 위해 리스트를 반전하고 DTO로 변환
         val responses = chats.asReversed().map { chat ->
             val senderProfile = when (chat.senderId) {
                 seller?.id -> seller.profileImgUrl
@@ -215,20 +220,22 @@ class ChatService(
 
     /**
      * [나의 채팅 목록 조회]
-     * 로그인한 사용자가 참여 중인 모든 채팅방의 최신 상태를 리스트로 반환합니다.
+     * - 사용자가 속한 모든 채팅방의 목록을 가져옵니다.
+     * - 각 방의 최신 메시지, 안 읽은 메시지 수, 거래 물건 정보를 포함합니다.
+     * - N+1 성능 이슈를 방지하기 위해 데이터를 메모리(Map)에 적재하여 조인 없이 매핑합니다.
      */
     val chatList: RsData<List<ChatRoomListResponse>>
         get() {
             val me = currentMemberFromDb()
             val myApiKey = me.apiKey
 
-            // 각 방마다의 최신 메시지 하나씩을 가져옴
+            // 내가 속한 각 방들의 최신 메시지 1개씩 조회
             val latestChats = chatRepository.findAllLatestChatsByMember(myApiKey)
             if (latestChats.isEmpty()) {
                 return RsData("200-1", "채팅 목록 조회 성공", emptyList())
             }
 
-            // 필요한 정보들을 미리 추출하여 벌크 조회 준비
+            // 일괄 조회를 위해 ID 및 API Key 추출 (in-memory 캐싱 맵 구성용)
             val roomIds = latestChats.mapNotNull { it.chatRoom?.roomId }.distinct()
             val opponentApiKeys = latestChats.mapNotNull { chat ->
                 val room = chat.chatRoom ?: return@mapNotNull null
@@ -238,7 +245,7 @@ class ChatService(
             val postIds = latestChats.mapNotNull { it.chatRoom?.takeIf { room -> room.txType == ChatRoomType.POST }?.post?.id }
             val auctionIds = latestChats.mapNotNull { it.chatRoom?.takeIf { room -> room.txType == ChatRoomType.AUCTION }?.auction?.id }
 
-            // 한꺼번에 조회하여 Map으로 구성
+            // 인메모리 캐싱: 필요한 데이터(안 읽은 수, 상대 정보, 물건 이미지)를 단 한 번의 쿼리로 가져와 맵에 저장
             val unreadCountMap = if (roomIds.isEmpty()) {
                 emptyMap()
             } else {
@@ -262,7 +269,7 @@ class ChatService(
                     .associate { row -> (row[0] as Int) to (row[1] as String) }
             }
 
-            // 수집된 정보를 바탕으로 최종 리스트 응답 객체 생성
+            // 데이터 조합 및 클렌징 (유효하지 않은 데이터는 return@mapNotNull null로 건너뜀)
             val responseList = latestChats.mapNotNull { chat ->
                 val room = chat.chatRoom ?: return@mapNotNull null
                 val opponentKey = if (room.sellerApiKey == myApiKey) room.buyerApiKey else room.sellerApiKey
@@ -285,7 +292,7 @@ class ChatService(
                     itemPrice = item.itemPrice,
                     txType = room.txType,
                 )
-            }.sortedByDescending { it.lastMessageDate } // 최신 대화 순 정렬
+            }.sortedByDescending { it.lastMessageDate } // 최신 메시지가 위로 오도록 정렬
 
             log.debug("채팅 목록 조회 완료 - 사용자: {}, 조회된 방 개수: {}", me.nickname, responseList.size)
             return RsData("200-1", "채팅 목록 조회 성공", responseList)
@@ -293,7 +300,8 @@ class ChatService(
 
     /**
      * [채팅방 퇴장]
-     * 사용자가 방을 나갈 때 호출하며, 두 명 모두 나가면 방을 소프트 딜리트 처리
+     * - 사용자가 방을 나가는 처리를 수행합니다.
+     * - 구매자와 판매자 모두 방을 나갔을 때만 Soft Delete 처리합니다.
      */
     @Transactional
     fun exitChatRoom(roomId: String): RsData<Void?> {
@@ -301,10 +309,10 @@ class ChatService(
         val me = currentMemberFromDb()
 
         requireChatParticipant(room, me.apiKey)
-        room.exit(me.apiKey)
+        room.exit(me.apiKey) // 개별 유저 퇴장 플래그 업데이트
 
         if (room.isBothExited) {
-            room.softDelete()
+            room.softDelete() // 양측 퇴장 시 채팅방 비활성화
         }
 
         return RsData("200-1", "채팅방에서 퇴장하였습니다.", null)
@@ -312,7 +320,7 @@ class ChatService(
 
     /**
      * [사용자 알림 전송]
-     * WebSocket(STOMP) 채널(/sub/user/{id}/notification)을 통해 특정 사용자에게 실시간 알림 전송
+     * 개인 알림 토픽(`/sub/user/{id}/notification`)으로 알림을 발행합니다.
      */
     private fun sendUserNotification(
         type: String,
@@ -322,10 +330,14 @@ class ChatService(
         message: String?,
         messageDate: LocalDateTime?,
     ) {
-        try {
-            val item = resolveNotificationItemInfo(room) // 알림에 표시할 아이템 정보 추출
+        // 메시징 전송 실패가 비즈니스 트랜잭션 전체를 롤백시키지 않도록 안전하게 감싸서 실행
+        runMessagingSafely(
+            onSuccess = { log.info("개인 알림 전송 - Type: {}, Recipient: {}, RoomID: {}", type, recipient.id, room.roomId) },
+            onFailure = { e -> log.error("개인 알림 전송 실패 - Recipient: {}, Error: {}", recipient.id, e.message) },
+        ) {
+            val item = resolveNotificationItemInfo(room)
 
-            // 알림에 표시할 읽지 않은 총 개수 계산
+            // 현재 수신자의 미읽음 메시지 수 총합 계산
             val unreadCount = chatRepository
                 .countUnreadMessagesByRoomIds(listOf(room.roomId), recipient.id)
                 .firstOrNull()
@@ -349,51 +361,53 @@ class ChatService(
                 txType = room.txType,
             )
 
-            // 웹소켓 메시지 발행
             messagingTemplate.convertAndSend("/sub/user/${recipient.id}/notification", notification)
-            log.info("개인 알림 전송 - Type: {}, Recipient: {}, RoomID: {}", type, recipient.id, room.roomId)
-        } catch (e: Exception) {
-            log.error("개인 알림 전송 실패 - Recipient: {}, Error: {}", recipient.id, e.message)
         }
     }
 
     /**
-     * 세션 정보(Rq)를 바탕으로 DB에서 최신 회원 정보를 가져옵니다.
+     * 웹소켓 전송 시 발생할 수 있는 네트워크/세션 예외를 캡슐화하여 로깅하고,
+     * 핵심 로직(DB 저장 등)에 영향을 주지 않도록 관리하는 헬퍼 함수입니다.
      */
+    private inline fun runMessagingSafely(
+        crossinline onSuccess: () -> Unit,
+        crossinline onFailure: (Exception) -> Unit,
+        block: () -> Unit,
+    ) {
+        runCatching(block)
+            .onSuccess { onSuccess() }
+            .onFailure { onFailure(it as? Exception ?: RuntimeException(it)) }
+    }
+
+    // --- 유틸리티 및 검증 메서드 ---
+
+    /** 현재 인증된 회원을 DB에서 재조회 */
     private fun currentMemberFromDb(): Member {
         val actor = rq.actor ?: throw ServiceException("401-1", "로그인이 필요합니다.")
         return memberRepository.findById(actor.id)
             .orElseThrow { ServiceException("404-1", "존재하지 않는 회원입니다.") }
     }
 
-    /**
-     * 삭제되지 않은 활성 상태의 채팅방을 조회합니다.
-     */
+    /** 삭제되지 않은 활성 채팅방 조회 */
     private fun findActiveRoom(roomId: String): ChatRoom =
         chatRoomRepository.findByRoomIdAndDeletedFalse(roomId)
             .orElseThrow { ServiceException("404-1", "존재하지 않는 채팅방입니다.") }
 
-    /**
-     * 보안 로직: 로그인한 사용자가 채팅방의 판매자 또는 구매자인지 확인합니다.
-     */
+    /** 해당 채팅방 참여자 권한 체크 */
     private fun requireChatParticipant(room: ChatRoom, apiKey: String) {
         if (room.sellerApiKey != apiKey && room.buyerApiKey != apiKey) {
             throw ServiceException("403-1", "해당 채팅방에 접근 권한이 없습니다.")
         }
     }
 
-    /**
-     * 비즈니스 로직: 자신의 상품에 채팅을 거는 '셀프 거래'를 금지합니다.
-     */
+    /** 셀프 거래(본인 상품 채팅) 방지 */
     private fun ensureNotSelfTrade(seller: Member, buyerApiKey: String) {
         if (seller.apiKey == buyerApiKey) {
             throw ServiceException("400-3", "본인의 상품에는 채팅을 개설할 수 없습니다.")
         }
     }
 
-    /**
-     * 문자열 거래 타입을 Enum 객체로 변환합니다.
-     */
+    /** 거래 유형 문자열을 Enum으로 변환 */
     private fun parseTxType(txType: String): ChatRoomType =
         try {
             ChatRoomType.valueOf(txType.uppercase(Locale.ROOT))
@@ -401,9 +415,7 @@ class ChatService(
             throw ServiceException("400-2", "잘못된 거래 유형입니다.")
         }
 
-    /**
-     * 리스트 조회 시점에 사용될 아이템 요약 정보를 구성합니다 (in-memory 캐싱된 Map 활용).
-     */
+    /** 목록 조회 시 사용할 아이템 요약 정보 매핑 (in-memory 캐싱 맵 활용) */
     private fun resolveListItemInfo(
         room: ChatRoom,
         postImageMap: Map<Int, String>,
@@ -428,9 +440,7 @@ class ChatService(
         } ?: ItemInfo()
     }
 
-    /**
-     * 실시간 알림 발송 시점에 필요한 아이템 상세 정보를 조회합니다.
-     */
+    /** 알림 전송 시점에 사용할 아이템 정보 매핑 (직접 조회 기반) */
     private fun resolveNotificationItemInfo(room: ChatRoom): ItemInfo = when (room.txType) {
         ChatRoomType.POST -> room.post?.let { post ->
             val imageUrl = imageRepository.findPostMainImages(listOf(post.id))
@@ -459,14 +469,13 @@ class ChatService(
         } ?: ItemInfo()
     }
 
-    /** 생성된 방의 상태 정보를 담는 내부 데이터 클래스 */
+    // --- 내부 데이터 홀더 ---
     private data class CreatedRoom(
         val room: ChatRoom,
         val seller: Member,
         val isNew: Boolean,
     )
 
-    /** 응답 및 알림용 아이템 공통 정보 데이터 클래스 */
     private data class ItemInfo(
         val itemId: Int? = null,
         val itemName: String? = null,
