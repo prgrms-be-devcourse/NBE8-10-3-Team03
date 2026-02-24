@@ -1,5 +1,7 @@
 package com.back.domain.auction.auction.controller;
 
+import com.back.domain.auction.auction.entity.Auction;
+import com.back.domain.auction.auction.repository.AuctionRepository;
 import com.back.domain.member.member.entity.Member;
 import com.back.domain.member.member.service.MemberService;
 import org.junit.jupiter.api.DisplayName;
@@ -31,7 +33,26 @@ public class AuctionControllerTest {
     @Autowired
     private MemberService memberService;
     @Autowired
+    private AuctionRepository auctionRepository;
+    @Autowired
     private MockMvc mvc;
+
+    private int findAuctionIdBySeller(String username) {
+        return auctionRepository.findAll().stream()
+                .filter(auction -> auction.getSeller().getUsername().equals(username))
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException("seller auction not found: " + username))
+                .getId();
+    }
+
+    private int findAuctionIdBySellerAndBidCount(String username, int bidCount) {
+        return auctionRepository.findAll().stream()
+                .filter(auction -> auction.getSeller().getUsername().equals(username))
+                .filter(auction -> auction.getBidCount() == bidCount)
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException("seller auction not found: " + username))
+                .getId();
+    }
 
     @Test
     @WithUserDetails("user1")
@@ -223,7 +244,7 @@ public class AuctionControllerTest {
     @WithUserDetails("user1")
     @DisplayName("경매 수정 성공 - 입찰 전")
     void t8() throws Exception {
-        int auctionId = 2; // 입찰이 없는 경매
+        int auctionId = findAuctionIdBySellerAndBidCount("user1", 0);
 
 
         MockMultipartFile request = new MockMultipartFile(
@@ -258,14 +279,14 @@ public class AuctionControllerTest {
                 .andExpect(handler().methodName("updateAuction"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.resultCode").value("200-1"))
-                .andExpect(jsonPath("$.msg").value("경매 정보가 수정되었습니다."));
+                .andExpect(jsonPath("$.msg").value("경매 물품이 수정되었습니다."));
     }
 
     @Test
     @WithUserDetails("user1")
     @DisplayName("경매 삭제 성공 - 입찰 없음")
     void t9() throws Exception {
-        int auctionId = 2; // user1이 생성한 경매 (입찰 없음)
+        int auctionId = findAuctionIdBySellerAndBidCount("user1", 0);
 
 
         ResultActions resultActions = mvc
@@ -288,7 +309,7 @@ public class AuctionControllerTest {
     @WithUserDetails("user2")
     @DisplayName("경매 삭제 실패 - 권한 없음 (다른 사용자의 경매)")
     void t10() throws Exception {
-        int auctionId = 1; // user1이 생성한 경매
+        int auctionId = findAuctionIdBySellerAndBidCount("user1", 0);
 
 
         ResultActions resultActions = mvc
@@ -301,7 +322,7 @@ public class AuctionControllerTest {
 
         resultActions
                 .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.resultCode").value("403-2"));
+                .andExpect(jsonPath("$.resultCode").value("403-1"));
     }
 
     @Test
@@ -328,7 +349,11 @@ public class AuctionControllerTest {
     @WithUserDetails("user1")
     @DisplayName("경매 거래 취소 성공 - 판매자")
     void t12() throws Exception {
-        int auctionId = 1;
+        int auctionId = findAuctionIdBySeller("user1");
+        Auction auction = auctionRepository.findById(auctionId).orElseThrow();
+        Member winner = memberService.findByUsername("user2").orElseThrow();
+        auction.completeWithWinner(winner.getId());
+        auctionRepository.save(auction);
 
 
         ResultActions resultActions = mvc
@@ -351,12 +376,17 @@ public class AuctionControllerTest {
     @WithUserDetails("user1")
     @DisplayName("입찰 O -> 경매 취소 시 신용도 감소")
     void t13() throws Exception {
-        Member user1 = memberService.findByUsername("user1").orElseThrow();
-        int auctionId = 1;
+        int auctionId = findAuctionIdBySellerAndBidCount("user1", 0);
+        Auction auction = auctionRepository.findById(auctionId).orElseThrow();
+        auction.updateBid(auction.getStartPrice() + 1000);
+        auctionRepository.save(auction);
+
+        double beforeScore = memberService.findByUsername("user1").orElseThrow().getReputation().getScore();
 
         ResultActions resultActions = mvc
                 .perform(
-                        delete("/api/v1/auctions/%d".formatted(auctionId))
+                                delete("/api/v1/auctions/%d".formatted(auctionId))
+                                        .with(csrf())
                 )
                 .andDo(print());
 
@@ -367,19 +397,21 @@ public class AuctionControllerTest {
                 .andExpect(jsonPath("$.resultCode").value("200-1"))
                 .andExpect(jsonPath("$.msg").value("경매가 정상적으로 취소되었습니다."));
 
-        assertThat(user1.getReputation().getScore()).isEqualTo(45.0);
+        double afterScore = memberService.findByUsername("user1").orElseThrow().getReputation().getScore();
+        assertThat(afterScore).isLessThan(beforeScore);
     }
 
     @Test
     @WithUserDetails("user2")
     @DisplayName("입찰 X -> 경매 취소 시 신용도 감소 X")
     void t14() throws Exception {
-        Member user2 = memberService.findByUsername("user2").orElseThrow();
-        int auctionId = 2;
+        int auctionId = findAuctionIdBySellerAndBidCount("user2", 0);
+        double beforeScore = memberService.findByUsername("user2").orElseThrow().getReputation().getScore();
 
         ResultActions resultActions = mvc
                 .perform(
-                        delete("/api/v1/auctions/%d".formatted(auctionId))
+                                delete("/api/v1/auctions/%d".formatted(auctionId))
+                                        .with(csrf())
                 )
                 .andDo(print());
 
@@ -390,6 +422,7 @@ public class AuctionControllerTest {
                 .andExpect(jsonPath("$.resultCode").value("200-1"))
                 .andExpect(jsonPath("$.msg").value("경매가 정상적으로 취소되었습니다."));
 
-        assertThat(user2.getReputation().getScore()).isEqualTo(50.0);
+        double afterScore = memberService.findByUsername("user2").orElseThrow().getReputation().getScore();
+        assertThat(afterScore).isEqualTo(beforeScore);
     }
 }

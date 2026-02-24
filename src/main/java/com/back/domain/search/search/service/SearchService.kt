@@ -51,7 +51,7 @@ class SearchService(
                     id = auction.id,
                     type = "AUCTION",
                     title = auction.name,
-                    price = auction.startPrice,
+                    price = requireNotNull(auction.startPrice) { "Auction(${auction.id}) startPrice is null" },
                     status = auction.status.name,
                     categoryName = auction.category.name,
                     thumbnailUrl = auction.auctionImages.firstOrNull()?.image?.url,
