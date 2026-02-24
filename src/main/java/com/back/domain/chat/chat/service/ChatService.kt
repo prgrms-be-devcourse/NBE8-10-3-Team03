@@ -24,10 +24,13 @@ import com.back.global.exception.ServiceException
 import com.back.global.rq.Rq
 import com.back.global.rsData.RsData
 import org.slf4j.LoggerFactory
+import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.messaging.simp.SimpMessagingTemplate
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.LocalDateTime
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.Executor
 import java.util.Locale
 
 @Service
@@ -41,6 +44,8 @@ class ChatService(
     private val imageRepository: ImageRepository,
     private val fileStorageService: FileStorageService,
     private val messagingTemplate: SimpMessagingTemplate,
+    @Qualifier("chatTaskExecutor")
+    private val chatTaskExecutor: Executor,
     private val rq: Rq,
 ) {
 
@@ -245,29 +250,52 @@ class ChatService(
             val postIds = latestChats.mapNotNull { it.chatRoom?.takeIf { room -> room.txType == ChatRoomType.POST }?.post?.id }
             val auctionIds = latestChats.mapNotNull { it.chatRoom?.takeIf { room -> room.txType == ChatRoomType.AUCTION }?.auction?.id }
 
-            // 인메모리 캐싱: 필요한 데이터(안 읽은 수, 상대 정보, 물건 이미지)를 단 한 번의 쿼리로 가져와 맵에 저장
-            val unreadCountMap = if (roomIds.isEmpty()) {
-                emptyMap()
-            } else {
-                chatRepository.countUnreadMessagesByRoomIds(roomIds, me.id)
-                    .associate { it.roomId to (it.count?.toInt() ?: 0) }
-            }
+            // AsyncConfig(chatTaskExecutor) 기반 병렬 조회
+            val unreadFuture = CompletableFuture.supplyAsync(
+                {
+                    if (roomIds.isEmpty()) {
+                        emptyMap<String, Int>()
+                    } else {
+                        chatRepository.countUnreadMessagesByRoomIds(roomIds, me.id)
+                            .associate { it.roomId to (it.count?.toInt() ?: 0) }
+                    }
+                },
+                chatTaskExecutor,
+            )
 
-            val opponentMap = memberRepository.findByApiKeyIn(opponentApiKeys).associateBy { it.apiKey }
+            val opponentFuture = CompletableFuture.supplyAsync(
+                { memberRepository.findByApiKeyIn(opponentApiKeys).associateBy { it.apiKey } },
+                chatTaskExecutor,
+            )
 
-            val postImageMap = if (postIds.isEmpty()) {
-                emptyMap()
-            } else {
-                imageRepository.findPostMainImages(postIds)
-                    .associate { row -> (row[0] as Int) to (row[1] as String) }
-            }
+            val postImageFuture = CompletableFuture.supplyAsync(
+                {
+                    if (postIds.isEmpty()) {
+                        emptyMap<Int, String>()
+                    } else {
+                        imageRepository.findPostMainImages(postIds)
+                            .associate { row -> (row[0] as Int) to (row[1] as String) }
+                    }
+                },
+                chatTaskExecutor,
+            )
 
-            val auctionImageMap = if (auctionIds.isEmpty()) {
-                emptyMap()
-            } else {
-                imageRepository.findAuctionMainImages(auctionIds)
-                    .associate { row -> (row[0] as Int) to (row[1] as String) }
-            }
+            val auctionImageFuture = CompletableFuture.supplyAsync(
+                {
+                    if (auctionIds.isEmpty()) {
+                        emptyMap<Int, String>()
+                    } else {
+                        imageRepository.findAuctionMainImages(auctionIds)
+                            .associate { row -> (row[0] as Int) to (row[1] as String) }
+                    }
+                },
+                chatTaskExecutor,
+            )
+
+            val unreadCountMap = unreadFuture.join()
+            val opponentMap = opponentFuture.join()
+            val postImageMap = postImageFuture.join()
+            val auctionImageMap = auctionImageFuture.join()
 
             // 데이터 조합 및 클렌징 (유효하지 않은 데이터는 return@mapNotNull null로 건너뜀)
             val responseList = latestChats.mapNotNull { chat ->
