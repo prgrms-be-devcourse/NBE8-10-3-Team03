@@ -33,12 +33,12 @@ class SearchService(
                     price = post.price,
                     status = post.status.name,
                     statusDisplayName = post.status.displayName,
-                    categoryName = post.category.name,
+                    categoryName = post.category?.name ?: "미지정",
                     thumbnailUrl = post.postImages.firstOrNull()?.image?.url,
                     createDate = post.createDate,
                     viewCount = post.viewCount,
-                    sellerId = post.seller.id as Int,
-                    sellerNickname = post.seller.nickname,
+                    sellerId = post.seller.id as? Int ?: 0,
+                    sellerNickname = post.seller.nickname ?: "알 수 없는 사용자",
                     sellerBadge = PostListResponse.calculateBadge(post.seller.reputation?.score)
                 )
             )
