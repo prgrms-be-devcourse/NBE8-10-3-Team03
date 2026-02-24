@@ -40,10 +40,7 @@ interface ChatRepository : JpaRepository<Chat, Int> {
                 "AND c.senderId != :memberId " +
                 "GROUP BY c.chatRoom.roomId",
     )
-    fun countUnreadMessagesByRoomIds(
-        @Param("roomIds") roomIds: List<String>,
-        @Param("memberId") memberId: Int
-    ): List<UnreadCountResponse>
+    fun countUnreadMessagesByRoomIds(@Param("roomIds") roomIds: List<String>, @Param("memberId") memberId: Int): List<UnreadCountResponse>
 
 
     // 최신 메세지 20개만 가져오기 (내림차순)

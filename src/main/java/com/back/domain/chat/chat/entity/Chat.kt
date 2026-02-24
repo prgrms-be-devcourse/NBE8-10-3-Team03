@@ -1,7 +1,14 @@
 package com.back.domain.chat.chat.entity
 
 import com.back.global.jpa.entity.BaseEntity
-import jakarta.persistence.*
+import jakarta.persistence.CascadeType
+import jakarta.persistence.Column
+import jakarta.persistence.Entity
+import jakarta.persistence.FetchType
+import jakarta.persistence.JoinColumn
+import jakarta.persistence.ManyToOne
+import jakarta.persistence.OneToMany
+import jakarta.persistence.Table
 
 @Table(name = "chat")
 @Entity
@@ -20,21 +27,21 @@ class Chat() : BaseEntity() {
     var read: Boolean = false
 
     @OneToMany(mappedBy = "chat", cascade = [CascadeType.ALL], orphanRemoval = true)
-    var chatImages: MutableList<ChatImage> = mutableListOf()
+    val chatImages: MutableList<ChatImage> = mutableListOf()
 
     constructor(
-        charRoom: ChatRoom,
+        chatRoom: ChatRoom,
         senderId: Int,
         message: String?,
         read: Boolean,
     ) : this() {
-        this.chatRoom = charRoom
+        this.chatRoom = chatRoom
         this.senderId = senderId
         this.message = message
         this.read = read
     }
 
-    fun addChatImage(image: ChatImage) {
-        chatImages.add(image)
+    fun addChatImage(chatImage: ChatImage) {
+        chatImages.add(chatImage)
     }
 }
