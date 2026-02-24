@@ -108,13 +108,13 @@ class StompHandler(
             val room = chatRoomRepository.findByRoomIdAndDeletedFalse(roomId)
                 .orElseThrow { RuntimeException("ChatRoom Not Found") }
 
-            val member = memberService.findById(user.getId())
+            val member = memberService.findById(user.id)
                 .orElseThrow { RuntimeException("Member Not Found") }
 
             // 인가 검사: 내가 이 방의 판매자인가? 혹은 구매자인가?
             val authorized = room.sellerApiKey == member.apiKey || room.buyerApiKey == member.apiKey
             if (!authorized) {
-                log.warn("Access Denied: User {} -> Room {}", user.getId(), roomId)
+                log.warn("Access Denied: User {} -> Room {}", user.id, roomId)
                 throw RuntimeException("Subscription not authorized")
             }
 
@@ -132,10 +132,10 @@ class StompHandler(
 
             // 인가 검사: 구독하려는 목적지 ID와 현재 로그인한 내 ID가 일치하는가?
             val targetUserId = pathParts[2]
-            if (user.getId().toString() != targetUserId) {
+            if (user.id.toString() != targetUserId) {
                 log.warn(
                     "Access Denied: User {} tried to subscribe to User {}'s notification",
-                    user.getId(),
+                    user.id,
                     targetUserId,
                 )
                 throw RuntimeException("Subscription not authorized")
