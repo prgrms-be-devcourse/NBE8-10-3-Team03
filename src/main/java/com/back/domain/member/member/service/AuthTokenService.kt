@@ -37,6 +37,6 @@ class AuthTokenService {
         val name = parsedPayload.get("name") as String
         val role = parsedPayload.get("role") as String
 
-        return Map.of<String?, Any?>("id", id, "username", username, "name", name, "role", role)
+        return Map.of<String, Any>("id", id, "username", username, "name", name, "role", role)
     }
 }
