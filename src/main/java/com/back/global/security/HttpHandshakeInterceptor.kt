@@ -38,6 +38,7 @@ class HttpHandshakeInterceptor(
 
         if (!accessToken.isNullOrBlank()) {
             runCatching { memberService.payload(accessToken) }
+                .mapCatching { it ?: throw RuntimeException("Unauthorized") }
                 .map(::createSecurityUser)
                 .onSuccess { user ->
                     val auth: Authentication = UsernamePasswordAuthenticationToken(user, null, user.authorities)

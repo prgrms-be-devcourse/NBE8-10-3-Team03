@@ -127,6 +127,7 @@ class ChatControllerTest {
                 .title("판매 중 물품")
                 .content("판매 중 입니다.")
                 .price(10000)
+                .category(category)
                 .seller(seller)
                 .status(PostStatus.SALE)
                 .build(),
@@ -137,6 +138,7 @@ class ChatControllerTest {
                 .title("판매 완료된 물품")
                 .content("이미 팔렸습니다.")
                 .price(20000)
+                .category(category)
                 .seller(seller)
                 .status(PostStatus.SOLD)
                 .build(),

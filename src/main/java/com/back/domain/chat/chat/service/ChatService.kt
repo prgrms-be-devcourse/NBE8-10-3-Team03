@@ -60,7 +60,7 @@ class ChatService(
     fun createChatRoom(itemId: Int, txType: String): RsData<ChatRoomIdResponse> {
         val type = parseTxType(txType) // String 에서 Enum으로 타입 변환
         val buyer = currentMemberFromDb() // 현재 로그인한 구매자 정보
-        val buyerApiKey = buyer.apiKey
+        val buyerApiKey = requireApiKey(buyer)
 
         val createdRoom = when (type) {
             ChatRoomType.POST -> {
@@ -125,7 +125,8 @@ class ChatService(
         val room = findActiveRoom(roomId)
 
         val sender = currentMemberFromDb()
-        requireChatParticipant(room, sender.apiKey) // 권한 검증: 방 참여자만 메시지 전송 가능
+        val senderApiKey = requireApiKey(sender)
+        requireChatParticipant(room, senderApiKey) // 권한 검증: 방 참여자만 메시지 전송 가능
 
         // 메시지 엔티티 생성 및 기본 텍스트 저장
         val chatMessage = chatRepository.save(
@@ -159,7 +160,7 @@ class ChatService(
         }
 
         // 상대방에게 개인 채널로 실시간 알림 전송
-        val opponentApiKey = if (room.sellerApiKey == sender.apiKey) room.buyerApiKey else room.sellerApiKey
+        val opponentApiKey = if (room.sellerApiKey == senderApiKey) room.buyerApiKey else room.sellerApiKey
         memberRepository.findByApiKey(opponentApiKey).orElse(null)?.let { opponent ->
             sendUserNotification(
                 type = "NEW_MESSAGE",
@@ -185,7 +186,7 @@ class ChatService(
         val room = findActiveRoom(roomId)
 
         val me = currentMemberFromDb()
-        requireChatParticipant(room, me.apiKey)
+        requireChatParticipant(room, requireApiKey(me))
 
         // 상대방이 보낸 메시지들을 읽음 처리
         val updatedCount = chatRepository.markMessagesAsRead(roomId, me.id)
@@ -264,7 +265,7 @@ class ChatService(
             )
 
             val opponentFuture = CompletableFuture.supplyAsync(
-                { memberRepository.findByApiKeyIn(opponentApiKeys).associateBy { it.apiKey } },
+                { memberRepository.findByApiKeyIn(opponentApiKeys.toMutableSet()).associateBy { it.apiKey } },
                 chatTaskExecutor,
             )
 
@@ -336,8 +337,9 @@ class ChatService(
         val room = findActiveRoom(roomId)
         val me = currentMemberFromDb()
 
-        requireChatParticipant(room, me.apiKey)
-        room.exit(me.apiKey) // 개별 유저 퇴장 플래그 업데이트
+        val myApiKey = requireApiKey(me)
+        requireChatParticipant(room, myApiKey)
+        room.exit(myApiKey) // 개별 유저 퇴장 플래그 업데이트
 
         if (room.isBothExited) {
             room.softDelete() // 양측 퇴장 시 채팅방 비활성화
@@ -415,6 +417,9 @@ class ChatService(
         return memberRepository.findById(actor.id)
             .orElseThrow { ServiceException("404-1", "존재하지 않는 회원입니다.") }
     }
+
+    private fun requireApiKey(member: Member): String =
+        member.apiKey ?: throw ServiceException("500-1", "회원 apiKey가 없습니다.")
 
     /** 삭제되지 않은 활성 채팅방 조회 */
     private fun findActiveRoom(roomId: String): ChatRoom =
