@@ -1,15 +1,15 @@
 package com.back.domain.bid.bid.service
 
 import com.back.domain.auction.auction.entity.Auction
-import com.back.domain.auction.auction.repository.AuctionRepository
 import com.back.domain.bid.bid.dto.request.BidCreateRequest
 import com.back.domain.bid.bid.dto.response.BidListItemDto
 import com.back.domain.bid.bid.dto.response.BidPageResponse
 import com.back.domain.bid.bid.dto.response.BidResponse
 import com.back.domain.bid.bid.entity.Bid
 import com.back.domain.bid.bid.repository.BidRepository
+import com.back.domain.bid.bid.service.port.BidAuctionPort
+import com.back.domain.bid.bid.service.port.BidMemberPort
 import com.back.domain.member.member.entity.Member
-import com.back.domain.member.member.repository.MemberRepository
 import com.back.global.exception.ServiceException
 import com.back.global.rsData.RsData
 import com.back.global.util.PageUtils
@@ -23,8 +23,8 @@ import org.springframework.transaction.annotation.Transactional
 @Transactional(readOnly = true)
 class BidService(
     private val bidRepository: BidRepository,
-    private val auctionRepository: AuctionRepository,
-    private val memberRepository: MemberRepository
+    private val bidAuctionPort: BidAuctionPort,
+    private val bidMemberPort: BidMemberPort
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
@@ -35,11 +35,8 @@ class BidService(
         log.debug("입찰 시작 - 경매 캐시 삭제: auctionId: {}, 입찰자 ID: {}, 입찰가: {}원", auctionId, bidderId, bidPrice)
 
         log.debug("비관적 락으로 경매 조회 - 경매 ID: {}", auctionId)
-        val auction = auctionRepository.findByIdWithLock(auctionId)
-            .orElseThrow { ServiceException("404-1", "존재하지 않는 경매입니다.") }
-
-        val bidder = memberRepository.findById(bidderId)
-            .orElseThrow { ServiceException("404-2", "존재하지 않는 사용자입니다.") }
+        val auction = bidAuctionPort.getAuctionWithLockOrThrow(auctionId)
+        val bidder = bidMemberPort.getBidderOrThrow(bidderId)
 
         log.debug("입찰 검증 시작 - 경매 ID: {}, 현재가: {}원", auctionId, auction.currentHighestBid)
         validateBid(auction, bidder, bidPrice)
@@ -69,7 +66,7 @@ class BidService(
             false
         }
 
-        auctionRepository.save(auction)
+        bidAuctionPort.saveAuction(auction)
 
         val response = BidResponse(
             savedBid,
@@ -141,7 +138,7 @@ class BidService(
     fun getBids(auctionId: Int, page: Int, size: Int): RsData<BidPageResponse> {
         log.debug("입찰 내역 조회 - 경매 ID: {}, 페이지: {}, 크기: {}", auctionId, page, size)
 
-        if (!auctionRepository.existsById(auctionId)) {
+        if (!bidAuctionPort.existsAuction(auctionId)) {
             throw ServiceException("404-1", "존재하지 않는 경매입니다.")
         }
 
