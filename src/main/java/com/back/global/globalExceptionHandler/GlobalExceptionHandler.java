@@ -110,7 +110,7 @@ public class GlobalExceptionHandler {
     public RsData<Void> handle(ServiceException ex, HttpServletResponse response) {
         RsData<Void> rsData = ex.getRsData();
 
-        response.setStatus(rsData.statusCode());
+        response.setStatus(rsData.statusCode);
 
         return rsData;
     }
