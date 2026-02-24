@@ -82,7 +82,7 @@ class StompHandler(
             .getOrElse {
                 log.error("STOMP Connect Auth Error: {}", it.message)
                 throw RuntimeException("Unauthorized")
-            }
+            } ?: throw RuntimeException("Unauthorized")
 
         // 인증 객체 생성 및 세션에 저장
         val user = createSecurityUser(payload)

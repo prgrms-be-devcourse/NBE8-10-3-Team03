@@ -72,8 +72,8 @@ class ChatRoom (
                 txType = ChatRoomType.AUCTION,
                 auction = auction,
                 post = null,
-                sellerApiKey = auction.seller.apiKey,
-                buyerApiKey = buyer.apiKey,
+                sellerApiKey = auction.seller.apiKey ?: throw IllegalStateException("판매자 apiKey가 없습니다."),
+                buyerApiKey = buyer.apiKey ?: throw IllegalStateException("구매자 apiKey가 없습니다."),
             )
         }
 
@@ -85,8 +85,8 @@ class ChatRoom (
                 txType = ChatRoomType.POST,
                 auction = null,
                 post = post,
-                sellerApiKey = buyer.apiKey,
-                buyerApiKey = buyer.apiKey,
+                sellerApiKey = post.seller.apiKey ?: throw IllegalStateException("판매자 apiKey가 없습니다."),
+                buyerApiKey = buyer.apiKey ?: throw IllegalStateException("구매자 apiKey가 없습니다."),
             )
         }
     }
