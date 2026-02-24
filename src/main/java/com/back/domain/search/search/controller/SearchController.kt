@@ -1,48 +1,45 @@
-package com.back.domain.search.search.controller;
+package com.back.domain.search.search.controller
 
-import com.back.domain.search.search.dto.SearchResponse;
-import com.back.domain.search.search.dto.UnifiedSearchResponse;
-import com.back.domain.search.search.service.SearchService;
-import com.back.global.rsData.RsData;
-import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
-import org.springframework.data.web.PageableDefault;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import com.back.domain.search.search.dto.SearchResponse
+import com.back.domain.search.search.service.SearchService
+import com.back.global.rsData.RsData
+import org.springframework.data.domain.Pageable
+import org.springframework.data.domain.Sort
+import org.springframework.data.web.PageableDefault
+import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.RequestMapping
+import org.springframework.web.bind.annotation.RequestParam
+import org.springframework.web.bind.annotation.RestController
 
 @RestController
 @RequestMapping("/api/v1/search")
-@RequiredArgsConstructor
-public class SearchController {
-    private final SearchService searchService;
+class SearchController(
+    private val searchService: SearchService
+) {
 
     @GetMapping
-    public RsData<SearchResponse> search(
-        @RequestParam String keyword,
+    fun search(
+        @RequestParam keyword: String,
         @PageableDefault(
-            size = 10, 
-            sort = "createDate", 
+            size = 10,
+            sort = ["createDate"],
             direction = Sort.Direction.DESC
-        ) Pageable pageable
-    ) {
-        Page<UnifiedSearchResponse> results = searchService.searchUnified(keyword, pageable);
-        
-        SearchResponse response = SearchResponse.of(
-            results.getContent(),
-            results.getNumber(),
-            results.getSize(),
-            results.getTotalElements(),
-            results.getTotalPages()
-        );
+        ) pageable: Pageable
+    ): RsData<SearchResponse> {
+        val results = searchService.searchUnified(keyword, pageable)
 
-        return new RsData<>(
-            "200-1", 
-            "검색이 완료되었습니다.", 
+        val response = SearchResponse(
+            content = results.content,
+            page = results.number,
+            size = results.size,
+            totalElements = results.totalElements,
+            totalPages = results.totalPages
+        )
+
+        return RsData(
+            "200-1",
+            "검색이 완료되었습니다.",
             response
-        );
+        )
     }
 }
