@@ -7,12 +7,13 @@ import org.springframework.stereotype.Service
 import java.util.Map
 
 @Service
-class AuthTokenService {
+class AuthTokenService(
     @Value("\${custom.jwt.secretKey}")
-    private val jwtSecretKey: String? = null
+    private val jwtSecretKey: String,
 
     @Value("\${custom.accessToken.expirationSeconds}")
-    private val accessTokenExpirationSeconds = 0
+    private val accessTokenExpirationSeconds: Int
+) {
 
     fun genAccessToken(member: Member): String {
         val id = member.id
@@ -23,20 +24,18 @@ class AuthTokenService {
         return Ut.jwt.toString(
             jwtSecretKey,
             accessTokenExpirationSeconds,
-            Map.of<String?, Any?>("id", id, "username", username, "name", name, "role", role)
+            Map.of<String, Any>("id", id, "username", username, "name", name, "role", role)
         )
     }
 
     fun payload(accessToken: String?): MutableMap<String, Any>? {
-        val parsedPayload = Ut.jwt.payload(jwtSecretKey, accessToken)
+        val parsedPayload = Ut.jwt.payload(jwtSecretKey, accessToken) ?: return null
 
-        if (parsedPayload == null) return null
-
-        val id = parsedPayload.get("id") as Int
-        val username = parsedPayload.get("username") as String
-        val name = parsedPayload.get("name") as String
-        val role = parsedPayload.get("role") as String
-
-        return Map.of<String, Any>("id", id, "username", username, "name", name, "role", role)
+        return mapOf(
+            "id" to parsedPayload["id"] as Int,
+            "username" to parsedPayload["username"] as String,
+            "name" to parsedPayload["name"] as String,
+            "role" to parsedPayload["role"] as String
+        ) as MutableMap<String, Any>?
     }
 }
