@@ -53,6 +53,10 @@ jobs:
           grep -n "@Builder" src/main/java/com/back/domain/post/post/entity/Post.java || true
           grep -n "sellerBadge" src/main/java/com/back/domain/search/search/service/SearchService.java || true
 
+      - name: Ktlint Check
+        continue-on-error: true
+        run: ./gradlew ktlintCheck --no-daemon
+
       - name: Build (compile)
         run: ./gradlew clean assemble --no-daemon
 
