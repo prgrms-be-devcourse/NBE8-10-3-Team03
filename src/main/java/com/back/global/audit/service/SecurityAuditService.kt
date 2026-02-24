@@ -9,13 +9,13 @@ import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 
 @Service
-@RequiredArgsConstructor
-class SecurityAuditService {
-    private val repository: SecurityAuditLogRepository? = null
+class SecurityAuditService(
+    private val repository: SecurityAuditLogRepository
+) {
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    fun log(memberId: Int?, type: AuditType?, ip: String?, ua: String?) {
-        repository!!.save<SecurityAuditLog?>(
+    fun log(memberId: Int?, type: AuditType, ip: String?, ua: String?) {
+        repository.save(
             SecurityAuditLog(memberId, type, ip, ua)
         )
     }
