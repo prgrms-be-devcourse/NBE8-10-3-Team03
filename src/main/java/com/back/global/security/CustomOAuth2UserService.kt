@@ -13,31 +13,29 @@ import org.springframework.transaction.annotation.Transactional
 import java.util.*
 
 @Service
-@RequiredArgsConstructor
-@Slf4j
-class CustomOAuth2UserService : DefaultOAuth2UserService() {
-    private val memberService: MemberService? = null
+class CustomOAuth2UserService(
+    private val memberService: MemberService
+) : DefaultOAuth2UserService() {
 
     // 카카오톡 로그인이 성공할 때 마다 이 함수가 실행된다.
     @Transactional
-    @Throws(OAuth2AuthenticationException::class)
     override fun loadUser(userRequest: OAuth2UserRequest): OAuth2User {
         val oAuth2User = super.loadUser(userRequest)
 
-        val oauthUserId = oAuth2User.getName()
-        val providerTypeCode = userRequest.getClientRegistration().getRegistrationId().uppercase(Locale.getDefault())
+        val oauthUserId = oAuth2User.name
+        val providerTypeCode = userRequest.clientRegistration.registrationId.uppercase(Locale.getDefault())
 
-        val attributes = oAuth2User.getAttributes()
-        val attributesProperties = attributes.get("properties") as MutableMap<String?, Any?>
+        val attributes = oAuth2User.attributes
+        val attributesProperties = attributes.get("properties") as MutableMap<String, Any>
 
         val userNicknameAttributeName = "nickname"
         val profileImgUrlAttributeName = "profile_image"
 
         val nickname = attributesProperties.get(userNicknameAttributeName) as String
         val profileImgUrl = attributesProperties.get(profileImgUrlAttributeName) as String?
-        val username = providerTypeCode + "__%s".formatted(oauthUserId)
+        val username = providerTypeCode + "__${oauthUserId}"
         val password = ""
-        val member: Member = memberService!!.modifyOrJoin(username, password, nickname, profileImgUrl).data!!
+        val member: Member = memberService.modifyOrJoin(username, password, nickname, profileImgUrl).data!!
 
         return SecurityUser(
             member.getId(),
