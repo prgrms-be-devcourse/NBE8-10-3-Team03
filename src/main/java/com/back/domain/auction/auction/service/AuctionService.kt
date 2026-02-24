@@ -10,17 +10,11 @@ import com.back.domain.auction.auction.dto.response.AuctionPageResponse
 import com.back.domain.auction.auction.dto.response.AuctionSliceResponse
 import com.back.domain.auction.auction.dto.response.AuctionUpdateResponse
 import com.back.domain.auction.auction.entity.Auction
-import com.back.domain.auction.auction.entity.AuctionImage
 import com.back.domain.auction.auction.entity.AuctionStatus
-import com.back.domain.auction.auction.entity.CancellerRole
-import com.back.domain.auction.auction.repository.AuctionImageRepository
 import com.back.domain.auction.auction.repository.AuctionRepository
+import com.back.domain.auction.auction.service.port.AuctionImagePort
+import com.back.domain.auction.auction.service.port.AuctionMemberPort
 import com.back.domain.category.category.repository.CategoryRepository
-import com.back.domain.image.image.entity.Image
-import com.back.domain.image.image.repository.ImageRepository
-import com.back.domain.member.member.enums.MemberStatus
-import com.back.domain.member.member.repository.MemberRepository
-import com.back.domain.member.member.service.MemberService
 import com.back.global.exception.ServiceException
 import com.back.global.rsData.RsData
 import com.back.global.util.PageUtils
@@ -31,7 +25,6 @@ import org.springframework.data.domain.Pageable
 import org.springframework.data.domain.Sort
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
-import org.springframework.web.multipart.MultipartFile
 import java.time.LocalDateTime
 
 @Service
@@ -39,11 +32,8 @@ import java.time.LocalDateTime
 class AuctionService(
     private val auctionRepository: AuctionRepository,
     private val categoryRepository: CategoryRepository,
-    private val memberRepository: MemberRepository,
-    private val imageRepository: ImageRepository,
-    private val auctionImageRepository: AuctionImageRepository,
-    private val fileStorageService: FileStorageService,
-    private val memberService: MemberService
+    private val auctionMemberPort: AuctionMemberPort,
+    private val auctionImagePort: AuctionImagePort
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
@@ -51,15 +41,11 @@ class AuctionService(
     fun createAuction(request: AuctionCreateRequest, sellerId: Int): RsData<AuctionIdResponse> {
         log.debug("경매 생성 시작 - 판매자 ID: {}, 물품명: {}, 시작가: {}원", sellerId, request.name, request.startPrice)
 
-        if (memberService.findById(sellerId).get().status == MemberStatus.SUSPENDED) {
-            log.warn("경매 생성 실패 - 정지된 회원: 사용자 ID: {}", sellerId)
-            throw ServiceException("403-3", "정지된 회원은 해당 기능을 사용할 수 없습니다.")
-        }
+        auctionMemberPort.validateCanCreateAuction(sellerId)
 
         validateAuctionRequest(request)
 
-        val seller = memberRepository.findById(sellerId)
-            .orElseThrow { ServiceException("404-1", "존재하지 않는 사용자입니다.") }
+        val seller = auctionMemberPort.getSellerOrThrow(sellerId)
 
         val category = categoryRepository.findById(request.categoryId!!)
             .orElseThrow { ServiceException("404-2", "존재하지 않는 카테고리입니다.") }
@@ -83,7 +69,7 @@ class AuctionService(
 
         if (!request.images.isNullOrEmpty()) {
             log.debug("경매 이미지 저장 시작 - 경매 ID: {}, 이미지 수: {}", savedAuction.id, request.images!!.size)
-            saveAuctionImages(request.images!!, savedAuction)
+            auctionImagePort.saveImages(savedAuction, request.images!!)
         }
 
         log.info(
@@ -98,22 +84,6 @@ class AuctionService(
     private fun validateAuctionRequest(request: AuctionCreateRequest) {
         if (request.buyNowPrice != null && request.buyNowPrice!! < request.startPrice!!) {
             throw ServiceException("400-2", "즉시구매가는 시작가보다 높아야 합니다.")
-        }
-    }
-
-    private fun saveAuctionImages(imageFiles: List<MultipartFile>, auction: Auction) {
-        for (file in imageFiles) {
-            if (file.isEmpty) continue
-
-            try {
-                val imageUrl = fileStorageService.storeFile(file)
-                val image = Image(imageUrl)
-                val savedImage = imageRepository.save(image)
-                val auctionImage = AuctionImage(auction, savedImage)
-                auction.addAuctionImage(auctionImage)
-            } catch (e: Exception) {
-                throw ServiceException("500-1", "이미지 저장에 실패했습니다: ${e.message}")
-            }
         }
     }
 
@@ -238,7 +208,7 @@ class AuctionService(
         )
 
         if (!request.images.isNullOrEmpty()) {
-            updateAuctionImages(request, auction)
+            auctionImagePort.replaceImages(auction, request.keepImageUrls, request.images)
         }
 
         auctionRepository.save(auction)
@@ -264,32 +234,6 @@ class AuctionService(
         }
     }
 
-    private fun updateAuctionImages(request: AuctionUpdateRequest, auction: Auction) {
-        val keepUrls = request.keepImageUrls
-
-        if (keepUrls.isNullOrEmpty()) {
-            auction.clearAuctionImages()
-        } else {
-            auction.auctionImages.removeIf { auctionImage ->
-                !keepUrls.contains(auctionImage.image.url)
-            }
-        }
-
-        request.images?.forEach { file ->
-            if (file.isEmpty) return@forEach
-
-            try {
-                val imageUrl = fileStorageService.storeFile(file)
-                val image = Image(imageUrl)
-                val savedImage = imageRepository.save(image)
-                val auctionImage = AuctionImage(auction, savedImage)
-                auction.addAuctionImage(auctionImage)
-            } catch (e: Exception) {
-                throw ServiceException("500-1", "이미지 저장에 실패했습니다: ${e.message}")
-            }
-        }
-    }
-
     @Transactional
     @CacheEvict(value = ["auction"], key = "#auctionId")
     fun deleteAuction(auctionId: Int, memberId: Int): RsData<AuctionDeleteResponse> {
@@ -303,7 +247,7 @@ class AuctionService(
             throw ServiceException("403-1", "경매를 삭제할 권한이 없습니다.")
         }
 
-        memberService.decreaseByCancel(auctionId, memberId)
+        auctionMemberPort.applyCancelPenalty(auctionId, memberId)
         auctionRepository.delete(auction)
 
         log.info("경매 삭제 완료 - 경매 ID: {}, 판매자 ID: {}, 입찰 수: {}", auctionId, memberId, auction.bidCount)
