@@ -47,9 +47,8 @@ object PageUtils {
     fun validatePageParameters(page: Int, size: Int) {
         when {
             page < 0 -> throw ServiceException("400-1", "페이지 번호는 0 이상이어야 합니다.")
-            page <= 0 -> throw ServiceException("400-1", "페이지 크기는 1 이상이어야 합니다.")
+            size <= 0 -> throw ServiceException("400-1", "페이지 크기는 1 이상이어야 합니다.")
             size > MAX_SIZE -> throw ServiceException("400-1", String.format("페이지 크기는 %d 이하여야 합니다.", MAX_SIZE))
         }
     }
 }
-
