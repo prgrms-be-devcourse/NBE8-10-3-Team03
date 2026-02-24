@@ -240,26 +240,28 @@ public class BaseInitData {
         Category category = categoryRepository.findAll().get(0);
 
         for (int i = 1; i <= 3; i++) {
-            Post post = Post.builder()
-                    .seller(seller1)
-                    .title("판매 중인 테스트 상품 " + i)
-                    .content("상태가 SALE인 상품입니다.")
-                    .price(10000 * i)
-                    .category(category)
-                    .status(PostStatus.SALE) //
-                    .build();
+            Post post = new Post(
+                    seller1,
+                    "판매 중인 테스트 상품 " + i,
+                    "상태가 SALE인 상품입니다.",
+                    10000 * i,
+                    category,
+                    PostStatus.SALE,
+                    false
+            );
             postRepository.save(post);
         }
 
         for (int i = 1; i <= 2; i++) {
-            Post post = Post.builder()
-                    .seller(seller1)
-                    .title("이미 팔린 테스트 상품 " + i)
-                    .content("상태가 SOLD인 상품입니다.")
-                    .price(50000 * i)
-                    .category(category)
-                    .status(PostStatus.SOLD) //
-                    .build();
+            Post post = new Post(
+                    seller1,
+                    "이미 팔린 테스트 상품 " + i,
+                    "상태가 SOLD인 상품입니다.",
+                    50000 * i,
+                    category,
+                    PostStatus.SOLD,
+                    false
+            );
             postRepository.save(post);
         }
     }
