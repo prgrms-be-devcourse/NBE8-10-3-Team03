@@ -26,7 +26,7 @@ class CustomOAuth2UserService(
         val providerTypeCode = userRequest.clientRegistration.registrationId.uppercase(Locale.getDefault())
 
         val attributes = oAuth2User.attributes
-        val attributesProperties = attributes.get("properties") as MutableMap<String, Any>
+        val attributesProperties = attributes.get("properties") as MutableMap<*, *>
 
         val userNicknameAttributeName = "nickname"
         val profileImgUrlAttributeName = "profile_image"
