@@ -1,0 +1,87 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [ "main", "develop" ]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: DevCourse
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
+
+      - name: Debug source snapshot
+        run: |
+          echo "event_name=${{ github.event_name }}"
+          echo "github.sha=${{ github.sha }}"
+          git rev-parse HEAD
+          git log -1 --oneline
+          grep -n "calculateBadge" src/main/java/com/back/domain/post/post/dto/PostListResponse.java || true
+          grep -n "@Builder" src/main/java/com/back/domain/post/post/entity/Post.java || true
+          grep -n "sellerBadge" src/main/java/com/back/domain/search/search/service/SearchService.java || true
+
+      - name: Build (compile)
+        run: ./gradlew clean assemble --no-daemon
+
+      - name: Test (PR fast)
+        if: github.event_name == 'pull_request'
+        env:
+          SPRING_DATASOURCE_URL: jdbc:mysql://127.0.0.1:3306/DevCourse?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Seoul&allowPublicKeyRetrieval=true
+          SPRING_DATASOURCE_USERNAME: root
+          SPRING_DATASOURCE_PASSWORD: root
+          SPRING_DATASOURCE_DRIVER_CLASS_NAME: com.mysql.cj.jdbc.Driver
+        run: ./gradlew test --no-daemon
+
+      - name: Test (push + integration)
+        if: github.event_name == 'push'
+        env:
+          SPRING_DATASOURCE_URL: jdbc:mysql://127.0.0.1:3306/DevCourse?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Seoul&allowPublicKeyRetrieval=true
+          SPRING_DATASOURCE_USERNAME: root
+          SPRING_DATASOURCE_PASSWORD: root
+          SPRING_DATASOURCE_DRIVER_CLASS_NAME: com.mysql.cj.jdbc.Driver
+        run: ./gradlew test integrationTest --no-daemon
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          if-no-files-found: ignore
+          path: |
+            build/reports/tests/test
+            build/reports/tests/integrationTest
+            build/test-results/test
+            build/test-results/integrationTest
