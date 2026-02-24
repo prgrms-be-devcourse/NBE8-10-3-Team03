@@ -22,46 +22,39 @@ import java.io.IOException
 import java.util.function.Supplier
 
 @Component
-@RequiredArgsConstructor
-class CustomAuthenticationFilter : OncePerRequestFilter() {
-    private val memberService: MemberService? = null
-    private val rq: Rq? = null
+class CustomAuthenticationFilter(
+    private val memberService: MemberService,
+    private val rq: Rq
+) : OncePerRequestFilter() {
 
-    @Throws(ServletException::class, IOException::class)
     override fun doFilterInternal(
         request: HttpServletRequest,
         response: HttpServletResponse,
         filterChain: FilterChain
     ) {
-        logger.debug("Processing request for " + request.getRequestURI())
+        logger.debug("Processing request for ${request.requestURI}")
 
         try {
             work(request, response, filterChain)
         } catch (e: ServiceException) {
-            val rsData = e.getRsData()
-            response.setContentType("application/json;charset=UTF-8")
-            response.setStatus(rsData.statusCode)
-            response.getWriter().write(
-                Ut.json.toString(rsData)
-            )
-        } catch (e: Exception) {
-            throw e
+            e.rsData.let { rsData ->
+                response.contentType = "application/json;charset=UTF-8"
+                response.status = rsData.statusCode
+                response.writer.write(Ut.json.toString(rsData))
+            }
         }
     }
 
-    @Throws(ServletException::class, IOException::class)
     private fun work(request: HttpServletRequest, response: HttpServletResponse?, filterChain: FilterChain) {
         // API 요청이 아니라면 패스
-        if (!request.getRequestURI().startsWith("/api/")) {
+        if (!request.requestURI.startsWith("/api/")) {
             filterChain.doFilter(request, response)
             return
         }
 
         // 인증, 인가가 필요없는 API 요청이라면 패스
-        if (mutableListOf<String?>("/api/v1/members/login", "/api/v1/members/logout", "/api/v1/members/join").contains(
-                request.getRequestURI()
-            )
-        ) {
+        val publicEndpoints = listOf("/api/v1/members/login", "/api/v1/members/logout", "/api/v1/members/join")
+        if (request.requestURI in publicEndpoints) {
             filterChain.doFilter(request, response)
             return
         }
@@ -70,7 +63,7 @@ class CustomAuthenticationFilter : OncePerRequestFilter() {
         var accessToken: String
 
         // 토큰 추출 로직 (헤더 -> 쿠키)
-        val headerAuthorization = rq!!.getHeader("Authorization", "")
+        val headerAuthorization = rq.getHeader("Authorization", "")
 
         // Authorization 헤더가 있는 경우
         if (!headerAuthorization.isBlank()) {
@@ -79,18 +72,15 @@ class CustomAuthenticationFilter : OncePerRequestFilter() {
                 "Authorization 헤더가 Bearer 형식이 아닙니다."
             )
 
-            val headerAuthorizationBits = headerAuthorization.split(" ".toRegex(), limit = 3).toTypedArray()
+            val parts = headerAuthorization.split(" ", limit = 3)
 
-            apiKey = headerAuthorizationBits[1]
-            accessToken = if (headerAuthorizationBits.size == 3) headerAuthorizationBits[2] else ""
-
-            // 헤더에 apiKey나 accessToken만 넣는 경우
-            if (headerAuthorizationBits.size == 2) {
-                if (headerAuthorizationBits[1].split("\\.".toRegex()).dropLastWhile { it.isEmpty() }
-                        .toTypedArray().size == 3) {
-                    accessToken = headerAuthorizationBits[1]
-                    apiKey = ""
-                }
+            // Bearer 뒤 값이 JWT(점 3개) 하나만 있는 경우 → accessToken으로 처리
+            if (parts.size == 2 && parts[1].split(".").size == 3) {
+                apiKey = ""
+                accessToken = parts[1]
+            } else {
+                apiKey = parts[1]
+                accessToken = if (parts.size == 3) parts[2] else ""
             }
         } else {
             // 헤더가 없으면 쿠키에서 조회
@@ -115,45 +105,41 @@ class CustomAuthenticationFilter : OncePerRequestFilter() {
 
         // 액세스 토큰 검증
         if (isAccessTokenExists) {
-            val payload: MutableMap<String?, Any?>? = memberService!!.payload(accessToken)
-
-            if (payload != null) {
-                val id = payload.get("id") as Int
-                val username = payload.get("username") as String
-                val name = payload.get("name") as String
-                val role = payload.get("role") as String?
-
-                member = Member(id, username, name, from(role))
-
+            memberService.payload(accessToken)?.let { payload ->
+                member = Member(
+                    payload["id"] as Int,
+                    payload["username"] as String,
+                    payload["name"] as String,
+                    from(payload["role"] as? String)
+                )
                 isAccessTokenValid = true
             }
+
         }
 
         // 액세스 토큰이 없거나 실패하면 apiKey로 사용자 인증
         if (member == null) {
-            member = memberService!!
+            member = memberService
                 .findByApiKey(apiKey)
-                .orElseThrow<ServiceException?>(Supplier { ServiceException("401-3", "API 키가 유효하지 않습니다.") })
+                .orElseThrow { ServiceException("401-3", "API 키가 유효하지 않습니다.") }
         }
 
         // 액세스 토큰은 있는데 기간이 만료되었다면(유효하지 않다면) 재발급
         if (isAccessTokenExists && !isAccessTokenValid) {
             // 액세스 토큰 생성
-            val actorAccessToken = memberService!!.genAccessToken(member)
+            val actorAccessToken = memberService.genAccessToken(member)
 
             // 액세스 토큰을 쿠키와 헤더에 저장
             rq.setCookie("accessToken", actorAccessToken)
             rq.setHeader("Authorization", actorAccessToken)
         }
 
-        // 영구 정지 회원 JWT 차단
-        if (member.status == MemberStatus.BANNED) {
-            throw ServiceException("403-4", "계정이 영구 정지되었습니다. 관리자에게 문의해주세요.")
-        }
-
-        // 탈퇴 회원 JWT 차단
-        if (member.status == MemberStatus.WITHDRAWN) {
-            throw ServiceException("403-5", "탈퇴한 계정입니다.")
+        when (member!!.status) {
+            // 영구 정지 회원 JWT 차단
+            MemberStatus.BANNED -> throw ServiceException("403-4", "계정이 영구 정지되었습니다. 관리자에게 문의해주세요.")
+            // 탈퇴 회원 JWT 차단
+            MemberStatus.WITHDRAWN -> throw ServiceException("403-5", "탈퇴한 계정입니다.")
+            else -> Unit
         }
 
         // Spring Security 인증 객체 생성 ⭐
@@ -168,15 +154,15 @@ class CustomAuthenticationFilter : OncePerRequestFilter() {
 
         val authentication: Authentication = UsernamePasswordAuthenticationToken(
             user,
-            user.getPassword(),
-            user.getAuthorities()
+            user.password,
+            user.authorities
         )
 
         // 인증 완료 처리
         // 이 시점 이후부터는 시큐리티가 이 요청을 인증된 사용자의 요청이다.
         SecurityContextHolder
             .getContext()
-            .setAuthentication(authentication)
+            .authentication = authentication
 
         // 다음 필터로 넘김
         filterChain.doFilter(request, response)
