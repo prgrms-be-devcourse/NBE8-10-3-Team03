@@ -22,7 +22,6 @@ class AuctionScheduler(
     fun processExpiredAuctions() {
         val now = LocalDateTime.now()
         val expiredAuctions = auctionRepository.findByStatusAndEndAtBefore(AuctionStatus.OPEN, now)
-
         if (expiredAuctions.isEmpty()) return
 
         log.info("만료된 경매 {}건 처리 시작", expiredAuctions.size)
@@ -31,10 +30,9 @@ class AuctionScheduler(
     }
 
     private fun processExpiredAuction(auction: Auction) {
-        val highestBid = bidRepository.findTopByAuctionIdOrderByPriceDesc(auction.id)
-
-        if (highestBid.isPresent) {
-            val winningBid = highestBid.get()
+        // 최고 입찰이 있으면 낙찰 완료, 없으면 유찰 종료로 상태를 전이한다.
+        val winningBid = bidRepository.findTopByAuctionIdOrderByPriceDesc(auction.id).orElse(null)
+        if (winningBid != null) {
             auction.completeWithWinner(winningBid.bidder.id)
 
             log.info(
@@ -47,7 +45,6 @@ class AuctionScheduler(
             auction.closeWithoutBid()
             log.info("경매 ID {} 입찰 없이 종료", auction.id)
         }
-
         auctionRepository.save(auction)
     }
 }
