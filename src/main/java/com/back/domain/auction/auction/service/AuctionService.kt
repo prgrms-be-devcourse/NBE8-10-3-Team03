@@ -21,7 +21,6 @@ import com.back.global.util.PageUtils
 import org.slf4j.LoggerFactory
 import org.springframework.cache.annotation.CacheEvict
 import org.springframework.cache.annotation.Cacheable
-import org.springframework.data.domain.Pageable
 import org.springframework.data.domain.Sort
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -42,11 +41,9 @@ class AuctionService(
         log.debug("경매 생성 시작 - 판매자 ID: {}, 물품명: {}, 시작가: {}원", sellerId, request.name, request.startPrice)
 
         auctionMemberPort.validateCanCreateAuction(sellerId)
-
         validateAuctionRequest(request)
 
         val seller = auctionMemberPort.getSellerOrThrow(sellerId)
-
         val category = categoryRepository.findById(request.categoryId!!)
             .orElseThrow { ServiceException("404-2", "존재하지 않는 카테고리입니다.") }
 
@@ -66,10 +63,9 @@ class AuctionService(
             .build()
 
         val savedAuction = auctionRepository.save(auction)
-
-        if (!request.images.isNullOrEmpty()) {
-            log.debug("경매 이미지 저장 시작 - 경매 ID: {}, 이미지 수: {}", savedAuction.id, request.images!!.size)
-            auctionImagePort.saveImages(savedAuction, request.images!!)
+        request.images?.takeIf { it.isNotEmpty() }?.let { images ->
+            log.debug("경매 이미지 저장 시작 - 경매 ID: {}, 이미지 수: {}", savedAuction.id, images.size)
+            auctionImagePort.saveImages(savedAuction, images)
         }
 
         log.info(
@@ -94,18 +90,8 @@ class AuctionService(
         categoryName: String?,
         status: String?
     ): RsData<AuctionPageResponse> {
-        val sort = createSort(sortBy)
-        val pageable: Pageable = PageUtils.createPageable(page, size, sort)
-
-        val auctionStatus = if (!status.isNullOrBlank()) {
-            try {
-                AuctionStatus.valueOf(status.uppercase())
-            } catch (e: IllegalArgumentException) {
-                throw ServiceException("400-1", "유효하지 않은 경매 상태입니다. (OPEN, CLOSED, COMPLETED, CANCELLED)")
-            }
-        } else {
-            null
-        }
+        val pageable = PageUtils.createPageable(page, size, createSort(sortBy))
+        val auctionStatus = parseAuctionStatus(status)
 
         val auctionPage = when {
             !categoryName.isNullOrBlank() && auctionStatus != null ->
@@ -118,9 +104,7 @@ class AuctionService(
                 auctionRepository.findAll(pageable)
         }
 
-        val dtoPage = auctionPage.map { auction ->
-            AuctionListItemDto(auction, getThumbnailUrl(auction))
-        }
+        val dtoPage = auctionPage.map { auction -> AuctionListItemDto(auction, getThumbnailUrl(auction)) }
 
         return RsData("200-1", "경매 목록 조회 성공", AuctionPageResponse.from(dtoPage))
     }
@@ -131,19 +115,9 @@ class AuctionService(
         size: Int,
         sortBy: String?,
         status: String?
-    ): RsData<AuctionSliceResponse?>? {
-        val sort = createSort(sortBy)
-        val pageable: Pageable = PageUtils.createPageable(page, size, sort)
-
-        val auctionStatus = if (!status.isNullOrBlank()) {
-            try {
-                AuctionStatus.valueOf(status.uppercase())
-            } catch (e: IllegalArgumentException) {
-                throw ServiceException("400-1", "유효하지 않은 경매 상태입니다. (OPEN, CLOSED, COMPLETED, CANCELLED)")
-            }
-        } else {
-            null
-        }
+    ): RsData<AuctionSliceResponse?> {
+        val pageable = PageUtils.createPageable(page, size, createSort(sortBy))
+        val auctionStatus = parseAuctionStatus(status)
 
         val auctionSlice = if (auctionStatus != null) {
             auctionRepository.findBySellerIdAndStatus(userId, auctionStatus, pageable)
@@ -151,12 +125,20 @@ class AuctionService(
             auctionRepository.findBySellerId(userId, pageable)
         }
 
-        val dtoSlice = auctionSlice.map { auction ->
-            AuctionListItemDto(auction, getThumbnailUrl(auction))
-        }
+        val dtoSlice = auctionSlice.map { auction -> AuctionListItemDto(auction, getThumbnailUrl(auction)) }
 
         return RsData("200-1", "경매 목록 조회 성공", AuctionSliceResponse.from(dtoSlice))
     }
+
+    private fun parseAuctionStatus(status: String?): AuctionStatus? =
+        status
+            ?.takeIf { it.isNotBlank() }
+            ?.let {
+                runCatching { AuctionStatus.valueOf(it.uppercase()) }
+                    .getOrElse {
+                        throw ServiceException("400-1", "유효하지 않은 경매 상태입니다. (OPEN, CLOSED, COMPLETED, CANCELLED)")
+                    }
+            }
 
     private fun createSort(sortBy: String?): Sort {
         if (sortBy.isNullOrBlank()) return Sort.by(Sort.Direction.DESC, "createDate")
@@ -207,6 +189,7 @@ class AuctionService(
             request.endAt
         )
 
+        // 이미지를 명시적으로 전달한 경우에만 기존 이미지 교체 로직을 수행한다.
         if (!request.images.isNullOrEmpty()) {
             auctionImagePort.replaceImages(auction, request.keepImageUrls, request.images)
         }
@@ -217,6 +200,7 @@ class AuctionService(
     }
 
     private fun validateUpdateRequest(request: AuctionUpdateRequest, auction: Auction) {
+        // 종료 시각 변경은 현재 이후 + 시작 이후라는 두 조건을 모두 만족해야 한다.
         request.endAt?.let { endAt ->
             if (endAt.isBefore(LocalDateTime.now())) {
                 throw ServiceException("400-4", "종료 시간은 현재 시간 이후여야 합니다.")
@@ -263,6 +247,7 @@ class AuctionService(
             .orElseThrow { ServiceException("404-1", "존재하지 않는 경매입니다.") }
 
         val role = try {
+            // 도메인 엔티티에서 상태/권한 규칙을 판정하고, 서비스 계층에서는 HTTP 에러 코드로 매핑한다.
             auction.determineCancellerRole(memberId)
         } catch (e: IllegalStateException) {
             log.warn("거래 취소 실패 - 상태 오류: 경매 ID: {}, 사유: {}", auctionId, e.message)

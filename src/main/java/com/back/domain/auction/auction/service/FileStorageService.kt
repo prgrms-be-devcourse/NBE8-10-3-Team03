@@ -33,11 +33,12 @@ class FileStorageService(
 
         val dotIndex = originalFileName.lastIndexOf('.')
         val fileExtension = if (dotIndex > 0) originalFileName.substring(dotIndex) else ""
-        val storedFileName = UUID.randomUUID().toString() + fileExtension
+        val storedFileName = "${UUID.randomUUID()}$fileExtension"
 
         return try {
             val targetLocation = fileStorageLocation.resolve(storedFileName)
             Files.copy(file.inputStream, targetLocation, StandardCopyOption.REPLACE_EXISTING)
+            // 정적 리소스 매핑 경로(/uploads/**) 규약에 맞춘 URL을 반환한다.
             "/uploads/$storedFileName"
         } catch (_: IOException) {
             throw ServiceException("500-3", "파일 저장에 실패했습니다: $storedFileName")

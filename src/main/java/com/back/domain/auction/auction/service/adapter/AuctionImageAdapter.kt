@@ -24,14 +24,17 @@ class AuctionImageAdapter(
 
     override fun replaceImages(auction: Auction, keepImageUrls: List<String>?, newImageFiles: List<MultipartFile>?) {
         if (keepImageUrls.isNullOrEmpty()) {
+            // 유지 목록이 비어 있으면 기존 이미지를 모두 제거한다.
             auction.clearAuctionImages()
         } else {
+            // contains 반복 비용을 줄이기 위해 Set으로 변환한다.
+            val keepImageUrlSet = keepImageUrls.toSet()
             auction.auctionImages.removeIf { auctionImage ->
-                !keepImageUrls.contains(auctionImage.image.url)
+                auctionImage.image.url !in keepImageUrlSet
             }
         }
 
-        newImageFiles?.forEach { file ->
+        newImageFiles.orEmpty().forEach { file ->
             if (file.isEmpty) return@forEach
             persistAuctionImage(auction, file)
         }
