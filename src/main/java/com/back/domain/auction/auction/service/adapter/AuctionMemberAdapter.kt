@@ -13,7 +13,9 @@ class AuctionMemberAdapter(
     private val memberRepository: MemberRepository
 ) : AuctionMemberPort {
     override fun validateCanCreateAuction(sellerId: Int) {
-        if (memberService.findById(sellerId).get().status == MemberStatus.SUSPENDED) {
+        // 경매 등록 시점에는 계정 상태를 한 번 더 확인해 정지 회원의 우회를 막는다.
+        val seller = getSellerOrThrow(sellerId)
+        if (seller.status == MemberStatus.SUSPENDED) {
             throw ServiceException("403-3", "정지된 회원은 해당 기능을 사용할 수 없습니다.")
         }
     }
