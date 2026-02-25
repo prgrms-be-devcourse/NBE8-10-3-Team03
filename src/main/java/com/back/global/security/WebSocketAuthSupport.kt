@@ -2,14 +2,15 @@ package com.back.global.security
 
 import com.back.domain.member.member.enums.Role
 import com.back.global.exception.ServiceException
+import com.back.global.security.port.WsAuthenticationFactoryPort
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
 import org.springframework.security.core.Authentication
 import org.springframework.security.core.authority.SimpleGrantedAuthority
 import org.springframework.stereotype.Component
 
 @Component
-class WebSocketAuthSupport {
-    fun toAuthentication(payload: Map<String, Any>): Authentication {
+class WebSocketAuthSupport : WsAuthenticationFactoryPort {
+    override fun fromPayload(payload: Map<String, Any>): Authentication {
         val user = toSecurityUser(payload)
         return UsernamePasswordAuthenticationToken(user, null, user.authorities)
     }
