@@ -6,9 +6,10 @@ import com.back.domain.bid.bid.dto.response.BidListItemDto
 import com.back.domain.bid.bid.dto.response.BidPageResponse
 import com.back.domain.bid.bid.dto.response.BidResponse
 import com.back.domain.bid.bid.entity.Bid
-import com.back.domain.bid.bid.repository.BidRepository
 import com.back.domain.bid.bid.service.port.BidAuctionPort
 import com.back.domain.bid.bid.service.port.BidMemberPort
+import com.back.domain.bid.bid.service.port.BidPersistencePort
+import com.back.domain.bid.bid.service.port.BidUseCase
 import com.back.domain.member.member.entity.Member
 import com.back.global.exception.ServiceException
 import com.back.global.rsData.RsData
@@ -22,15 +23,15 @@ import org.springframework.transaction.annotation.Transactional
 @Service
 @Transactional(readOnly = true)
 class BidService(
-    private val bidRepository: BidRepository,
+    private val bidPersistencePort: BidPersistencePort,
     private val bidAuctionPort: BidAuctionPort,
     private val bidMemberPort: BidMemberPort
-) {
+) : BidUseCase {
     private val log = LoggerFactory.getLogger(javaClass)
 
     @Transactional
     @CacheEvict(value = ["auction"], key = "#auctionId")
-    fun createBid(auctionId: Int, request: BidCreateRequest, bidderId: Int): RsData<BidResponse> {
+    override fun createBid(auctionId: Int, request: BidCreateRequest, bidderId: Int): RsData<BidResponse> {
         val bidPrice = request.price ?: throw ServiceException("400-1", "입찰가는 필수입니다.")
         log.debug("입찰 시작 - 경매 캐시 삭제: auctionId: {}, 입찰자 ID: {}, 입찰가: {}원", auctionId, bidderId, bidPrice)
 
@@ -41,7 +42,7 @@ class BidService(
         log.debug("입찰 검증 시작 - 경매 ID: {}, 현재가: {}원", auctionId, auction.currentHighestBid)
         validateBid(auction, bidder, bidPrice)
 
-        val savedBid = bidRepository.save(Bid(auction, bidder, bidPrice))
+        val savedBid = bidPersistencePort.save(Bid(auction, bidder, bidPrice))
         auction.updateBid(bidPrice)
 
         val isBuyNow = if (auction.buyNowPrice != null && bidPrice == auction.buyNowPrice) {
@@ -126,7 +127,7 @@ class BidService(
             )
         }
 
-        val lastBid = bidRepository.findTopByAuctionIdOrderByPriceDesc(auction.id)
+        val lastBid = bidPersistencePort.findTopByAuctionIdOrderByPriceDesc(auction.id)
         if (lastBid.isPresent && lastBid.get().bidder.id == bidder.id) {
             log.warn("입찰 실패 - 연속 입찰 시도: 경매 ID: {}, 사용자: {}", auction.id, bidder.nickname)
             throw ServiceException("400-6", "이미 최고가 입찰자입니다. 다른 입찰자가 입찰할 때까지 기다려주세요.")
@@ -135,7 +136,7 @@ class BidService(
         log.debug("입찰 검증 완료 - 경매 ID: {}", auction.id)
     }
 
-    fun getBids(auctionId: Int, page: Int, size: Int): RsData<BidPageResponse> {
+    override fun getBids(auctionId: Int, page: Int, size: Int): RsData<BidPageResponse> {
         log.debug("입찰 내역 조회 - 경매 ID: {}, 페이지: {}, 크기: {}", auctionId, page, size)
 
         if (!bidAuctionPort.existsAuction(auctionId)) {
@@ -144,7 +145,7 @@ class BidService(
 
         val sort = Sort.by(Sort.Direction.DESC, "createdAt")
         val pageable = PageUtils.createPageable(page, size, sort)
-        val bidPage = bidRepository.findByAuctionId(auctionId, pageable)
+        val bidPage = bidPersistencePort.findByAuctionId(auctionId, pageable)
         val dtoPage = bidPage.map(::BidListItemDto)
         val response = BidPageResponse.from(dtoPage)
 
