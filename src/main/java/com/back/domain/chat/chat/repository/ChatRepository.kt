@@ -18,8 +18,6 @@ interface ChatRepository : JpaRepository<Chat, Int> {
     @Query(
         "SELECT c FROM Chat c " +
                 "JOIN FETCH c.chatRoom cr " +
-                "LEFT JOIN FETCH cr.post p " +
-                "LEFT JOIN FETCH cr.auction a " +
                 "WHERE c.id IN (" +
                 "SELECT MAX(c2.id) FROM Chat c2 " +
                 "WHERE c2.chatRoom.deleted = false " +
