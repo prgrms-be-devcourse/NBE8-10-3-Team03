@@ -780,7 +780,7 @@ class ChatControllerTest {
         val latestBuyer = memberRepository.findById(buyer.id).orElseThrow()
         val latestSeller = memberRepository.findById(seller.id).orElseThrow()
 
-        assertThat(chatRoomRepository.findByRoomIdAndDeletedFalse(roomId)).isEmpty()
+        assertThat(chatRoomRepository.findByRoomIdAndDeletedFalse(roomId)).isNull()
         assertThat(chatRepository.findAllLatestChatsByMember(latestBuyer.apiKey)).isEmpty()
         assertThat(chatRepository.findAllLatestChatsByMember(latestSeller.apiKey)).isEmpty()
     }
