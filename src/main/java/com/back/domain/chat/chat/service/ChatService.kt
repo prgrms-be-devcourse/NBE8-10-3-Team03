@@ -9,13 +9,13 @@ import com.back.domain.chat.chat.dto.response.ChatRoomListResponse
 import com.back.domain.chat.chat.entity.Chat
 import com.back.domain.chat.chat.entity.ChatRoom
 import com.back.domain.chat.chat.entity.ChatRoomType
-import com.back.domain.chat.chat.repository.ChatRepository
-import com.back.domain.chat.chat.repository.ChatRoomRepository
 import com.back.domain.chat.chat.service.port.ChatItemPort
 import com.back.domain.chat.chat.service.port.ChatMemberInfo
 import com.back.domain.chat.chat.service.port.ChatMemberPort
 import com.back.domain.chat.chat.service.port.ChatMediaPort
+import com.back.domain.chat.chat.service.port.ChatPersistencePort
 import com.back.domain.chat.chat.service.port.ChatPublishPort
+import com.back.domain.chat.chat.service.port.ChatUploadFile
 import com.back.global.exception.ServiceException
 import com.back.global.rq.Rq
 import com.back.global.rsData.RsData
@@ -28,8 +28,7 @@ import java.util.Locale
 @Service
 @Transactional(readOnly = true)
 class ChatService(
-    private val chatRepository: ChatRepository,
-    private val chatRoomRepository: ChatRoomRepository,
+    private val chatPersistencePort: ChatPersistencePort,
     private val chatItemPort: ChatItemPort,
     private val chatMemberPort: ChatMemberPort,
     private val chatMediaPort: ChatMediaPort,
@@ -46,9 +45,9 @@ class ChatService(
                 val item = chatItemPort.getPostItemOrThrow(itemId)
                 ensureNotSelfTrade(item.sellerApiKey, buyer.apiKey)
 
-                val existingRoom = chatRoomRepository.findByTxTypeAndItemIdAndBuyerApiKeyAndDeletedFalse(type, itemId, buyer.apiKey)
+                val existingRoom = chatPersistencePort.findExistingRoom(type, itemId, buyer.apiKey)
                 val isNew = existingRoom == null
-                val room = existingRoom ?: chatRoomRepository.save(
+                val room = existingRoom ?: chatPersistencePort.saveRoom(
                     ChatRoom.createForPost(
                         itemId = item.itemId,
                         itemName = item.itemName,
@@ -65,9 +64,9 @@ class ChatService(
                 val item = chatItemPort.getAuctionItemOrThrow(itemId)
                 ensureNotSelfTrade(item.sellerApiKey, buyer.apiKey)
 
-                val existingRoom = chatRoomRepository.findByTxTypeAndItemIdAndBuyerApiKeyAndDeletedFalse(type, itemId, buyer.apiKey)
+                val existingRoom = chatPersistencePort.findExistingRoom(type, itemId, buyer.apiKey)
                 val isNew = existingRoom == null
-                val room = existingRoom ?: chatRoomRepository.save(
+                val room = existingRoom ?: chatPersistencePort.saveRoom(
                     ChatRoom.createForAuction(
                         itemId = item.itemId,
                         itemName = item.itemName,
@@ -106,7 +105,7 @@ class ChatService(
         val sender = currentMemberFromDb()
         requireChatParticipant(room, sender.apiKey)
 
-        val chatMessage = chatRepository.save(
+        val chatMessage = chatPersistencePort.saveChat(
             Chat(
                 chatRoom = room,
                 senderId = sender.id,
@@ -115,8 +114,15 @@ class ChatService(
             ),
         )
 
-        chatMediaPort.saveChatImages(chatMessage, req.images.orEmpty())
-        chatRepository.save(chatMessage)
+        val uploadFiles = req.images.orEmpty().map {
+            ChatUploadFile(
+                filename = it.originalFilename,
+                contentType = it.contentType,
+                bytes = it.bytes,
+            )
+        }
+        chatMediaPort.saveChatImages(chatMessage, uploadFiles)
+        chatPersistencePort.saveChat(chatMessage)
 
         val chatResponse = ChatResponse.from(chatMessage, sender.profileImageUrl)
         runMessagingSafely(
@@ -148,7 +154,7 @@ class ChatService(
         val me = currentMemberFromDb()
         requireChatParticipant(room, me.apiKey)
 
-        val updatedCount = chatRepository.markMessagesAsRead(roomId, me.id)
+        val updatedCount = chatPersistencePort.markMessagesAsRead(roomId, me.id)
         if (updatedCount > 0) {
             val readNotification: Any = mapOf(
                 "readerId" to me.id,
@@ -161,11 +167,7 @@ class ChatService(
         val seller = chatMemberPort.findMemberByApiKey(room.sellerApiKey)
         val buyer = chatMemberPort.findMemberByApiKey(room.buyerApiKey)
 
-        val chats = if (lastChatId == null || lastChatId <= 0) {
-            chatRepository.findTop20ByChatRoom_RoomIdOrderByIdDesc(roomId)
-        } else {
-            chatRepository.findTop20ByChatRoom_RoomIdAndIdLessThanOrderByIdDesc(roomId, lastChatId)
-        }
+        val chats = chatPersistencePort.findRecentChats(roomId, lastChatId)
 
         val responses = chats.asReversed().map { chat ->
             val senderProfile = when (chat.senderId) {
@@ -183,7 +185,7 @@ class ChatService(
         val me = currentMemberFromDb()
         val myApiKey = me.apiKey
 
-        val latestChats = chatRepository.findAllLatestChatsByMember(myApiKey)
+        val latestChats = chatPersistencePort.findLatestChatsByMember(myApiKey)
         if (latestChats.isEmpty()) {
             return RsData("200-1", "채팅 목록 조회 성공", emptyList())
         }
@@ -197,7 +199,7 @@ class ChatService(
         val unreadCountMap = if (roomIds.isEmpty()) {
             emptyMap()
         } else {
-            chatRepository.countUnreadMessagesByRoomIds(roomIds, me.id)
+            chatPersistencePort.countUnreadMessagesByRoomIds(roomIds, me.id)
                 .associate { it.roomId to (it.count?.toInt() ?: 0) }
         }
         val opponentMap = chatMemberPort.findMembersByApiKeys(opponentApiKeys)
@@ -255,7 +257,7 @@ class ChatService(
             onSuccess = { log.info("개인 알림 전송 - Type: {}, Recipient: {}, RoomID: {}", type, recipient.id, room.roomId) },
             onFailure = { e -> log.error("개인 알림 전송 실패 - Recipient: {}, Error: {}", recipient.id, e.message) },
         ) {
-            val unreadCount = chatRepository
+            val unreadCount = chatPersistencePort
                 .countUnreadMessagesByRoomIds(listOf(room.roomId), recipient.id)
                 .firstOrNull()
                 ?.count
@@ -298,7 +300,7 @@ class ChatService(
     }
 
     private fun findActiveRoom(roomId: String): ChatRoom =
-        chatRoomRepository.findByRoomIdAndDeletedFalse(roomId)
+        chatPersistencePort.findActiveRoom(roomId)
             ?: throw ServiceException("404-1", "존재하지 않는 채팅방입니다.")
 
     private fun requireChatParticipant(room: ChatRoom, apiKey: String) {
@@ -330,4 +332,3 @@ class ChatService(
         private val log = LoggerFactory.getLogger(ChatService::class.java)
     }
 }
-

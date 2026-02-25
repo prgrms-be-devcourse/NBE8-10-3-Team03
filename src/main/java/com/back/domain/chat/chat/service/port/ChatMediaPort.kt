@@ -1,7 +1,6 @@
 package com.back.domain.chat.chat.service.port
 
 import com.back.domain.chat.chat.entity.Chat
-import org.springframework.web.multipart.MultipartFile
 
 /**
  * 채팅 메시지의 첨부 파일 저장을 담당하는 출력 포트.
@@ -9,5 +8,5 @@ import org.springframework.web.multipart.MultipartFile
  */
 interface ChatMediaPort {
     /** 메시지에 포함된 이미지 파일들을 저장하고 Chat 엔티티에 연결한다. */
-    fun saveChatImages(chat: Chat, files: List<MultipartFile>)
+    fun saveChatImages(chat: Chat, files: List<ChatUploadFile>)
 }

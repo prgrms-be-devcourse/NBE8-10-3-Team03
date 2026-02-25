@@ -1,6 +1,7 @@
 package com.back.global.security
 
-import com.back.domain.chat.chat.repository.ChatRoomRepository
+import com.back.domain.chat.chat.service.port.ChatMemberPort
+import com.back.domain.chat.chat.service.port.ChatRoomAccessPort
 import com.back.domain.member.member.service.MemberService
 import com.back.global.exception.ServiceException
 import org.slf4j.LoggerFactory
@@ -22,7 +23,8 @@ import org.springframework.util.AntPathMatcher
 @Component
 class StompHandler(
     private val memberService: MemberService,
-    private val chatRoomRepository: ChatRoomRepository,
+    private val chatRoomAccessPort: ChatRoomAccessPort,
+    private val chatMemberPort: ChatMemberPort,
     private val webSocketAuthSupport: WebSocketAuthSupport,
 ) : ChannelInterceptor {
     private val pathMatcher = AntPathMatcher()
@@ -102,11 +104,8 @@ class StompHandler(
             val roomId = extractRoomId(destination)
 
             // 채팅방 존재 여부 확인
-            val room = chatRoomRepository.findByRoomIdAndDeletedFalse(roomId)
-                ?: throw ServiceException("404-1", "존재하지 않는 채팅방입니다.")
-
-            val member = memberService.findById(user.id)
-                .orElseThrow { ServiceException("404-1", "존재하지 않는 회원입니다.") }
+            val room = chatRoomAccessPort.getActiveRoomOrThrow(roomId)
+            val member = chatMemberPort.getMemberOrThrow(user.id)
 
             // 인가 검사: 내가 이 방의 판매자인가? 혹은 구매자인가?
             val authorized = room.sellerApiKey == member.apiKey || room.buyerApiKey == member.apiKey
