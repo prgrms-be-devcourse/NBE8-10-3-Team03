@@ -7,7 +7,7 @@ import com.back.domain.auction.auction.service.AuctionService;
 import com.back.domain.bid.bid.dto.request.BidCreateRequest;
 import com.back.domain.bid.bid.service.BidService;
 import com.back.domain.category.category.entity.Category;
-import com.back.domain.category.category.repository.CategoryRepository;
+import com.back.domain.category.category.service.port.CategoryPort;
 import com.back.domain.member.member.entity.Member;
 import com.back.domain.member.member.enums.MemberStatus;
 import com.back.domain.member.member.enums.Role;
@@ -43,7 +43,7 @@ public class BaseInitData {
     @Lazy
     private BaseInitData self;
     private final MemberService memberService;
-    private final CategoryRepository categoryRepository;
+    private final CategoryPort categoryPort;
     private final AuctionRepository auctionRepository;
     private final ReputationRepository reputationRepository;
     private final ReviewRepository reviewRepository;
@@ -123,33 +123,34 @@ public class BaseInitData {
 
     @Transactional
     public void work2() {
-        if (categoryRepository.count() > 0) return;
+        // 초기 데이터도 포트를 통해 접근해 인프라 구현 의존을 도메인 경계 밖으로 제한한다.
+        if (categoryPort.count() > 0) return;
 
         // 디지털/전자
-        categoryRepository.save(new Category("디지털기기"));
-        categoryRepository.save(new Category("생활가전"));
+        categoryPort.save(new Category("디지털기기"));
+        categoryPort.save(new Category("생활가전"));
 
         // 가구/생활
-        categoryRepository.save(new Category("가구/인테리어"));
-        categoryRepository.save(new Category("생활/주방"));
+        categoryPort.save(new Category("가구/인테리어"));
+        categoryPort.save(new Category("생활/주방"));
 
         // 패션
-        categoryRepository.save(new Category("여성의류"));
-        categoryRepository.save(new Category("남성패션/잡화"));
+        categoryPort.save(new Category("여성의류"));
+        categoryPort.save(new Category("남성패션/잡화"));
 
         // 유아동
-        categoryRepository.save(new Category("유아동"));
+        categoryPort.save(new Category("유아동"));
 
         // 취미/레저
-        categoryRepository.save(new Category("스포츠/레저"));
-        categoryRepository.save(new Category("도서"));
-        categoryRepository.save(new Category("게임/취미"));
+        categoryPort.save(new Category("스포츠/레저"));
+        categoryPort.save(new Category("도서"));
+        categoryPort.save(new Category("게임/취미"));
 
         // 반려동물/식물
-        categoryRepository.save(new Category("반려동물용품"));
+        categoryPort.save(new Category("반려동물용품"));
 
         // 기타
-        categoryRepository.save(new Category("기타 중고물품"));
+        categoryPort.save(new Category("기타 중고물품"));
 
         log.info("테스트 카테고리 생성 완료 - 총 12개");
     }
@@ -159,7 +160,7 @@ public class BaseInitData {
         if (auctionRepository.count() > 0) return;
 
         List<Member> members = memberService.findAll();
-        List<Category> categories = categoryRepository.findAll();
+        List<Category> categories = categoryPort.findAll();
 
         if (members.size() < 5 || categories.isEmpty()) {
             log.warn("경매 생성 스킵 - 유저 수: {}, 카테고리 수: {}", members.size(), categories.size());
@@ -237,7 +238,7 @@ public class BaseInitData {
         if (postRepository.count() > 10) return;
 
         Member seller1 = memberService.findByUsername("user1").get();
-        Category category = categoryRepository.findAll().get(0);
+        Category category = categoryPort.findAll().get(0);
 
         for (int i = 1; i <= 3; i++) {
             Post post = new Post (

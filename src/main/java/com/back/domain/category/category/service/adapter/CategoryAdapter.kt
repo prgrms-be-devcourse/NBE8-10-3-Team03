@@ -1,12 +1,13 @@
-package com.back.domain.auction.auction.service.adapter
+package com.back.domain.category.category.service.adapter
 
-import com.back.domain.auction.auction.service.port.CategoryPort
 import com.back.domain.category.category.entity.Category
 import com.back.domain.category.category.repository.CategoryRepository
+import com.back.domain.category.category.service.port.CategoryPort
 import com.back.global.exception.ServiceException
 import org.springframework.stereotype.Component
 
-// 카테고리 조회 인프라를 포트로 감싸 서비스가 CategoryRepository를 직접 참조하지 않게 한다.
+// CategoryPort의 JPA 구현체.
+// 도메인/서비스 계층이 CategoryRepository를 직접 참조하지 않도록 의존 방향을 고정한다.
 @Component
 class CategoryAdapter(
     private val categoryRepository: CategoryRepository
@@ -14,4 +15,10 @@ class CategoryAdapter(
     override fun getByIdOrThrow(categoryId: Int): Category =
         categoryRepository.findById(categoryId)
             .orElseThrow { ServiceException("404-2", "존재하지 않는 카테고리입니다.") }
+
+    override fun count(): Long = categoryRepository.count()
+
+    override fun save(category: Category): Category = categoryRepository.save(category)
+
+    override fun findAll(): List<Category> = categoryRepository.findAll()
 }
