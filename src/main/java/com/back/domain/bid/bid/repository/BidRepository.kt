@@ -7,7 +7,6 @@ import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
 import org.springframework.stereotype.Repository
-import java.util.Optional
 
 @Repository
 interface BidRepository : JpaRepository<Bid, Int> {
@@ -18,7 +17,8 @@ interface BidRepository : JpaRepository<Bid, Int> {
         value = "SELECT * FROM bids b WHERE b.auction_id = :auctionId ORDER BY b.price DESC LIMIT 1",
         nativeQuery = true
     )
-    fun findTopByAuctionIdOrderByPriceDesc(@Param("auctionId") auctionId: Int): Optional<Bid>
+    // 최고 입찰이 아직 없으면 null 을 반환한다.
+    fun findTopByAuctionIdOrderByPriceDesc(@Param("auctionId") auctionId: Int): Bid?
 
     fun existsByAuctionIdAndBidderId(auctionId: Int, bidderId: Int): Boolean
 }
