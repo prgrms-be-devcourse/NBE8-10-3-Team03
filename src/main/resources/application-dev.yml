@@ -1,10 +1,11 @@
 spring:
   datasource:
-    # Docker Compose 환경: mysql 컨테이너 사용
-    # 로컬 환경: localhost:3306으로 접근
-    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3306/DevCourse?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Seoul&allowPublicKeyRetrieval=true}
-    username: ${SPRING_DATASOURCE_USERNAME:root}
-    password: ${SPRING_DATASOURCE_PASSWORD:lldj123414}
+    # OCI 원격 DB 연결 시 아래 env를 채우면 되고, 미설정 시 로컬 기본값으로 동작
+    # - DB_HOST, DB_PORT, DB_NAME, DB_USERNAME, DB_PASSWORD
+    # - DB_USE_SSL, DB_REQUIRE_SSL, DB_ALLOW_PUBLIC_KEY_RETRIEVAL
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:DevCourse}?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Seoul&allowPublicKeyRetrieval=${DB_ALLOW_PUBLIC_KEY_RETRIEVAL:true}&useSSL=${DB_USE_SSL:false}&requireSSL=${DB_REQUIRE_SSL:false}
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:lldj123414}
     driver-class-name: com.mysql.cj.jdbc.Driver
 
   jpa:
@@ -40,4 +41,3 @@ logging:
     com.back.global.initData: INFO
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
-
