@@ -15,18 +15,14 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.MySQLDialect
 
-  # Redis 설정 (운영 환경)
-  data:
-    redis:
-      host: localhost
-      port: 6379
-
-  # Cache 설정
+  # Cache 설정 (운영에서는 Redis 미사용)
   cache:
-    type: redis
+    type: simple
+
+management:
+  health:
     redis:
-      time-to-live: 600000  # 10분 (밀리초)
-      cache-null-values: false
+      enabled: false
 
 # 운영 환경 로그 설정
 logging:
