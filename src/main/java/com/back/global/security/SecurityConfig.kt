@@ -36,13 +36,13 @@ class SecurityConfig(
                 authorize(HttpMethod.GET, "/api/*/auctions/**", permitAll)
                 authorize(HttpMethod.GET, "/api/*/posts/**", permitAll)
                 authorize(HttpMethod.GET, "/api/*/search", permitAll)
+                authorize(HttpMethod.OPTIONS, "/api/**", permitAll)
                 authorize("/api/*/auctions/**", authenticated)
                 authorize("/api/*/**", authenticated)
                 authorize("/ws/**", permitAll)
                 authorize(HttpMethod.POST, "/api/chat/send", authenticated)
                 authorize(HttpMethod.POST, "/api/chat/room", authenticated)
                 authorize("/api/chat/list", authenticated)
-                authorize("/api/**", permitAll)
                 authorize(anyRequest, permitAll)
             }
 
