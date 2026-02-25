@@ -1,0 +1,20 @@
+services:
+  mysql:
+    cpus: "1.50"
+    mem_limit: 3G
+    memswap_limit: 3G
+
+  prometheus:
+    cpus: "0.75"
+    mem_limit: 1536M
+    memswap_limit: 1536M
+
+  grafana:
+    cpus: "0.50"
+    mem_limit: 1G
+    memswap_limit: 1G
+
+  k6:
+    cpus: "1.00"
+    mem_limit: 1G
+    memswap_limit: 1G

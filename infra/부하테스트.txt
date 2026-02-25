@@ -1,0 +1,255 @@
+# application-dev.yml 수정 (260126. develop 브랜치 기준)
+```
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:23306/appdb?useSSL=false&serverTimezone=Asia/Seoul&allowPublicKeyRetrieval=true
+    username: app
+    password: apppw
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        database-platform: org.hibernate.dialect.MySQLDialect
+```
+# 부하 테스트 세부 환경 설정
+- 저렴한 환경 부하 테스트 : 문제 탐지(Probe)
+- 운영 환경 부하 테스트 : 수치 확정, 운영 유사(Prodlike)
+
+# 컨테이너별 자원 제한
+
+## Probe(문제 탐지용) 자원 제한
+- mysql: cpus: 0.50, memory: 768M (스왑 0)
+- prometheus: cpus: 0.25, memory: 512M
+- grafana: cpus: 0.25, memory: 512M
+- k6: cpus: 0.50, memory: 512M
+- Probe 총합(대략): CPU 1.5 / RAM 2.3GB
+
+## Prodlike(운영 유사) 자원 제한
+- mysql: cpus: 1.50, memory: 3G
+- prometheus: cpus: 0.75, memory: 1.5G
+- grafana: cpus: 0.50, memory: 1G
+- k6: cpus: 1.00, memory: 1G
+- Prodlike 총합(대략): CPU 3.75 / RAM 6.5GB
+
+
+# 잡을 수 없는 운영 환경
+- 네트워크 레이턴시
+- 디스크 성능
+- NUMA
+- 실제 트래픽 패턴
+
+# 1. make 명령어 사용, 2. 셸 명령어 사용
+## 1. make 명령어 확인
+```
+#infra 폴더 이동 ex) C:\Users\qkrqh\IdeaProjects\NBE8-10-2-Team03\infra
+cd infra
+
+#make 명령어 확인
+make
+
+#타이핑 시 출력
+Usage:
+  make up            # 기본 실행 (자원 제한 없음)
+  make k6            # 기본 k6 실행
+
+  make probe-up      # probe(문제 탐지) 실행
+  make probe-k6      # probe k6 실행
+
+  make prodlike-up   # prodlike(운영 유사) 실행
+  make prodlike-k6   # prodlike k6 실행
+
+  make down          # 컨테이너 종료
+  make inspect       # mysql 자원 제한(raw) 확인
+  make limits        # 전체 컨테이너 CPU/MEM 제한 확인
+
+```
+## 2. spring project terminal 시작 기준 셸 명령어
+```
+#infra 폴더 이동 ex) C:\Users\qkrqh\IdeaProjects\NBE8-10-2-Team03\infra
+cd infra
+```
+```
+#자원 제한 없이 실행
+
+#mysql, prometheus, grafana 실행 (최초 1회, 서버 재시작 시)
+docker compose up -d mysql prometheus grafana
+
+#k6 script 실행 (필요할 때 실행, 부하 테스트 돌리고 싶을 때 마다)
+docker compose --profile k6 run --rm k6
+```
+
+```
+# probe(문제 탐지) 실행
+
+#mysql, prometheus, grafana 실행 (최초 1회, 서버 재시작 시)
+docker compose -f docker-compose.yml -f docker-compose.probe.yml up -d mysql prometheus grafana
+
+#k6 script 실행 (필요할 때 실행, 부하 테스트 돌리고 싶을 때 마다)
+docker compose -f docker-compose.yml -f docker-compose.probe.yml --profile k6 run --rm k6
+```
+
+```
+# prodlike(운영 유사) 실행
+
+#mysql, prometheus, grafana 실행 (최초 1회, 서버 재시작 시)
+docker compose -f docker-compose.yml -f docker-compose.prodlike.yml up -d mysql prometheus grafana
+
+#k6 script 실행 (필요할 때 실행, 부하 테스트 돌리고 싶을 때 마다)
+docker compose -f docker-compose.yml -f docker-compose.prodlike.yml --profile k6 run --rm k6
+```
+
+```
+#켜진 컨테이너 끄기
+docker compose down
+```
+
+```
+#자원 제한 적용 확인
+docker inspect mysql --format '{{json .HostConfig.NanoCpus}} {{json .HostConfig.Memory}}'
+```
+
+# k6 컨테이너로 토큰 50~200개 생성
+python3 k6/gen_tokens.py \
+  --base-url http://host.docker.internal:8080 \
+  --count 100 \
+  --out k6/tokens.txt
+
+# 공통 규칙(모든 시나리오에 적용)
+## 인증
+- 기본 : Authorization: Bearer {apiKey} {accessToken}
+- 토큰 공급 : k6/data/tokens.txt (한 줄에 apiKey accessToken)
+
+## 판정 PASS/FAIL
+각 시나리오는 느낌이 아니고, 불변조건/수치로 FAIL 출력
+- 정합성 : ex) currentHighestBid == MAX(bids)
+- 안정성 : 오류율(5xx) 증가
+- 성능 : p95/p99 임계치 초과
+- DB : lock wait, slow query 증가
+
+# 테스트 데이터 생성
+## 토큰 생성
+- gen_tokens.py : 회원가입 + 로그인 - 쿠키(apiKey,accessToken) 추출 - tokens.txt 저장
+
+# Google sre 표준 지표 + 추천 지표
+- Google sre 표준 지표 : Latency / Error / Traffic / Saturation
+## Latency - 지연시간
+- p95
+- p99
+
+k6 지표
+- k6_http_req_duration_bucket
+
+grafana 쿼리
+```
+histogram_quantile(
+  0.95,
+  sum(rate(k6_http_req_duration_bucket[1m])) by (le)
+)
+```
+```
+histogram_quantile(
+  0.99,
+  sum(rate(k6_http_req_duration_bucket[1m])) by (le)
+)
+```
+해석 기준
+- p95 < 500ms : ok
+- p99 > 1s : 병목 존재
+- p99 급등 : 락, 커넥션 풀, GC 의심
+
+## Error - 실패율
+- 에러율 %
+- http status 분포
+
+k6 지표
+- k6_http_reqs
+- k6_http_req_failed
+
+grafana 쿼리
+```
+sum(rate(k6_http_req_failed[1m]))
+/
+sum(rate(k6_http_reqs[1m]))
+```
+
+해석 기준
+- 에러율 > 1% - 사용자 불만 존재
+- 에러율, p95 급등이 동시 발생 - 서버 한계 초과
+
+## Traffic - 트래픽
+- RPS. request per second
+- VUS
+
+k6 지표
+- k6_http_reqs
+- k6_vus
+- k6_vus_max
+
+grafana 쿼리 (rps)
+```
+sum(rate(k6_http_reqs[1m]))
+```
+
+해석 기준
+- rps 원인
+- p95/p99 결과
+- rps 증가 - p95 증가 - 에러 증가
+
+## saturation - 포화 상태
+k6가 아니고, 서버/DB 메트릭.
+### cpu
+- process_cpu_usage
+- container_cpu_usage_seconds_total
+
+해석 기준
+- cpu 80% 이상 지속 - scale 필요
+
+### memory/gc
+JVM
+- jvm_memory_used_bytes
+- jvm_gc_pause_seconds_sum
+MySQL
+- mysql_global_status_buffer_pool_pages_free
+
+해석 기준
+- p95 증가 - gc pause 증가 - 메모리 압박
+
+### db connection
+- hikaricp_connections_active
+- hikaricp_connections_pending
+
+해석 기준
+- pending > 0 : 병목
+- 이 상태에서 p99 튀면 DB 문제
+
+## k6 자체 지표
+- http_req_waiting (TTFB)
+- http_req_sending
+- http_req_receiving
+
+해석 기준
+- waiting만 길 때 - 서버/db
+- sending/receiving 길 때 - 네트워크/응답 크기
+
+## 추천 대시보드 세트
+1. RPS
+2. VUs
+3. p95 latency
+4. p99 latency
+5. error rate
+6. CPU usage
+7. DB connection active/pending
+8. GC pause (또는 memory usage)
+
+## 정리
+결과 지표
+- p95
+- p99
+원인 지표
+- rps
+- 에러율
+- cpu
+- db connection

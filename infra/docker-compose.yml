@@ -1,0 +1,80 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: mysql
+    command: ["--default-authentication-plugin=mysql_native_password"]
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpw
+      MYSQL_DATABASE: appdb
+      MYSQL_USER: app
+      MYSQL_PASSWORD: apppw
+      TZ: Asia/Seoul
+    ports:
+      - "${MYSQL_PORT}:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks: [perf]
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=15d"
+      - "--web.enable-remote-write-receiver"
+      - "--enable-feature=native-histograms"
+    ports:
+      - "${PROMETHEUS_PORT}:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prom_data:/prometheus
+    networks: [perf]
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      TZ: Asia/Seoul
+    ports:
+      - "${GRAFANA_PORT}:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./grafana/dashboards:/etc/grafana/dashboards
+    depends_on:
+      - prometheus
+    networks: [perf]
+
+  # k6는 상시 서비스가 아니라 "필요할 때만 실행" (profile로 제외)
+  k6:
+    image: grafana/k6:latest
+    container_name: k6
+    profiles: ["k6"]
+    working_dir: /scripts
+    volumes:
+      - ./k6/scripts:/scripts:ro
+    environment:
+      K6_OUT: experimental-prometheus-rw
+      K6_PROMETHEUS_RW_SERVER_URL: http://prometheus:9090/api/v1/write
+      K6_PROMETHEUS_RW_TREND_AS_NATIVE_HISTOGRAM: "true"
+    depends_on:
+      - prometheus
+    networks: [perf]
+    command: ["run", "/scripts/test.js"]
+
+networks:
+  perf:
+
+volumes:
+  mysql_data:
+  prom_data:
+  grafana_data:

@@ -1,0 +1,254 @@
+{
+  "uid": "k6-standard",
+  "title": "k6 + Prometheus Standard Dashboard",
+  "tags": ["k6", "prometheus", "sre", "standard"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 4,
+  "refresh": "5s",
+  "time": { "from": "now-15m", "to": "now" },
+  "templating": {
+    "list": [
+      {
+        "type": "query",
+        "name": "url",
+        "label": "url",
+        "hide": 0,
+        "datasource": { "type": "prometheus", "uid": "prom" },
+        "refresh": 2,
+        "query": {
+          "query": "label_values(k6_http_reqs_total, url)",
+          "refId": "var-url"
+        },
+        "includeAll": true,
+        "allValue": ".*",
+        "multi": true,
+        "options": [],
+        "current": { "selected": false, "text": "All", "value": "$__all" }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "type": "row",
+      "title": "ROW 1 — Latency (핵심 결과)",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "p95 Latency",
+      "datasource": { "type": "prometheus", "uid": "prom" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 1 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.95, sum(rate(k6_http_req_duration_seconds{url=~\"$url\"}[1m]))) or histogram_quantile(0.95, sum(rate(k6_http_req_duration_seconds[1m])))",
+          "legendFormat": "p95"
+        }
+      ],
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "options": {}
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "p99 Latency",
+      "datasource": { "type": "prometheus", "uid": "prom" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 1 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.99, sum(rate(k6_http_req_duration_seconds{url=~\"$url\"}[1m]))) or histogram_quantile(0.99, sum(rate(k6_http_req_duration_seconds[1m])))",
+          "legendFormat": "p99"
+        }
+      ],
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "options": {}
+    },
+
+    {
+      "type": "row",
+      "title": "ROW 2 — Errors (결과 보조)",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 9 },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Error Rate",
+      "datasource": { "type": "prometheus", "uid": "prom" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 10 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(k6_http_req_failed_rate{url=~\"$url\"}[1m])) or sum(rate(k6_http_req_failed_rate[1m]))",
+          "legendFormat": "error_rate"
+        }
+      ],
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "options": {}
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "HTTP Status (optional)",
+      "datasource": { "type": "prometheus", "uid": "prom" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 10 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(k6_http_reqs_total{url=~\"$url\"}[1m])) by (status) or sum(rate(k6_http_reqs_total[1m])) by (status)",
+          "legendFormat": "{{status}}"
+        }
+      ],
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "options": {}
+    },
+
+    {
+      "type": "row",
+      "title": "ROW 3 — Traffic (원인 1)",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 18 },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "RPS (Requests per Second)",
+      "datasource": { "type": "prometheus", "uid": "prom" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 19 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(k6_http_reqs_total{url=~\"$url\"}[1m])) or sum(rate(k6_http_reqs_total[1m]))",
+          "legendFormat": "rps"
+        }
+      ],
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "options": {}
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Active VUs",
+      "datasource": { "type": "prometheus", "uid": "prom" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 19 },
+      "targets": [
+        { "refId": "A", "expr": "k6_vus", "legendFormat": "vus" }
+      ],
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "options": {}
+    },
+
+    {
+      "type": "row",
+      "title": "ROW 4 — Server Saturation (원인 2)",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 27 },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "CPU Usage (cores)",
+      "datasource": { "type": "prometheus", "uid": "prom" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 28 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "process_cpu_usage{job=\"spring\"}",
+          "legendFormat": "cpu_cores"
+        }
+      ],
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "options": {}
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "GC Pause (avg ms)",
+      "datasource": { "type": "prometheus", "uid": "prom" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 28 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "1000 * rate(jvm_gc_pause_seconds_sum{job=\"spring\"}[1m]) / rate(jvm_gc_pause_seconds_count{job=\"spring\"}[1m])",
+          "legendFormat": "gc_pause_avg_ms"
+        }
+      ],
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "options": {}
+    },
+
+    {
+      "type": "row",
+      "title": "ROW 5 — DB 병목 (원인 3)",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 36 },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "id": 9,
+      "type": "timeseries",
+      "title": "DB Connections Active",
+      "datasource": { "type": "prometheus", "uid": "prom" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 37 },
+      "targets": [
+        { "refId": "A", "expr": "hikaricp_connections_active", "legendFormat": "active" }
+      ],
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "options": {}
+    },
+    {
+      "id": 10,
+      "type": "timeseries",
+      "title": "DB Connections Pending",
+      "datasource": { "type": "prometheus", "uid": "prom" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 37 },
+      "targets": [
+        { "refId": "A", "expr": "hikaricp_connections_pending", "legendFormat": "pending" }
+      ],
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "options": {}
+    },
+
+    {
+      "type": "row",
+      "title": "ROW 6 — Request Breakdown (병목 위치 확인)",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 45 },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "id": 11,
+      "type": "timeseries",
+      "title": "Waiting / Sending / Receiving (p95)",
+      "datasource": { "type": "prometheus", "uid": "prom" },
+      "gridPos": { "h": 9, "w": 24, "x": 0, "y": 46 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.95, sum(rate(k6_http_req_waiting_seconds{url=~\"$url\"}[1m]))) or histogram_quantile(0.95, sum(rate(k6_http_req_waiting_seconds[1m])))",
+          "legendFormat": "waiting_p95"
+        },
+        {
+          "refId": "B",
+          "expr": "histogram_quantile(0.95, sum(rate(k6_http_req_sending_seconds{url=~\"$url\"}[1m]))) or histogram_quantile(0.95, sum(rate(k6_http_req_sending_seconds[1m])))",
+          "legendFormat": "sending_p95"
+        },
+        {
+          "refId": "C",
+          "expr": "histogram_quantile(0.95, sum(rate(k6_http_req_receiving_seconds{url=~\"$url\"}[1m]))) or histogram_quantile(0.95, sum(rate(k6_http_req_receiving_seconds[1m])))",
+          "legendFormat": "receiving_p95"
+        }
+      ],
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "options": {}
+    }
+  ]
+}
