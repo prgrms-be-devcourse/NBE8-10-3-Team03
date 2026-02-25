@@ -10,14 +10,14 @@ import org.springframework.stereotype.Component
 class BidReadAdapter(
     private val bidRepository: BidRepository
 ) : BidReadPort {
+    // 경매에 입찰이 없으면 null 을 유지해 경매 도메인에서 "미입찰" 상태를 구분한다.
     override fun findHighestBidByAuctionId(auctionId: Int): HighestBidInfo? =
         bidRepository.findTopByAuctionIdOrderByPriceDesc(auctionId)
-            .map { bid ->
+            ?.let { bid ->
                 HighestBidInfo(
                     bidderId = bid.bidder.id,
                     bidderNickname = bid.bidder.nickname,
                     price = bid.price
                 )
             }
-            .orElse(null)
 }
