@@ -59,6 +59,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Check required secrets
+        run: |
+          [ -n "${{ secrets.OCI_HOST }}" ] || (echo "OCI_HOST empty" && exit 1)
+          [ -n "${{ secrets.OCI_USER }}" ] || (echo "OCI_USER empty" && exit 1)
+          [ -n "${{ secrets.OCI_SSH_KEY }}" ] || (echo "OCI_SSH_KEY empty" && exit 1)
+
       - name: Upload deploy compose file
         uses: appleboy/scp-action@v0.1.7
         with:
