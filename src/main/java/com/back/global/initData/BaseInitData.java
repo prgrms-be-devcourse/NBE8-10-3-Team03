@@ -61,8 +61,6 @@ public class BaseInitData {
             self.work1();
             self.work2();
             self.work3();
-            self.work4();
-            self.work5();
         };
     }
 
@@ -70,55 +68,21 @@ public class BaseInitData {
     public void work1() {
         if (memberService.count() > 0) return;
 
-        // 시스템 계정
-        Member memberSystem = new Member ("system", passwordEncoder.encode("1234"), "시스템", Role.ADMIN,null);
-        if (AppConfig.isNotProd()) memberSystem.modifyApiKey(memberSystem.getUsername());
-        memberRepository.save(memberSystem);
-        reputationRepository.save(new Reputation(memberSystem, 50.0));
-
-        // 관리자 계정
-        Member memberAdmin = new Member("admin", passwordEncoder.encode("1234"), "관리자", Role.ADMIN,null);
-        if (AppConfig.isNotProd()) memberAdmin.modifyApiKey(memberAdmin.getUsername());
-        memberRepository.save(memberAdmin);
-        reputationRepository.save(new Reputation(memberAdmin, 50.0));
-
-        //  서비스 시연용: 일반 유저 5명 생성
-        log.info(" 서비스 시연 - 일반 유저 생성 시작: 5명");
-
-        for (int i = 1; i <= 5; i++) {
+        // 원격 DB 연결 검증용 최소 회원 시드 (3명)
+        log.info("서비스 시연 - 일반 유저 생성 시작: 3명");
+        for (int i = 1; i <= 3; i++) {
             String username = "user" + i;
-            String nickname = "유저" + i;
+            String nickname = "테스트유저" + i;
 
             Member member = new Member(username, passwordEncoder.encode("1234"), nickname, Role.USER, null);
             if (AppConfig.isNotProd()) member.modifyApiKey(member.getUsername());
             memberRepository.save(member);
-
-            // 신용도 랜덤 설정 (40.0 ~ 100.0)
-            double reputationScore = 40.0 + (Math.random() * 60.0);
-            reputationRepository.save(new Reputation(member, reputationScore));
+            reputationRepository.save(new Reputation(member, 50.0 + i));
         }
 
         entityManager.flush();
         entityManager.clear();
-        log.info("서비스 시연 - 일반 유저 생성 완료: 총 5명");
-
-        // 정지 회원 (user6)
-        Member memberSuspended = new Member("user6", passwordEncoder.encode("1234"), "정지유저", Role.USER, null);
-        if (AppConfig.isNotProd()) memberSuspended.modifyApiKey(memberSuspended.getUsername());
-        memberSuspended.setStatus(MemberStatus.SUSPENDED);
-        memberSuspended.setSuspendAt(LocalDateTime.now().minusDays(3));
-        memberRepository.save(memberSuspended);
-        reputationRepository.save(new Reputation(memberSuspended, 50.0));
-
-        // 영구 정지 회원 (user7)
-        Member memberBanned = new Member("user7", passwordEncoder.encode("1234"), "영구정지유저", Role.USER, null);
-        if (AppConfig.isNotProd()) memberBanned.modifyApiKey(memberBanned.getUsername());
-        memberBanned.setStatus(MemberStatus.BANNED);
-        memberBanned.setDeleteAt(LocalDateTime.now().minusDays(3));
-        memberRepository.save(memberBanned);
-        reputationRepository.save(new Reputation(memberBanned, 50.0));
-
-        log.info(" 서비스 시연 - 전체 회원 생성 완료: 총 9명 (일반 5명 + 시스템 2명 + 특수 2명)");
+        log.info("서비스 시연 - 전체 회원 생성 완료: 총 3명");
     }
 
     @Transactional
@@ -126,33 +90,12 @@ public class BaseInitData {
         // 초기 데이터도 포트를 통해 접근해 인프라 구현 의존을 도메인 경계 밖으로 제한한다.
         if (categoryPort.count() > 0) return;
 
-        // 디지털/전자
+        // 최소 카테고리 시드
         categoryPort.save(new Category("디지털기기"));
-        categoryPort.save(new Category("생활가전"));
-
-        // 가구/생활
         categoryPort.save(new Category("가구/인테리어"));
-        categoryPort.save(new Category("생활/주방"));
-
-        // 패션
-        categoryPort.save(new Category("여성의류"));
-        categoryPort.save(new Category("남성패션/잡화"));
-
-        // 유아동
-        categoryPort.save(new Category("유아동"));
-
-        // 취미/레저
-        categoryPort.save(new Category("스포츠/레저"));
-        categoryPort.save(new Category("도서"));
-        categoryPort.save(new Category("게임/취미"));
-
-        // 반려동물/식물
-        categoryPort.save(new Category("반려동물용품"));
-
-        // 기타
         categoryPort.save(new Category("기타 중고물품"));
 
-        log.info("테스트 카테고리 생성 완료 - 총 12개");
+        log.info("테스트 카테고리 생성 완료 - 총 3개");
     }
 
     @Transactional
@@ -162,36 +105,27 @@ public class BaseInitData {
         List<Member> members = memberService.findAll();
         List<Category> categories = categoryPort.findAll();
 
-        if (members.size() < 5 || categories.isEmpty()) {
+        if (members.size() < 3 || categories.isEmpty()) {
             log.warn("경매 생성 스킵 - 유저 수: {}, 카테고리 수: {}", members.size(), categories.size());
             return;
         }
 
-        //  서비스 시연용: seller 5명 사용
-        Member[] sellers = new Member[5];
-        for (int i = 0; i < 5; i++) {
+        // 서비스 시연용: seller 3명 사용
+        Member[] sellers = new Member[3];
+        for (int i = 0; i < 3; i++) {
             final int index = i + 1;
             sellers[i] = memberService.findByUsername("user" + index)
                     .orElseThrow(() -> new RuntimeException("user" + index + " not found"));
         }
 
-        // 경매 상품 타입 (실제 서비스와 유사하게)
-        String[] productTypes = {
-                "아이폰", "갤럭시", "노트북", "태블릿", "에어팟", "청소기", "TV", "냉장고",
-                "소파", "책상", "의자", "침대", "운동화", "패딩", "가방", "시계",
-                "텐트", "자전거", "카메라", "게임기", "도서", "악기", "모니터", "키보드",
-                "마우스", "헤드셋", "스피커", "선풍기", "에어컨", "공기청정기"
-        };
+        String[] productTypes = {"아이폰", "갤럭시", "노트북", "태블릿", "에어팟"};
 
-        int auctionCount = 100;
-        log.info(" 서비스 시연 - 경매 생성 시작: {}개 (seller 5명, 카테고리 균등 배분)", auctionCount);
+        int auctionCount = 5;
+        log.info("서비스 시연 - 경매 생성 시작: {}개 (seller 3명, 카테고리 순환 배분)", auctionCount);
 
         for (int i = 1; i <= auctionCount; i++) {
-            // seller를 순환하여 균등 배정 (5명)
-            Member seller = sellers[i % 5];
-
-            // 카테고리를 순환하여 균등 배정 (12개)
-            int categoryId = (i % 12) + 1;
+            Member seller = sellers[(i - 1) % 3];
+            int categoryId = ((i - 1) % categories.size()) + 1;
             String productType = productTypes[i % productTypes.length];
             Category category = categories.get(categoryId - 1);
 
@@ -214,7 +148,7 @@ public class BaseInitData {
 
         entityManager.flush();
         entityManager.clear();
-        log.info("서비스 시연 - 경매 생성 완료: 총 {}개 (seller 5명 균등 배정, 각 카테고리별 8~9개)", auctionCount);
+        log.info("서비스 시연 - 경매 생성 완료: 총 {}개", auctionCount);
     }
 
     @Transactional
