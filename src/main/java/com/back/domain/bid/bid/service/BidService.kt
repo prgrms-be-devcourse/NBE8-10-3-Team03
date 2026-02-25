@@ -80,14 +80,14 @@ class BidService(
     }
 
     private fun validateBid(auction: Auction, bidder: Member, bidPrice: Int) {
-        if (!auction.isActive()) {
-            log.warn("입찰 실패 - 경매 상태 오류: 경매 ID: {}, 상태: {}", auction.id, auction.status)
-            throw ServiceException("400-1", "진행 중인 경매가 아닙니다.")
-        }
-
         if (auction.isExpired()) {
             log.warn("입찰 실패 - 경매 종료: 경매 ID: {}, 종료 시간: {}", auction.id, auction.endAt)
             throw ServiceException("400-2", "종료된 경매입니다.")
+        }
+
+        if (!auction.isActive()) {
+            log.warn("입찰 실패 - 경매 상태 오류: 경매 ID: {}, 상태: {}", auction.id, auction.status)
+            throw ServiceException("400-1", "진행 중인 경매가 아닙니다.")
         }
 
         if (auction.isSeller(bidder.id)) {
