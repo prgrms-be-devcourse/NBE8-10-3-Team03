@@ -2,6 +2,7 @@ package com.back.global.config
 
 import com.back.global.security.HttpHandshakeInterceptor
 import com.back.global.security.StompHandler
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Configuration
 import org.springframework.messaging.simp.config.ChannelRegistration
 import org.springframework.messaging.simp.config.MessageBrokerRegistry
@@ -14,6 +15,8 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 class WebSocketConfig(
     private val stompHandler: StompHandler,
     private val httpHandshakeInterceptor: HttpHandshakeInterceptor,
+    @param:Value("\${custom.websocket.allowed-origin-patterns:http://localhost:3000,https://cdpn.io}")
+    private val allowedOriginPatterns: List<String>,
 ) : WebSocketMessageBrokerConfigurer {
 
     override fun configureMessageBroker(config: MessageBrokerRegistry) {
@@ -23,7 +26,7 @@ class WebSocketConfig(
 
     override fun registerStompEndpoints(registry: StompEndpointRegistry) {
         registry.addEndpoint("/ws")
-            .setAllowedOriginPatterns("*")
+            .setAllowedOriginPatterns(*allowedOriginPatterns.toTypedArray())
             .addInterceptors(httpHandshakeInterceptor)
             .withSockJS()
     }
