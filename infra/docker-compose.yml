@@ -1,25 +1,4 @@
 services:
-  mysql:
-    image: mysql:8.0
-    container_name: mysql
-    command: ["--default-authentication-plugin=mysql_native_password"]
-    environment:
-      MYSQL_ROOT_PASSWORD: rootpw
-      MYSQL_DATABASE: appdb
-      MYSQL_USER: app
-      MYSQL_PASSWORD: apppw
-      TZ: Asia/Seoul
-    ports:
-      - "${MYSQL_PORT}:3306"
-    volumes:
-      - mysql_data:/var/lib/mysql
-    healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
-      interval: 5s
-      timeout: 3s
-      retries: 20
-    networks: [perf]
-
   prometheus:
     image: prom/prometheus:latest
     container_name: prometheus
@@ -75,6 +54,5 @@ networks:
   perf:
 
 volumes:
-  mysql_data:
   prom_data:
   grafana_data:

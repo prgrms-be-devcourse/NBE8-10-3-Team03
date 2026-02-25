@@ -1,4 +1,4 @@
-.PHONY: help up k6 probe-up probe-k6 prodlike-up prodlike-k6 down inspect limits ps logs clean
+.PHONY: help up k6 probe-up probe-k6 prodlike-up prodlike-k6 down limits ps logs clean
 
 help:
 	@echo ""
@@ -13,7 +13,6 @@ help:
 	@echo "  make prodlike-k6   # prodlike k6 실행"
 	@echo ""
 	@echo "  make down          # 컨테이너 종료"
-	@echo "  make inspect       # mysql 자원 제한(raw) 확인"
 	@echo "  make limits        # 전체 컨테이너 CPU/MEM 제한 확인"
 	@echo ""
 
@@ -21,7 +20,7 @@ help:
 # 기본 (자원 제한 없음)
 # ----------------------------
 up:
-	docker compose up -d mysql prometheus grafana
+	docker compose up -d prometheus grafana
 
 k6:
 	docker compose --profile k6 run --rm k6
@@ -33,7 +32,7 @@ probe-up:
 	docker compose \
 		-f docker-compose.yml \
 		-f docker-compose.probe.yml \
-		up -d mysql prometheus grafana
+		up -d prometheus grafana
 
 probe-k6:
 	docker compose \
@@ -48,7 +47,7 @@ prodlike-up:
 	docker compose \
 		-f docker-compose.yml \
 		-f docker-compose.prodlike.yml \
-		up -d mysql prometheus grafana
+		up -d prometheus grafana
 
 prodlike-k6:
 	docker compose \
@@ -61,9 +60,6 @@ prodlike-k6:
 # ----------------------------
 down:
 	docker compose down
-
-inspect:
-	docker inspect mysql --format '{{json .HostConfig.NanoCpus}} {{json .HostConfig.Memory}}'
 
 limits:
 	docker ps --format '{{.Names}}' | while read name; do \
