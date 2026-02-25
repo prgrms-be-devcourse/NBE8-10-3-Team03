@@ -11,10 +11,11 @@ import com.back.domain.auction.auction.dto.response.AuctionSliceResponse
 import com.back.domain.auction.auction.dto.response.AuctionUpdateResponse
 import com.back.domain.auction.auction.entity.Auction
 import com.back.domain.auction.auction.entity.AuctionStatus
-import com.back.domain.auction.auction.repository.AuctionRepository
 import com.back.domain.auction.auction.service.port.AuctionImagePort
 import com.back.domain.auction.auction.service.port.AuctionMemberPort
-import com.back.domain.category.category.repository.CategoryRepository
+import com.back.domain.auction.auction.service.port.AuctionPersistencePort
+import com.back.domain.auction.auction.service.port.AuctionUseCase
+import com.back.domain.auction.auction.service.port.CategoryPort
 import com.back.global.exception.ServiceException
 import com.back.global.rsData.RsData
 import com.back.global.util.PageUtils
@@ -29,23 +30,22 @@ import java.time.LocalDateTime
 @Service
 @Transactional(readOnly = true)
 class AuctionService(
-    private val auctionRepository: AuctionRepository,
-    private val categoryRepository: CategoryRepository,
+    private val auctionPersistencePort: AuctionPersistencePort,
+    private val categoryPort: CategoryPort,
     private val auctionMemberPort: AuctionMemberPort,
     private val auctionImagePort: AuctionImagePort
-) {
+) : AuctionUseCase {
     private val log = LoggerFactory.getLogger(javaClass)
 
     @Transactional
-    fun createAuction(request: AuctionCreateRequest, sellerId: Int): RsData<AuctionIdResponse> {
+    override fun createAuction(request: AuctionCreateRequest, sellerId: Int): RsData<AuctionIdResponse> {
         log.debug("경매 생성 시작 - 판매자 ID: {}, 물품명: {}, 시작가: {}원", sellerId, request.name, request.startPrice)
 
         auctionMemberPort.validateCanCreateAuction(sellerId)
         validateAuctionRequest(request)
 
         val seller = auctionMemberPort.getSellerOrThrow(sellerId)
-        val category = categoryRepository.findById(request.categoryId!!)
-            .orElseThrow { ServiceException("404-2", "존재하지 않는 카테고리입니다.") }
+        val category = categoryPort.getByIdOrThrow(request.categoryId!!)
 
         val startAt = LocalDateTime.now()
         val endAt = startAt.plusHours(request.durationHours.toLong())
@@ -62,7 +62,7 @@ class AuctionService(
             .endAt(endAt)
             .build()
 
-        val savedAuction = auctionRepository.save(auction)
+        val savedAuction = auctionPersistencePort.save(auction)
         request.images?.takeIf { it.isNotEmpty() }?.let { images ->
             log.debug("경매 이미지 저장 시작 - 경매 ID: {}, 이미지 수: {}", savedAuction.id, images.size)
             auctionImagePort.saveImages(savedAuction, images)
@@ -83,7 +83,7 @@ class AuctionService(
         }
     }
 
-    fun getAuctions(
+    override fun getAuctions(
         page: Int,
         size: Int,
         sortBy: String?,
@@ -95,13 +95,13 @@ class AuctionService(
 
         val auctionPage = when {
             !categoryName.isNullOrBlank() && auctionStatus != null ->
-                auctionRepository.findByCategoryNameAndStatus(categoryName, auctionStatus, pageable)
+                auctionPersistencePort.findByCategoryNameAndStatus(categoryName, auctionStatus, pageable)
             !categoryName.isNullOrBlank() ->
-                auctionRepository.findByCategoryName(categoryName, pageable)
+                auctionPersistencePort.findByCategoryName(categoryName, pageable)
             auctionStatus != null ->
-                auctionRepository.findByStatus(auctionStatus, pageable)
+                auctionPersistencePort.findByStatus(auctionStatus, pageable)
             else ->
-                auctionRepository.findAll(pageable)
+                auctionPersistencePort.findAll(pageable)
         }
 
         val dtoPage = auctionPage.map { auction -> AuctionListItemDto(auction, getThumbnailUrl(auction)) }
@@ -109,7 +109,7 @@ class AuctionService(
         return RsData("200-1", "경매 목록 조회 성공", AuctionPageResponse.from(dtoPage))
     }
 
-    fun getAuctionsByUserId(
+    override fun getAuctionsByUserId(
         userId: Int,
         page: Int,
         size: Int,
@@ -120,9 +120,9 @@ class AuctionService(
         val auctionStatus = parseAuctionStatus(status)
 
         val auctionSlice = if (auctionStatus != null) {
-            auctionRepository.findBySellerIdAndStatus(userId, auctionStatus, pageable)
+            auctionPersistencePort.findBySellerIdAndStatus(userId, auctionStatus, pageable)
         } else {
-            auctionRepository.findBySellerId(userId, pageable)
+            auctionPersistencePort.findBySellerId(userId, pageable)
         }
 
         val dtoSlice = auctionSlice.map { auction -> AuctionListItemDto(auction, getThumbnailUrl(auction)) }
@@ -157,20 +157,20 @@ class AuctionService(
         auction.auctionImages.firstOrNull()?.image?.url
 
     @Cacheable(value = ["auction"], key = "#auctionId")
-    fun getAuctionDetailData(auctionId: Int): AuctionDetailResponse {
+    override fun getAuctionDetailData(auctionId: Int): AuctionDetailResponse {
         log.debug("[Cache Miss] DB에서 경매 조회 - auctionId: {}", auctionId)
-        val auction = auctionRepository.findWithDetailsById(auctionId)
-            .orElseThrow { ServiceException("404-1", "존재하지 않는 경매입니다.") }
+        val auction = auctionPersistencePort.findWithDetailsByIdOrNull(auctionId)
+            ?: throw ServiceException("404-1", "존재하지 않는 경매입니다.")
         return AuctionDetailResponse(auction)
     }
 
     @Transactional
     @CacheEvict(value = ["auction"], key = "#auctionId")
-    fun updateAuction(auctionId: Int, request: AuctionUpdateRequest, memberId: Int): RsData<AuctionUpdateResponse> {
+    override fun updateAuction(auctionId: Int, request: AuctionUpdateRequest, memberId: Int): RsData<AuctionUpdateResponse> {
         log.debug("경매 수정 시작 - 캐시 삭제: auctionId: {}", auctionId)
 
-        val auction = auctionRepository.findWithDetailsById(auctionId)
-            .orElseThrow { ServiceException("404-1", "존재하지 않는 경매입니다.") }
+        val auction = auctionPersistencePort.findWithDetailsByIdOrNull(auctionId)
+            ?: throw ServiceException("404-1", "존재하지 않는 경매입니다.")
 
         if (!auction.isSeller(memberId)) {
             throw ServiceException("403-1", "경매를 수정할 권한이 없습니다.")
@@ -194,7 +194,7 @@ class AuctionService(
             auctionImagePort.replaceImages(auction, request.keepImageUrls, request.images)
         }
 
-        auctionRepository.save(auction)
+        auctionPersistencePort.save(auction)
         val response = AuctionUpdateResponse(auction.id, "경매 물품이 수정되었습니다.")
         return RsData("200-1", "경매 물품이 수정되었습니다.", response)
     }
@@ -220,11 +220,11 @@ class AuctionService(
 
     @Transactional
     @CacheEvict(value = ["auction"], key = "#auctionId")
-    fun deleteAuction(auctionId: Int, memberId: Int): RsData<AuctionDeleteResponse> {
+    override fun deleteAuction(auctionId: Int, memberId: Int): RsData<AuctionDeleteResponse> {
         log.debug("경매 삭제 시작 - 캐시 삭제: auctionId: {}, 요청자 ID: {}", auctionId, memberId)
 
-        val auction = auctionRepository.findById(auctionId)
-            .orElseThrow { ServiceException("404-1", "존재하지 않는 경매입니다.") }
+        val auction = auctionPersistencePort.findByIdOrNull(auctionId)
+            ?: throw ServiceException("404-1", "존재하지 않는 경매입니다.")
 
         if (!auction.isSeller(memberId)) {
             log.warn("경매 삭제 실패 - 권한 없음: 경매 ID: {}, 요청자 ID: {}", auctionId, memberId)
@@ -232,7 +232,7 @@ class AuctionService(
         }
 
         auctionMemberPort.applyCancelPenalty(auctionId, memberId)
-        auctionRepository.delete(auction)
+        auctionPersistencePort.delete(auction)
 
         log.info("경매 삭제 완료 - 경매 ID: {}, 판매자 ID: {}, 입찰 수: {}", auctionId, memberId, auction.bidCount)
         val response = AuctionDeleteResponse("경매가 정상적으로 취소되었습니다.")
@@ -240,11 +240,11 @@ class AuctionService(
     }
 
     @Transactional
-    fun cancelTrade(auctionId: Int, memberId: Int): RsData<Void> {
+    override fun cancelTrade(auctionId: Int, memberId: Int): RsData<Void> {
         log.debug("거래 취소 시작 - 경매 ID: {}, 요청자 ID: {}", auctionId, memberId)
 
-        val auction = auctionRepository.findById(auctionId)
-            .orElseThrow { ServiceException("404-1", "존재하지 않는 경매입니다.") }
+        val auction = auctionPersistencePort.findByIdOrNull(auctionId)
+            ?: throw ServiceException("404-1", "존재하지 않는 경매입니다.")
 
         val role = try {
             // 도메인 엔티티에서 상태/권한 규칙을 판정하고, 서비스 계층에서는 HTTP 에러 코드로 매핑한다.
@@ -258,7 +258,7 @@ class AuctionService(
         }
 
         auction.cancelTrade(memberId, role)
-        auctionRepository.save(auction)
+        auctionPersistencePort.save(auction)
 
         log.info("거래 취소 완료 - 경매 ID: {}, 취소자 역할: {}, 취소자 ID: {}", auctionId, role, memberId)
         return RsData("200-1", "거래가 취소되었습니다.", null)

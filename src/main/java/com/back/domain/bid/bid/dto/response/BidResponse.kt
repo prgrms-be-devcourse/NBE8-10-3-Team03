@@ -3,7 +3,7 @@ package com.back.domain.bid.bid.dto.response
 import com.back.domain.bid.bid.entity.Bid
 import java.time.LocalDateTime
 
-class BidResponse(
+data class BidResponse(
     val bidId: Int,
     val auctionId: Int,
     val bidderId: Int,
@@ -14,20 +14,22 @@ class BidResponse(
     val createdAt: LocalDateTime,
     val isBuyNow: Boolean
 ) {
-    constructor(
-        bid: Bid,
-        currentHighestBid: Int,
-        bidCount: Int,
-        isBuyNow: Boolean
-    ) : this(
-        bidId = bid.id,
-        auctionId = bid.auction.id,
-        bidderId = bid.bidder.id,
-        bidderNickname = bid.bidder.nickname,
-        price = bid.price,
-        currentHighestBid = currentHighestBid,
-        bidCount = bidCount,
-        createdAt = bid.createdAt,
-        isBuyNow = isBuyNow
-    )
+    companion object {
+        fun from(
+            bid: Bid,
+            currentHighestBid: Int,
+            bidCount: Int,
+            isBuyNow: Boolean
+        ): BidResponse = BidResponse(
+            bidId = bid.id,
+            auctionId = bid.auction.id,
+            bidderId = bid.bidder.id,
+            bidderNickname = bid.bidder.nickname,
+            price = bid.price,
+            currentHighestBid = currentHighestBid,
+            bidCount = bidCount,
+            createdAt = bid.createdAt,
+            isBuyNow = isBuyNow
+        )
+    }
 }

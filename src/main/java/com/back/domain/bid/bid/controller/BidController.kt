@@ -3,7 +3,7 @@ package com.back.domain.bid.bid.controller
 import com.back.domain.bid.bid.dto.request.BidCreateRequest
 import com.back.domain.bid.bid.dto.response.BidPageResponse
 import com.back.domain.bid.bid.dto.response.BidResponse
-import com.back.domain.bid.bid.service.BidService
+import com.back.domain.bid.bid.service.port.BidUseCase
 import com.back.global.controller.BaseController
 import com.back.global.rq.Rq
 import com.back.global.rsData.RsData
@@ -46,7 +46,7 @@ import org.springframework.web.bind.annotation.RestController
 @RequestMapping("/api/v1/auctions/{auctionId}/bids")
 class BidController(
     rq: Rq,
-    private val bidService: BidService,
+    private val bidService: BidUseCase,
     private val messagingTemplate: SimpMessagingTemplate
 ) : BaseController(rq) {
     private val log = LoggerFactory.getLogger(javaClass)
