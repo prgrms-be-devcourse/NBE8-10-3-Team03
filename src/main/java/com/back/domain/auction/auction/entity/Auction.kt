@@ -112,13 +112,9 @@ class Auction protected constructor() : BaseEntity() {
         if (description != null) this.description = description
     }
 
-    fun removeAuctionImage(auctionImage: AuctionImage) {
-        auctionImages.remove(auctionImage)
-    }
+    fun removeAuctionImage(auctionImage: AuctionImage) = auctionImages.remove(auctionImage)
 
-    fun clearAuctionImages() {
-        auctionImages.clear()
-    }
+    fun clearAuctionImages() = auctionImages.clear()
 
     fun updateBid(newPrice: Int?) {
         currentHighestBid = newPrice
@@ -149,6 +145,7 @@ class Auction protected constructor() : BaseEntity() {
     }
 
     fun determineCancellerRole(memberId: Int?): CancellerRole {
+        // 거래 취소는 낙찰 완료(COMPLETED) 이후에만 허용한다.
         if (status != AuctionStatus.COMPLETED) {
             throw IllegalStateException("낙찰 완료된 경매만 취소할 수 있습니다.")
         }
@@ -159,10 +156,8 @@ class Auction protected constructor() : BaseEntity() {
         throw IllegalArgumentException("거래를 취소할 권한이 없습니다.")
     }
 
-    fun canCancelTrade(memberId: Int?): Boolean {
-        if (status != AuctionStatus.COMPLETED) return false
-        return seller.id == memberId || (winnerId != null && winnerId == memberId)
-    }
+    fun canCancelTrade(memberId: Int?): Boolean =
+        status == AuctionStatus.COMPLETED && (seller.id == memberId || winnerId == memberId)
 
     fun isExpired(): Boolean = LocalDateTime.now().isAfter(endAt)
 
