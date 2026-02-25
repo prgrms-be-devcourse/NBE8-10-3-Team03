@@ -2,8 +2,9 @@ package com.back.global.security
 
 import com.back.domain.chat.chat.service.port.ChatMemberPort
 import com.back.domain.chat.chat.service.port.ChatRoomAccessPort
-import com.back.domain.member.member.service.MemberService
 import com.back.global.exception.ServiceException
+import com.back.global.security.port.JwtPayloadDecoderPort
+import com.back.global.security.port.WsAuthenticationFactoryPort
 import org.slf4j.LoggerFactory
 import org.springframework.messaging.Message
 import org.springframework.messaging.MessageChannel
@@ -22,10 +23,10 @@ import org.springframework.util.AntPathMatcher
  */
 @Component
 class StompHandler(
-    private val memberService: MemberService,
+    private val jwtPayloadDecoderPort: JwtPayloadDecoderPort,
     private val chatRoomAccessPort: ChatRoomAccessPort,
     private val chatMemberPort: ChatMemberPort,
-    private val webSocketAuthSupport: WebSocketAuthSupport,
+    private val wsAuthenticationFactoryPort: WsAuthenticationFactoryPort,
 ) : ChannelInterceptor {
     private val pathMatcher = AntPathMatcher()
 
@@ -77,14 +78,14 @@ class StompHandler(
             ?: throw ServiceException("401-1", "인증 토큰이 필요합니다.")
 
         // JWT 토큰 파싱 및 유저 정보 추출
-        val payload = runCatching { memberService.payload(bearerToken) }
+        val payload = runCatching { jwtPayloadDecoderPort.decode(bearerToken) }
             .getOrElse {
                 log.error("STOMP Connect Auth Error: {}", it.message)
                 throw ServiceException("401-1", "유효하지 않은 토큰입니다.")
             } ?: throw ServiceException("401-1", "유효하지 않은 토큰입니다.")
 
         // 인증 객체 생성 및 세션에 저장
-        val auth = webSocketAuthSupport.toAuthentication(payload)
+        val auth = wsAuthenticationFactoryPort.fromPayload(payload)
         accessor.user = auth
         val user = auth.principal as SecurityUser
 

@@ -1,7 +1,6 @@
 package com.back.global.rq
 
 import com.back.domain.member.member.entity.Member
-import com.back.domain.member.member.service.MemberService
 import com.back.global.security.SecurityUser
 import jakarta.servlet.http.Cookie
 import jakarta.servlet.http.HttpServletRequest
@@ -13,24 +12,14 @@ import org.springframework.stereotype.Component
 class Rq(
     private val req: HttpServletRequest,
     private val resp: HttpServletResponse,
-    private val memberService: MemberService,
 ) {
     val actor: Member
-        get() = SecurityContextHolder
+        get() = (SecurityContextHolder
             .getContext()
             .authentication
-            ?.principal
-            ?.let {
-                if (it is SecurityUser) {
-                    Member(it.id, it.username, it.nickname)
-                } else {
-                    null
-                }
-            }
+            ?.principal as? SecurityUser)
+            ?.let { Member(it.id, it.username, it.nickname) }
             ?: throw IllegalStateException("인증된 사용자가 없습니다.")
-
-    val actorFromDb: Member
-        get() = memberService.findById(actor.id).get()
 
     fun getHeader(name: String, defaultValue: String): String {
         return req.getHeader(name) ?: defaultValue
