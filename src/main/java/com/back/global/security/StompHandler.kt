@@ -1,8 +1,8 @@
 package com.back.global.security
 
 import com.back.domain.chat.chat.repository.ChatRoomRepository
-import com.back.domain.member.member.enums.Role
 import com.back.domain.member.member.service.MemberService
+import com.back.global.exception.ServiceException
 import org.slf4j.LoggerFactory
 import org.springframework.messaging.Message
 import org.springframework.messaging.MessageChannel
@@ -10,9 +10,7 @@ import org.springframework.messaging.simp.stomp.StompCommand
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor
 import org.springframework.messaging.support.ChannelInterceptor
 import org.springframework.messaging.support.MessageHeaderAccessor
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
 import org.springframework.security.core.Authentication
-import org.springframework.security.core.authority.SimpleGrantedAuthority
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.stereotype.Component
 import org.springframework.util.AntPathMatcher
@@ -25,6 +23,7 @@ import org.springframework.util.AntPathMatcher
 class StompHandler(
     private val memberService: MemberService,
     private val chatRoomRepository: ChatRoomRepository,
+    private val webSocketAuthSupport: WebSocketAuthSupport,
 ) : ChannelInterceptor {
     private val pathMatcher = AntPathMatcher()
 
@@ -72,22 +71,20 @@ class StompHandler(
         }
 
         // 방법 2: STOMP nativeHeader에 담긴 Bearer 토큰 직접 검증 (모바일 또는 수동 연결 시)
-        val bearerToken = accessor.getFirstNativeHeader("token")
-            ?.takeIf { it.startsWith(BEARER_PREFIX) }
-            ?.removePrefix(BEARER_PREFIX)
-            ?: throw RuntimeException("Unauthorized: Token Required")
+        val bearerToken = resolveBearerToken(accessor)
+            ?: throw ServiceException("401-1", "인증 토큰이 필요합니다.")
 
         // JWT 토큰 파싱 및 유저 정보 추출
         val payload = runCatching { memberService.payload(bearerToken) }
             .getOrElse {
                 log.error("STOMP Connect Auth Error: {}", it.message)
-                throw RuntimeException("Unauthorized")
-            } ?: throw RuntimeException("Unauthorized")
+                throw ServiceException("401-1", "유효하지 않은 토큰입니다.")
+            } ?: throw ServiceException("401-1", "유효하지 않은 토큰입니다.")
 
         // 인증 객체 생성 및 세션에 저장
-        val user = createSecurityUser(payload)
-        val auth: Authentication = UsernamePasswordAuthenticationToken(user, null, user.authorities)
+        val auth = webSocketAuthSupport.toAuthentication(payload)
         accessor.user = auth
+        val user = auth.principal as SecurityUser
 
         log.info("STOMP Connected (토큰 인증): {}", user.username)
     }
@@ -100,22 +97,22 @@ class StompHandler(
         val destination = accessor.destination ?: return
 
         // 1. 채팅방 메시지 구독 (/sub/v1/chat/room/{roomId}/**)
-        if (pathMatcher.match("/sub/v1/chat/room/**", destination)) {
+        if (pathMatcher.match(CHAT_ROOM_SUBSCRIBE_PATTERN, destination)) {
             val user = requireSecurityUser(accessor)
             val roomId = extractRoomId(destination)
 
             // 채팅방 존재 여부 확인
             val room = chatRoomRepository.findByRoomIdAndDeletedFalse(roomId)
-                .orElseThrow { RuntimeException("ChatRoom Not Found") }
+                ?: throw ServiceException("404-1", "존재하지 않는 채팅방입니다.")
 
             val member = memberService.findById(user.id)
-                .orElseThrow { RuntimeException("Member Not Found") }
+                .orElseThrow { ServiceException("404-1", "존재하지 않는 회원입니다.") }
 
             // 인가 검사: 내가 이 방의 판매자인가? 혹은 구매자인가?
             val authorized = room.sellerApiKey == member.apiKey || room.buyerApiKey == member.apiKey
             if (!authorized) {
                 log.warn("Access Denied: User {} -> Room {}", user.id, roomId)
-                throw RuntimeException("Subscription not authorized")
+                throw ServiceException("403-1", "해당 채팅방에 접근 권한이 없습니다.")
             }
 
             log.info("STOMP Subscribed: User {} to Room {}", user.username, roomId)
@@ -123,11 +120,11 @@ class StompHandler(
         }
 
         // 개인 알림 구독 (/sub/user/{userId}/notification)
-        if (pathMatcher.match("/sub/user/*/notification", destination)) {
+        if (pathMatcher.match(PERSONAL_NOTIFICATION_PATTERN, destination)) {
             val user = requireSecurityUser(accessor)
             val pathParts = splitPath(destination)
             if (pathParts.size < 4) {
-                throw RuntimeException("Invalid destination")
+                throw ServiceException("400-1", "잘못된 구독 경로입니다.")
             }
 
             // 인가 검사: 구독하려는 목적지 ID와 현재 로그인한 내 ID가 일치하는가?
@@ -138,7 +135,7 @@ class StompHandler(
                     user.id,
                     targetUserId,
                 )
-                throw RuntimeException("Subscription not authorized")
+                throw ServiceException("403-1", "개인 알림 구독 권한이 없습니다.")
             }
 
             log.info("STOMP Subscribed: User {} to personal notification", user.username)
@@ -159,26 +156,7 @@ class StompHandler(
     private fun requireSecurityUser(accessor: StompHeaderAccessor): SecurityUser {
         val auth = accessor.user as? Authentication
         val principal = auth?.principal as? SecurityUser
-        return principal ?: throw RuntimeException("Unauthorized: Login Required")
-    }
-
-    /**
-     * 토큰 페이로드 데이터를 바탕으로 Spring Security의 유저 객체(SecurityUser)를 생성합니다.
-     */
-    private fun createSecurityUser(payload: Map<String, Any>): SecurityUser {
-        val id = (payload["id"] as Number).toInt()
-        val username = payload["username"] as String
-        val name = payload["name"] as String
-        val role = Role.from(payload["role"] as String)
-
-        return SecurityUser(
-            id,
-            username,
-            "", // 비밀번호는 세션에 저장하지 않음
-            name,
-            role,
-            listOf(SimpleGrantedAuthority(role.name)),
-        )
+        return principal ?: throw ServiceException("401-1", "로그인이 필요합니다.")
     }
 
     /**
@@ -188,12 +166,12 @@ class StompHandler(
     private fun extractRoomId(destination: String): String {
         val parts = splitPath(destination)
         if (parts.isEmpty()) {
-            throw RuntimeException("Invalid destination")
+            throw ServiceException("400-1", "잘못된 구독 경로입니다.")
         }
 
         return if (destination.endsWith(READ_SUFFIX)) {
             // /sub/v1/chat/room/{roomId}/read 인 경우 뒤에서 두 번째가 ID
-            parts.getOrNull(parts.size - 2) ?: throw RuntimeException("Invalid destination")
+            parts.getOrNull(parts.size - 2) ?: throw ServiceException("400-1", "잘못된 구독 경로입니다.")
         } else {
             // /sub/v1/chat/room/{roomId} 인 경우 마지막이 ID
             parts.last()
@@ -204,9 +182,28 @@ class StompHandler(
     private fun splitPath(path: String): List<String> =
         path.split("/").filter(String::isNotBlank)
 
+    private fun resolveBearerToken(accessor: StompHeaderAccessor): String? {
+        val tokenHeader = accessor.getFirstNativeHeader(TOKEN_HEADER_NAME)?.trim()
+        if (!tokenHeader.isNullOrBlank()) {
+            return tokenHeader.removeBearerPrefixOrNull()
+        }
+
+        val authorizationHeader = accessor.getFirstNativeHeader(AUTHORIZATION_HEADER_NAME)?.trim()
+        return authorizationHeader?.removeBearerPrefixOrNull()
+    }
+
+    private fun String.removeBearerPrefixOrNull(): String? {
+        if (!startsWith(BEARER_PREFIX)) return null
+        return removePrefix(BEARER_PREFIX).takeIf(String::isNotBlank)
+    }
+
     companion object {
         private const val BEARER_PREFIX = "Bearer "
         private const val READ_SUFFIX = "/read"
+        private const val CHAT_ROOM_SUBSCRIBE_PATTERN = "/sub/v1/chat/room/**"
+        private const val PERSONAL_NOTIFICATION_PATTERN = "/sub/user/*/notification"
+        private const val TOKEN_HEADER_NAME = "token"
+        private const val AUTHORIZATION_HEADER_NAME = "Authorization"
         private val log = LoggerFactory.getLogger(StompHandler::class.java)
     }
 }
