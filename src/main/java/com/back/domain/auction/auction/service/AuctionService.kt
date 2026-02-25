@@ -15,10 +15,10 @@ import com.back.domain.auction.auction.service.port.AuctionImagePort
 import com.back.domain.auction.auction.service.port.AuctionMemberPort
 import com.back.domain.auction.auction.service.port.AuctionPersistencePort
 import com.back.domain.auction.auction.service.port.AuctionUseCase
-import com.back.domain.auction.auction.service.port.CategoryPort
 import com.back.global.exception.ServiceException
 import com.back.global.rsData.RsData
 import com.back.global.util.PageUtils
+import com.back.domain.category.category.service.port.CategoryPort
 import org.slf4j.LoggerFactory
 import org.springframework.cache.annotation.CacheEvict
 import org.springframework.cache.annotation.Cacheable
@@ -45,6 +45,7 @@ class AuctionService(
         validateAuctionRequest(request)
 
         val seller = auctionMemberPort.getSellerOrThrow(sellerId)
+        // 카테고리 조회는 CategoryPort를 통해 수행해 Repository/JPA 구현 의존을 차단한다.
         val category = categoryPort.getByIdOrThrow(request.categoryId!!)
 
         val startAt = LocalDateTime.now()
