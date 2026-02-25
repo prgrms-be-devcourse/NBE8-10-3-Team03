@@ -48,7 +48,7 @@ class ChatRoom (
 ) : BaseEntity() {
 
     // 퇴장
-    fun exit(apiKey: String?) {
+    fun exit(apiKey: String) {
         if (sellerApiKey == apiKey) this.sellerExited = true
         if (buyerApiKey == apiKey) this.buyerExited = true
     }
@@ -65,9 +65,8 @@ class ChatRoom (
 
     companion object {
         // 경매(Auction) 낙찰 후 채팅방 생성
-        @JvmStatic
-        fun createForAuction(auction: Auction, buyer: Member): ChatRoom {
-            return ChatRoom(
+        fun createForAuction(auction: Auction, buyer: Member): ChatRoom =
+            ChatRoom(
                 roomId = UUID.randomUUID().toString(),
                 txType = ChatRoomType.AUCTION,
                 auction = auction,
@@ -75,12 +74,10 @@ class ChatRoom (
                 sellerApiKey = auction.seller.apiKey ?: throw IllegalStateException("판매자 apiKey가 없습니다."),
                 buyerApiKey = buyer.apiKey ?: throw IllegalStateException("구매자 apiKey가 없습니다."),
             )
-        }
 
         // 일반 판매(Post)용 채팅방 생성
-        @JvmStatic
-        fun createForPost(post: Post, buyer: Member): ChatRoom {
-            return ChatRoom(
+        fun createForPost(post: Post, buyer: Member): ChatRoom =
+            ChatRoom(
                 roomId = UUID.randomUUID().toString(),
                 txType = ChatRoomType.POST,
                 auction = null,
@@ -88,6 +85,5 @@ class ChatRoom (
                 sellerApiKey = post.seller.apiKey ?: throw IllegalStateException("판매자 apiKey가 없습니다."),
                 buyerApiKey = buyer.apiKey ?: throw IllegalStateException("구매자 apiKey가 없습니다."),
             )
-        }
     }
 }

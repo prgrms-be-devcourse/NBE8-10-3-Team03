@@ -24,17 +24,20 @@ import com.back.global.exception.ServiceException
 import com.back.global.rq.Rq
 import com.back.global.rsData.RsData
 import org.slf4j.LoggerFactory
-import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.messaging.simp.SimpMessagingTemplate
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.LocalDateTime
-import java.util.concurrent.CompletableFuture
-import java.util.concurrent.Executor
 import java.util.Locale
 
 @Service
 @Transactional(readOnly = true)
+/**
+ * 채팅 도메인의 핵심 유스케이스를 담당하는 서비스.
+ * - 채팅방 생성/입장, 메시지 저장/조회, 목록 조회, 퇴장 처리
+ * - WebSocket 브로드캐스팅/개인 알림 발행
+ * - 접근 권한(참여자 여부)과 입력값 검증
+ */
 class ChatService(
     private val chatRepository: ChatRepository,
     private val chatRoomRepository: ChatRoomRepository,
@@ -44,8 +47,6 @@ class ChatService(
     private val imageRepository: ImageRepository,
     private val fileStorageService: FileStorageService,
     private val messagingTemplate: SimpMessagingTemplate,
-    @Qualifier("chatTaskExecutor")
-    private val chatTaskExecutor: Executor,
     private val rq: Rq,
 ) {
 
@@ -77,8 +78,8 @@ class ChatService(
 
                 // 기존 방 존재 여부 확인 (Soft Delete 되지 않은 방 기준)
                 val existingRoom = chatRoomRepository.findByPostAndBuyerApiKeyAndDeletedFalse(post, buyerApiKey)
-                val isNew = existingRoom.isEmpty
-                val room = existingRoom.orElseGet { chatRoomRepository.save(ChatRoom.createForPost(post, buyer)) }
+                val isNew = existingRoom == null
+                val room = existingRoom ?: chatRoomRepository.save(ChatRoom.createForPost(post, buyer))
 
                 CreatedRoom(room = room, seller = seller, isNew = isNew)
             }
@@ -91,8 +92,8 @@ class ChatService(
                 ensureNotSelfTrade(seller, buyerApiKey)
 
                 val existingRoom = chatRoomRepository.findByAuctionAndBuyerApiKeyAndDeletedFalse(auction, buyerApiKey)
-                val isNew = existingRoom.isEmpty
-                val room = existingRoom.orElseGet { chatRoomRepository.save(ChatRoom.createForAuction(auction, buyer)) }
+                val isNew = existingRoom == null
+                val room = existingRoom ?: chatRoomRepository.save(ChatRoom.createForAuction(auction, buyer))
 
                 CreatedRoom(room = room, seller = seller, isNew = isNew)
             }
@@ -230,100 +231,64 @@ class ChatService(
      * - 각 방의 최신 메시지, 안 읽은 메시지 수, 거래 물건 정보를 포함합니다.
      * - N+1 성능 이슈를 방지하기 위해 데이터를 메모리(Map)에 적재하여 조인 없이 매핑합니다.
      */
-    val chatList: RsData<List<ChatRoomListResponse>>
-        get() {
-            val me = currentMemberFromDb()
-            val myApiKey = me.apiKey
+    fun getChatList(): RsData<List<ChatRoomListResponse>> {
+        val me = currentMemberFromDb()
+        val myApiKey = requireApiKey(me)
 
-            // 내가 속한 각 방들의 최신 메시지 1개씩 조회
-            val latestChats = chatRepository.findAllLatestChatsByMember(myApiKey)
-            if (latestChats.isEmpty()) {
-                return RsData("200-1", "채팅 목록 조회 성공", emptyList())
-            }
-
-            // 일괄 조회를 위해 ID 및 API Key 추출 (in-memory 캐싱 맵 구성용)
-            val roomIds = latestChats.mapNotNull { it.chatRoom?.roomId }.distinct()
-            val opponentApiKeys = latestChats.mapNotNull { chat ->
-                val room = chat.chatRoom ?: return@mapNotNull null
-                if (room.sellerApiKey == myApiKey) room.buyerApiKey else room.sellerApiKey
-            }.toSet()
-
-            val postIds = latestChats.mapNotNull { it.chatRoom?.takeIf { room -> room.txType == ChatRoomType.POST }?.post?.id }
-            val auctionIds = latestChats.mapNotNull { it.chatRoom?.takeIf { room -> room.txType == ChatRoomType.AUCTION }?.auction?.id }
-
-            // AsyncConfig(chatTaskExecutor) 기반 병렬 조회
-            val unreadFuture = CompletableFuture.supplyAsync(
-                {
-                    if (roomIds.isEmpty()) {
-                        emptyMap<String, Int>()
-                    } else {
-                        chatRepository.countUnreadMessagesByRoomIds(roomIds, me.id)
-                            .associate { it.roomId to (it.count?.toInt() ?: 0) }
-                    }
-                },
-                chatTaskExecutor,
-            )
-
-            val opponentFuture = CompletableFuture.supplyAsync(
-                { memberRepository.findByApiKeyIn(opponentApiKeys.toMutableSet()).associateBy { it.apiKey } },
-                chatTaskExecutor,
-            )
-
-            val postImageFuture = CompletableFuture.supplyAsync(
-                {
-                    if (postIds.isEmpty()) {
-                        emptyMap<Int, String>()
-                    } else {
-                        toMainImageMap(imageRepository.findPostMainImages(postIds), "POST")
-                    }
-                },
-                chatTaskExecutor,
-            )
-
-            val auctionImageFuture = CompletableFuture.supplyAsync(
-                {
-                    if (auctionIds.isEmpty()) {
-                        emptyMap<Int, String>()
-                    } else {
-                        toMainImageMap(imageRepository.findAuctionMainImages(auctionIds), "AUCTION")
-                    }
-                },
-                chatTaskExecutor,
-            )
-
-            val unreadCountMap = unreadFuture.join()
-            val opponentMap = opponentFuture.join()
-            val postImageMap = postImageFuture.join()
-            val auctionImageMap = auctionImageFuture.join()
-
-            // 데이터 조합 및 클렌징 (유효하지 않은 데이터는 return@mapNotNull null로 건너뜀)
-            val responseList = latestChats.mapNotNull { chat ->
-                val room = chat.chatRoom ?: return@mapNotNull null
-                val opponentKey = if (room.sellerApiKey == myApiKey) room.buyerApiKey else room.sellerApiKey
-                val opponent = opponentMap[opponentKey] ?: return@mapNotNull null
-
-                val item = resolveListItemInfo(room, postImageMap, auctionImageMap)
-
-                ChatRoomListResponse(
-                    roomId = room.roomId,
-                    opponentId = opponent.id,
-                    opponentNickname = opponent.nickname,
-                    opponentProfileImageUrl = opponent.profileImgUrl,
-                    opponentReputation = opponent.reputation?.score ?: 50.0,
-                    lastMessage = chat.message,
-                    lastMessageDate = chat.createDate,
-                    unreadCount = unreadCountMap[room.roomId] ?: 0,
-                    itemId = item.itemId,
-                    itemName = item.itemName,
-                    itemImageUrl = item.itemImageUrl,
-                    itemPrice = item.itemPrice,
-                    txType = room.txType,
-                )
-            }.sortedByDescending { it.lastMessageDate } // 최신 메시지가 위로 오도록 정렬
-
-            log.debug("채팅 목록 조회 완료 - 사용자: {}, 조회된 방 개수: {}", me.nickname, responseList.size)
-            return RsData("200-1", "채팅 목록 조회 성공", responseList)
+        // 각 방의 최신 메시지 1건씩만 가져와 채팅 목록 베이스를 구성합니다.
+        val latestChats = chatRepository.findAllLatestChatsByMember(myApiKey)
+        if (latestChats.isEmpty()) {
+            return RsData("200-1", "채팅 목록 조회 성공", emptyList())
         }
+
+        // 후속 조회에서 사용할 키 집합을 먼저 추출해 중복 DB 접근을 줄입니다.
+        val roomIds = latestChats.mapNotNull { it.chatRoom?.roomId }.distinct()
+        val opponentApiKeys = latestChats.mapNotNull { chat ->
+            val room = chat.chatRoom ?: return@mapNotNull null
+            if (room.sellerApiKey == myApiKey) room.buyerApiKey else room.sellerApiKey
+        }.toSet()
+        val postIds = latestChats.mapNotNull { it.chatRoom?.takeIf { room -> room.txType == ChatRoomType.POST }?.post?.id }
+        val auctionIds = latestChats.mapNotNull { it.chatRoom?.takeIf { room -> room.txType == ChatRoomType.AUCTION }?.auction?.id }
+
+        // 목록 DTO 조합에 필요한 부가 데이터(미읽음/상대방/대표이미지)를 미리 맵으로 준비합니다.
+        val unreadCountMap = if (roomIds.isEmpty()) {
+            emptyMap()
+        } else {
+            chatRepository.countUnreadMessagesByRoomIds(roomIds, me.id)
+                .associate { it.roomId to (it.count?.toInt() ?: 0) }
+        }
+        val opponentMap = memberRepository.findByApiKeyIn(opponentApiKeys.toMutableSet()).associateBy { it.apiKey }
+        val postImageMap = if (postIds.isEmpty()) emptyMap() else toMainImageMap(imageRepository.findPostMainImages(postIds), "POST")
+        val auctionImageMap = if (auctionIds.isEmpty()) emptyMap() else toMainImageMap(imageRepository.findAuctionMainImages(auctionIds), "AUCTION")
+
+        // latestChats를 기준으로 화면에 바로 사용할 응답 DTO를 조립합니다.
+        // 상대방 정보가 누락된 비정상 데이터는 mapNotNull로 안전하게 제외합니다.
+        val responseList = latestChats.mapNotNull { chat ->
+            val room = chat.chatRoom ?: return@mapNotNull null
+            val opponentKey = if (room.sellerApiKey == myApiKey) room.buyerApiKey else room.sellerApiKey
+            val opponent = opponentMap[opponentKey] ?: return@mapNotNull null
+            val item = resolveListItemInfo(room, postImageMap, auctionImageMap)
+
+            ChatRoomListResponse(
+                roomId = room.roomId,
+                opponentId = opponent.id,
+                opponentNickname = opponent.nickname,
+                opponentProfileImageUrl = opponent.profileImgUrl,
+                opponentReputation = opponent.reputation?.score ?: 50.0,
+                lastMessage = chat.message,
+                lastMessageDate = chat.createDate,
+                unreadCount = unreadCountMap[room.roomId] ?: 0,
+                itemId = item.itemId,
+                itemName = item.itemName,
+                itemImageUrl = item.itemImageUrl,
+                itemPrice = item.itemPrice,
+                txType = room.txType,
+            )
+        }.sortedByDescending { it.lastMessageDate }
+
+        log.debug("채팅 목록 조회 완료 - 사용자: {}, 조회된 방 개수: {}", me.nickname, responseList.size)
+        return RsData("200-1", "채팅 목록 조회 성공", responseList)
+    }
 
     /**
      * [채팅방 퇴장]
@@ -399,12 +364,12 @@ class ChatService(
      */
     private inline fun runMessagingSafely(
         crossinline onSuccess: () -> Unit,
-        crossinline onFailure: (Exception) -> Unit,
+        crossinline onFailure: (Throwable) -> Unit,
         block: () -> Unit,
     ) {
         runCatching(block)
             .onSuccess { onSuccess() }
-            .onFailure { onFailure(it as? Exception ?: RuntimeException(it)) }
+            .onFailure(onFailure)
     }
 
     // --- 유틸리티 및 검증 메서드 ---
@@ -422,7 +387,7 @@ class ChatService(
     /** 삭제되지 않은 활성 채팅방 조회 */
     private fun findActiveRoom(roomId: String): ChatRoom =
         chatRoomRepository.findByRoomIdAndDeletedFalse(roomId)
-            .orElseThrow { ServiceException("404-1", "존재하지 않는 채팅방입니다.") }
+            ?: throw ServiceException("404-1", "존재하지 않는 채팅방입니다.")
 
     /** 해당 채팅방 참여자 권한 체크 */
     private fun requireChatParticipant(room: ChatRoom, apiKey: String) {
@@ -442,6 +407,10 @@ class ChatService(
         rows.mapNotNull { row -> parseMainImageRow(row, txType) }
             .toMap()
 
+    /**
+     * Native query 결과를 안전하게 파싱해 (itemId -> imageUrl) 형태로 반환합니다.
+     * 스키마 불일치/결측 데이터는 null을 반환해 상위에서 제외하도록 합니다.
+     */
     private fun parseMainImageRow(row: Array<Any?>, txType: String): Pair<Int, String>? {
         val itemId = (row.getOrNull(0) as? Number)?.toInt()
         val imageUrl = row.getOrNull(1) as? String
