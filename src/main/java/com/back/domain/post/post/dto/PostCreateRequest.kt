@@ -1,0 +1,30 @@
+package com.back.domain.post.post.dto
+
+import io.swagger.v3.oas.annotations.media.Schema
+import jakarta.validation.constraints.Min
+import jakarta.validation.constraints.NotBlank
+import jakarta.validation.constraints.NotNull
+import jakarta.validation.constraints.Size
+import org.springframework.web.multipart.MultipartFile
+
+data class PostCreateRequest(
+    @field:Schema(description = "게시글 제목 (2자 이상 50자 이하)", example = "아이폰 15 프로 128G 블랙")
+    @field:NotBlank(message = "제목은 필수입니다.")
+    @field:Size(min = 2, max = 50, message = "제목은 2자 이상 50자 이하로 입력해주세요.")
+    var title: String = "",
+
+    @field:Schema(description = "게시글 상세 내용 (10자 이상 1000자 이하)", example = "구매한지 3개월 됐고 상태 좋습니다.")
+    @field:NotBlank(message = "내용은 필수입니다.")
+    @field:Size(min = 10, max = 1000, message = "내용은 10자 이상 1000자 이하로 입력해주세요.")
+    var content: String = "",
+
+    @field:Schema(description = "판매 가격 (0원 이상)", example = "950000")
+    @field:Min(0)
+    var price: Int = 0,
+
+    @field:Schema(description = "카테고리 ID", example = "1")
+    @field:NotNull(message = "카테고리를 선택해주세요.")
+    var categoryId: Int? = null,
+
+    var images: List<MultipartFile>? = null
+)
