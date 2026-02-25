@@ -1,6 +1,7 @@
 package com.back.global.security
 
-import com.back.domain.member.member.service.MemberService
+import com.back.global.security.port.JwtPayloadDecoderPort
+import com.back.global.security.port.WsAuthenticationFactoryPort
 import jakarta.servlet.http.HttpServletRequest
 import org.slf4j.LoggerFactory
 import org.springframework.http.server.ServerHttpRequest
@@ -20,8 +21,8 @@ import org.springframework.web.socket.server.HandshakeInterceptor
  */
 @Component
 class HttpHandshakeInterceptor(
-    private val memberService: MemberService,
-    private val webSocketAuthSupport: WebSocketAuthSupport,
+    private val jwtPayloadDecoderPort: JwtPayloadDecoderPort,
+    private val wsAuthenticationFactoryPort: WsAuthenticationFactoryPort,
 ) : HandshakeInterceptor {
 
     override fun beforeHandshake(
@@ -37,9 +38,9 @@ class HttpHandshakeInterceptor(
             return true
         }
 
-        runCatching { memberService.payload(accessToken) }
+        runCatching { jwtPayloadDecoderPort.decode(accessToken) }
             .mapNotNullPayload()
-            .map(webSocketAuthSupport::toAuthentication)
+            .map(wsAuthenticationFactoryPort::fromPayload)
             .onSuccess { auth ->
                 attributes[WS_AUTHENTICATION_KEY] = auth
                 val user = auth.principal as? SecurityUser
