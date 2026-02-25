@@ -1,7 +1,7 @@
 package com.back.domain.member.member.controller
 
 import com.back.domain.auction.auction.dto.response.AuctionSliceResponse
-import com.back.domain.auction.auction.service.AuctionService
+import com.back.domain.auction.auction.service.port.AuctionUseCase
 import com.back.domain.member.member.dto.MemberDto
 import com.back.domain.member.member.dto.MemberWithUsernameDto
 import com.back.domain.member.member.service.MemberService
@@ -42,7 +42,7 @@ import org.springframework.web.multipart.MultipartFile
 @RequestMapping("/api/v1/members")
 open class MemberController(
     private val memberService: MemberService,
-    private val auctionService: AuctionService,
+    private val auctionService: AuctionUseCase,
     private val postService: PostService,
     private val auditService: SecurityAuditService,
     private val servletRequest: HttpServletRequest,
