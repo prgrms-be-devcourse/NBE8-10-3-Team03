@@ -16,10 +16,16 @@ class Category protected constructor() {
         private set
 
     @Column(nullable = false, length = 100)
-    lateinit var name: String
+    var name: String = ""
         private set
 
     constructor(name: String) : this() {
-        this.name = name
+        this.name = normalizeName(name)
+    }
+
+    private fun normalizeName(name: String): String {
+        val normalized = name.trim()
+        require(normalized.isNotEmpty()) { "카테고리 이름은 비어 있을 수 없습니다." }
+        return normalized
     }
 }

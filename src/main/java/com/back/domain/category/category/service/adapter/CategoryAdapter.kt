@@ -4,6 +4,7 @@ import com.back.domain.category.category.entity.Category
 import com.back.domain.category.category.repository.CategoryRepository
 import com.back.domain.category.category.service.port.CategoryPort
 import com.back.global.exception.ServiceException
+import org.springframework.data.repository.findByIdOrNull
 import org.springframework.stereotype.Component
 
 // CategoryPort의 JPA 구현체.
@@ -13,8 +14,8 @@ class CategoryAdapter(
     private val categoryRepository: CategoryRepository
 ) : CategoryPort {
     override fun getByIdOrThrow(categoryId: Int): Category =
-        categoryRepository.findById(categoryId)
-            .orElseThrow { ServiceException("404-2", "존재하지 않는 카테고리입니다.") }
+        categoryRepository.findByIdOrNull(categoryId)
+            ?: throw ServiceException("404-2", "존재하지 않는 카테고리입니다.")
 
     override fun count(): Long = categoryRepository.count()
 
