@@ -24,14 +24,14 @@ data class PostListResponse(
         id = post.id as Int, // BaseEntity의 id 타입에 따라 (Int) 캐스팅이 필요할 수 있습니다.
         title = post.title,
         price = post.price,
-        categoryName = post.category.name,
+        categoryName = post.category?.name ?: "미지정",
         // 코틀린의 안전한 호출(?.)과 firstOrNull()을 사용하면 널 체크가 매우 우아해집니다.
         thumbnailUrl = post.postImages.firstOrNull()?.image?.url,
         createDate = post.createDate,
         status = post.status.name,
         statusDisplayName = post.status.displayName,
         viewCount = post.viewCount,
-        sellerId = post.seller.id as Int,
+        sellerId = post.seller?.id as? Int ?: 0,
         sellerNickname = post.seller.nickname,
         sellerBadge = calculateBadge(post.seller.reputation?.score)
     )

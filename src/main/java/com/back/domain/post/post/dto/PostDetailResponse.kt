@@ -27,12 +27,12 @@ data class PostDetailResponse(
         content = post.content,
         price = post.price,
         status = post.status.name,
-        categoryName = post.category.name,
-        sellerId = post.seller.id as Int,
-        sellerNickname = post.seller.nickname,
-        sellerBadge = PostListResponse.calculateBadge(post.seller.reputation?.score),
+        categoryName = post.category?.name ?: "미지정",
+        sellerId = post.seller?.id as? Int ?: 0,
+        sellerNickname = post.seller?.nickname ?: "알 수 없는 사용자",
+        sellerBadge = PostListResponse.calculateBadge(post.seller?.reputation?.score),
         sellerScore = post.seller.reputation?.score ?: 0.0,
-        imageUrls = post.postImages.map { it.image.url }, // map 함수로 리스트를 쉽게 변환
+        imageUrls = post.postImages.mapNotNull { it.image?.url }, // map 함수로 리스트를 쉽게 변환
         createDate = post.createDate,
         viewCount = post.viewCount
     )

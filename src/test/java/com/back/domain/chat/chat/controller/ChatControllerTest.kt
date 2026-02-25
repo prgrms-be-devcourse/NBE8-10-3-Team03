@@ -29,6 +29,7 @@ import org.mockito.ArgumentMatchers.any
 import org.mockito.ArgumentMatchers.eq
 import org.mockito.Mockito.atLeastOnce
 import org.mockito.Mockito.mock
+import org.mockito.Mockito.never
 import org.mockito.Mockito.reset
 import org.mockito.Mockito.times
 import org.mockito.Mockito.verify
@@ -780,7 +781,7 @@ class ChatControllerTest {
         val latestBuyer = memberRepository.findById(buyer.id).orElseThrow()
         val latestSeller = memberRepository.findById(seller.id).orElseThrow()
 
-        assertThat(chatRoomRepository.findByRoomIdAndDeletedFalse(roomId)).isEmpty()
+        assertThat(chatRoomRepository.findByRoomIdAndDeletedFalse(roomId)).isNull()
         assertThat(chatRepository.findAllLatestChatsByMember(latestBuyer.apiKey)).isEmpty()
         assertThat(chatRepository.findAllLatestChatsByMember(latestSeller.apiKey)).isEmpty()
     }
@@ -862,6 +863,82 @@ class ChatControllerTest {
         val mockChannel = mock(MessageChannel::class.java)
 
         assertThrows(RuntimeException::class.java) { stompHandler.preSend(message, mockChannel) }
+    }
+
+    @Test
+    @DisplayName("47. 메시지 전송 시 상대방 개인 알림 토픽으로 NEW_MESSAGE 알림이 전송된다")
+    fun t47() {
+        val roomId = createRoomAsUser(salePostId, "POST", buyer)
+        reset(messagingTemplate)
+
+        sendMessageAsUser(roomId, "개인 알림 테스트", buyer, null)
+
+        verify(messagingTemplate, atLeastOnce())
+            .convertAndSend(eq("/sub/user/${seller.id}/notification"), any(Any::class.java))
+    }
+
+    @Test
+    @DisplayName("48. 조회 시 상대방 메시지가 없으면 read 알림 토픽은 전송되지 않는다")
+    fun t48() {
+        val roomId = createRoomAsUser(salePostId, "POST", buyer)
+        sendMessageAsUser(roomId, "내가 보낸 메시지", buyer, null)
+        reset(messagingTemplate)
+
+        mockMvc.perform(get("/api/v1/chat/room/$roomId").with(user(makeSecurityUser(buyer))))
+            .andExpect(status().isOk)
+
+        verify(messagingTemplate, never())
+            .convertAndSend(eq("/sub/v1/chat/room/$roomId/read"), any(Any::class.java))
+    }
+
+    @Test
+    @DisplayName("49. 존재하지 않는 경매 ID로 채팅방 생성 요청 시 404-3을 반환한다")
+    fun t49() {
+        mockMvc.perform(
+            post("/api/v1/chat/room")
+                .with(csrf())
+                .with(user(makeSecurityUser(buyer)))
+                .param("itemId", "999999")
+                .param("txType", "AUCTION"),
+        )
+            .andExpect(status().isNotFound)
+            .andExpect(jsonPath("$.resultCode").value("404-3"))
+    }
+
+    @Test
+    @DisplayName("50. 채팅 목록 API는 txType/item/unreadCount 필드를 포함해 반환한다")
+    fun t50() {
+        val roomId = createRoomAsUser(salePostId, "POST", buyer)
+        sendMessageAsUser(roomId, "미읽음 메시지", seller, null)
+
+        mockMvc.perform(get("/api/v1/chat/list").with(user(makeSecurityUser(buyer))))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.data.length()").value(1))
+            .andExpect(jsonPath("$.data[0].roomId").value(roomId))
+            .andExpect(jsonPath("$.data[0].txType").value("POST"))
+            .andExpect(jsonPath("$.data[0].itemId").value(salePostId))
+            .andExpect(jsonPath("$.data[0].unreadCount").value(1))
+    }
+
+    @Test
+    @DisplayName("51. 양측 퇴장으로 soft delete 된 방은 메시지 전송 시 404를 반환한다")
+    fun t51() {
+        val roomId = createRoomAsUser(salePostId, "POST", buyer)
+
+        mockMvc.perform(patch("/api/v1/chat/room/$roomId/exit").with(csrf()).with(user(makeSecurityUser(buyer))))
+            .andExpect(status().isOk)
+        mockMvc.perform(patch("/api/v1/chat/room/$roomId/exit").with(csrf()).with(user(makeSecurityUser(seller))))
+            .andExpect(status().isOk)
+
+        mockMvc.perform(
+            multipart("/api/v1/chat/send")
+                .with(csrf())
+                .with(user(makeSecurityUser(buyer)))
+                .param("roomId", roomId)
+                .param("message", "재접근 시도"),
+        )
+            .andExpect(status().isNotFound)
+            .andExpect(jsonPath("$.resultCode").value("404-1"))
     }
 
     private fun createRoomAsUser(itemId: Int, txType: String, member: Member): String {

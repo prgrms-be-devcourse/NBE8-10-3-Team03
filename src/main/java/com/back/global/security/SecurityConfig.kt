@@ -29,7 +29,7 @@ class SecurityConfig(
                 authorize("/favicon.ico", permitAll)
                 authorize("/h2-console/**", permitAll)
                 authorize("/api/*/members/login", permitAll)
-                authorize("/api/*/members/join", permitAll)
+                authorize("/api/*/members", permitAll)
                 authorize("/api/*/members/logout", permitAll)
                 authorize(HttpMethod.POST, "/api/*/members", permitAll)
                 authorize(HttpMethod.PATCH, "/api/*/members/me/profile", authenticated)

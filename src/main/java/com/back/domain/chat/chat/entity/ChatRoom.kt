@@ -1,8 +1,5 @@
 package com.back.domain.chat.chat.entity
 
-import com.back.domain.auction.auction.entity.Auction
-import com.back.domain.member.member.entity.Member
-import com.back.domain.post.post.entity.Post
 import com.back.global.jpa.entity.BaseEntity
 import jakarta.persistence.*
 import java.time.LocalDateTime
@@ -18,15 +15,19 @@ class ChatRoom (
     @Enumerated(EnumType.STRING)
     var txType: ChatRoomType = ChatRoomType.POST,
 
-    // 경매 상품일 경우 참조하고 일반 상품일 경우 NULL
-    @JoinColumn(name = "auction_id")
-    @ManyToOne(fetch = FetchType.LAZY)
-    var auction: Auction? = null,
+    // 거래 아이템 식별자(POST/AUCTION 공통)
+    @Column(name = "item_id")
+    var itemId: Int? = null,
 
-    // 일반 상품일 경우 참조하고 경매 상품일 경우 NULL
-    @JoinColumn(name = "post_id")
-    @ManyToOne(fetch = FetchType.LAZY)
-    var post: Post? = null,
+    // 채팅방 생성 시점 아이템 스냅샷
+    @Column(name = "item_name")
+    var itemName: String? = null,
+
+    @Column(name = "item_price")
+    var itemPrice: Int? = null,
+
+    @Column(name = "item_image_url")
+    var itemImageUrl: String? = null,
 
     @Column(name = "seller_api_key", nullable = false)
     var sellerApiKey: String = "",
@@ -48,7 +49,7 @@ class ChatRoom (
 ) : BaseEntity() {
 
     // 퇴장
-    fun exit(apiKey: String?) {
+    fun exit(apiKey: String) {
         if (sellerApiKey == apiKey) this.sellerExited = true
         if (buyerApiKey == apiKey) this.buyerExited = true
     }
@@ -64,30 +65,42 @@ class ChatRoom (
     }
 
     companion object {
-        // 경매(Auction) 낙찰 후 채팅방 생성
-        @JvmStatic
-        fun createForAuction(auction: Auction, buyer: Member): ChatRoom {
-            return ChatRoom(
+        fun createForAuction(
+            itemId: Int,
+            itemName: String?,
+            itemPrice: Int?,
+            itemImageUrl: String?,
+            sellerApiKey: String,
+            buyerApiKey: String,
+        ): ChatRoom =
+            ChatRoom(
                 roomId = UUID.randomUUID().toString(),
                 txType = ChatRoomType.AUCTION,
-                auction = auction,
-                post = null,
-                sellerApiKey = auction.seller.apiKey ?: throw IllegalStateException("판매자 apiKey가 없습니다."),
-                buyerApiKey = buyer.apiKey ?: throw IllegalStateException("구매자 apiKey가 없습니다."),
+                itemId = itemId,
+                itemName = itemName,
+                itemPrice = itemPrice,
+                itemImageUrl = itemImageUrl,
+                sellerApiKey = sellerApiKey,
+                buyerApiKey = buyerApiKey,
             )
-        }
 
-        // 일반 판매(Post)용 채팅방 생성
-        @JvmStatic
-        fun createForPost(post: Post, buyer: Member): ChatRoom {
-            return ChatRoom(
+        fun createForPost(
+            itemId: Int,
+            itemName: String?,
+            itemPrice: Int?,
+            itemImageUrl: String?,
+            sellerApiKey: String,
+            buyerApiKey: String,
+        ): ChatRoom =
+            ChatRoom(
                 roomId = UUID.randomUUID().toString(),
                 txType = ChatRoomType.POST,
-                auction = null,
-                post = post,
-                sellerApiKey = post.seller.apiKey ?: throw IllegalStateException("판매자 apiKey가 없습니다."),
-                buyerApiKey = buyer.apiKey ?: throw IllegalStateException("구매자 apiKey가 없습니다."),
+                itemId = itemId,
+                itemName = itemName,
+                itemPrice = itemPrice,
+                itemImageUrl = itemImageUrl,
+                sellerApiKey = sellerApiKey,
+                buyerApiKey = buyerApiKey,
             )
-        }
     }
 }
