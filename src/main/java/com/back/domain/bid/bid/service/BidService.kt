@@ -32,7 +32,7 @@ class BidService(
     @Transactional
     @CacheEvict(value = ["auction"], key = "#auctionId")
     override fun createBid(auctionId: Int, request: BidCreateRequest, bidderId: Int): RsData<BidResponse> {
-        val bidPrice = request.price ?: throw ServiceException("400-1", "입찰가는 필수입니다.")
+        val bidPrice = request.price
         log.debug("입찰 시작 - 경매 캐시 삭제: auctionId: {}, 입찰자 ID: {}, 입찰가: {}원", auctionId, bidderId, bidPrice)
 
         log.debug("비관적 락으로 경매 조회 - 경매 ID: {}", auctionId)
@@ -69,12 +69,7 @@ class BidService(
 
         bidAuctionPort.saveAuction(auction)
 
-        val response = BidResponse(
-            savedBid,
-            auction.currentHighestBid ?: bidPrice,
-            auction.bidCount,
-            isBuyNow
-        )
+        val response = BidResponse.from(savedBid, auction.currentHighestBid ?: bidPrice, auction.bidCount, isBuyNow)
 
         val message = if (isBuyNow) "즉시구매가 완료되었습니다." else "입찰에 성공했습니다."
         return RsData("200-1", message, response)
@@ -114,21 +109,22 @@ class BidService(
             throw ServiceException("400-4", String.format("입찰가는 현재가의 150%% (%,d원)를 초과할 수 없습니다.", maxAllowedPrice))
         }
 
-        if (auction.buyNowPrice != null && bidPrice > auction.buyNowPrice!!) {
-            log.warn(
-                "입찰 실패 - 즉시구매가 초과: 경매 ID: {}, 입찰가: {}원, 즉시구매가: {}원",
-                auction.id,
-                bidPrice,
-                auction.buyNowPrice
-            )
-            throw ServiceException(
-                "400-5",
-                String.format("입찰가는 즉시구매가(%,d원)를 초과할 수 없습니다.", auction.buyNowPrice)
-            )
+        // 즉시구매가가 설정된 경매에서만 상한 검증을 적용한다.
+        auction.buyNowPrice?.let { buyNowPrice ->
+            if (bidPrice > buyNowPrice) {
+                log.warn(
+                    "입찰 실패 - 즉시구매가 초과: 경매 ID: {}, 입찰가: {}원, 즉시구매가: {}원",
+                    auction.id,
+                    bidPrice,
+                    buyNowPrice
+                )
+                throw ServiceException("400-5", String.format("입찰가는 즉시구매가(%,d원)를 초과할 수 없습니다.", buyNowPrice))
+            }
         }
 
+        // 최고 입찰이 없는 첫 입찰 상황이면 null 이므로 안전 호출로 비교한다.
         val lastBid = bidPersistencePort.findTopByAuctionIdOrderByPriceDesc(auction.id)
-        if (lastBid.isPresent && lastBid.get().bidder.id == bidder.id) {
+        if (lastBid?.bidder?.id == bidder.id) {
             log.warn("입찰 실패 - 연속 입찰 시도: 경매 ID: {}, 사용자: {}", auction.id, bidder.nickname)
             throw ServiceException("400-6", "이미 최고가 입찰자입니다. 다른 입찰자가 입찰할 때까지 기다려주세요.")
         }
@@ -146,7 +142,7 @@ class BidService(
         val sort = Sort.by(Sort.Direction.DESC, "createdAt")
         val pageable = PageUtils.createPageable(page, size, sort)
         val bidPage = bidPersistencePort.findByAuctionId(auctionId, pageable)
-        val dtoPage = bidPage.map(::BidListItemDto)
+        val dtoPage = bidPage.map(BidListItemDto::from)
         val response = BidPageResponse.from(dtoPage)
 
         log.debug("입찰 내역 조회 완료 - 경매 ID: {}, 전체 입찰 수: {}", auctionId, response.totalElements)
