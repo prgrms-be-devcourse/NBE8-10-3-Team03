@@ -41,7 +41,7 @@ class CustomOAuth2UserService(
         ).data ?: error("modifyOrJoin returned null member.")
 
         return SecurityUser(
-            member.getId(),
+            member.id,
             member.username,
             member.password,
             member.nickname,

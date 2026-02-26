@@ -140,7 +140,7 @@ class AuthTokenServiceTest {
         Assertions.assertThat(parsedPayload)
             .containsAllEntriesOf(
                 mapOf(
-                    "id" to memberUser1.getId(),
+                    "id" to memberUser1.id,
                     "username" to memberUser1.username,
                     "name" to memberUser1.nickname,
                     "role" to memberUser1.role!!.name
