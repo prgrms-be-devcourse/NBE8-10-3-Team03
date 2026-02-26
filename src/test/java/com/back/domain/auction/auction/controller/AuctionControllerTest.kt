@@ -11,12 +11,12 @@ import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
 import org.springframework.http.MediaType
 import org.springframework.mock.web.MockHttpServletRequest
-import org.springframework.mock.web.MockMultipartFile
 import org.springframework.security.test.context.support.WithUserDetails
 import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+import org.springframework.test.web.servlet.request.MockMultipartHttpServletRequestBuilder
 import org.springframework.test.web.servlet.request.RequestPostProcessor
 import org.springframework.test.web.servlet.result.MockMvcResultHandlers
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers
@@ -44,17 +44,30 @@ class AuctionControllerTest {
         auctionRepository.findAll().firstOrNull { it.seller.username == username && it.bidCount == bidCount }?.id
             ?: throw IllegalStateException("seller auction not found: $username")
 
-    private fun requestPart(json: String): MockMultipartFile =
-        MockMultipartFile("request", "", MediaType.APPLICATION_JSON_VALUE, json.trimIndent().toByteArray())
+    private fun applyParams(
+        builder: MockMultipartHttpServletRequestBuilder,
+        params: Map<String, String>
+    ): MockMultipartHttpServletRequestBuilder =
+        params.entries.fold(builder) { acc, (key, value) -> acc.param(key, value) }
 
-    private fun patchAuctionRequest(auctionId: Int, request: MockMultipartFile) =
-        MockMvcRequestBuilders.multipart("/api/v1/auctions/{auctionId}", auctionId)
-            .file(request)
+    private fun patchAuctionRequest(auctionId: Int, params: Map<String, String>) =
+        applyParams(
+            MockMvcRequestBuilders.multipart("/api/v1/auctions/{auctionId}", auctionId),
+            params
+        )
             .with(SecurityMockMvcRequestPostProcessors.csrf())
             .with(RequestPostProcessor { req: MockHttpServletRequest ->
                 req.method = "PATCH"
                 req
             })
+            .contentType(MediaType.MULTIPART_FORM_DATA)
+
+    private fun createAuctionRequest(params: Map<String, String>) =
+        applyParams(
+            MockMvcRequestBuilders.multipart("/api/v1/auctions"),
+            params
+        )
+            .with(SecurityMockMvcRequestPostProcessors.csrf())
             .contentType(MediaType.MULTIPART_FORM_DATA)
 
     @Test
@@ -172,27 +185,18 @@ class AuctionControllerTest {
     @DisplayName("경매 등록 성공")
     @Throws(Exception::class)
     fun t6() {
-        val request = requestPart(
-            """
-            {
-                "name": "테스트 경매 상품",
-                "description": "테스트 설명",
-                "startPrice": 10000,
-                "buyNowPrice": 50000,
-                "categoryId": 1,
-                "durationHours": 168
-            }
-            """
+        val request = mapOf(
+            "name" to "테스트 경매 상품",
+            "description" to "테스트 설명",
+            "startPrice" to "10000",
+            "buyNowPrice" to "50000",
+            "categoryId" to "1",
+            "durationHours" to "168"
         )
 
 
         val resultActions = mvc
-            .perform(
-                MockMvcRequestBuilders.multipart("/api/v1/auctions")
-                    .file(request)
-                    .with(SecurityMockMvcRequestPostProcessors.csrf())
-                    .contentType(MediaType.MULTIPART_FORM_DATA)
-            )
+            .perform(createAuctionRequest(request))
             .andDo(MockMvcResultHandlers.print())
 
 
@@ -210,27 +214,18 @@ class AuctionControllerTest {
     @DisplayName("경매 등록 실패 - 시작가가 즉시구매가보다 높음")
     @Throws(Exception::class)
     fun t7() {
-        val request = requestPart(
-            """
-            {
-                "name": "테스트 경매 상품",
-                "description": "테스트 설명",
-                "startPrice": 100000,
-                "buyNowPrice": 50000,
-                "categoryId": 1,
-                "durationHours": 168
-            }
-            """
+        val request = mapOf(
+            "name" to "테스트 경매 상품",
+            "description" to "테스트 설명",
+            "startPrice" to "100000",
+            "buyNowPrice" to "50000",
+            "categoryId" to "1",
+            "durationHours" to "168"
         )
 
 
         val resultActions = mvc
-            .perform(
-                MockMvcRequestBuilders.multipart("/api/v1/auctions")
-                    .file(request)
-                    .with(SecurityMockMvcRequestPostProcessors.csrf())
-                    .contentType(MediaType.MULTIPART_FORM_DATA)
-            )
+            .perform(createAuctionRequest(request))
             .andDo(MockMvcResultHandlers.print())
 
 
@@ -247,13 +242,9 @@ class AuctionControllerTest {
         val auctionId = findAuctionIdBySellerAndBidCount("user1", 0)
 
 
-        val request = requestPart(
-            """
-            {
-                "name": "수정된 경매 상품",
-                "description": "수정된 설명"
-            }
-            """
+        val request = mapOf(
+            "name" to "수정된 경매 상품",
+            "description" to "수정된 설명"
         )
 
 
@@ -455,25 +446,16 @@ class AuctionControllerTest {
     @DisplayName("경매 등록 실패 - 존재하지 않는 카테고리")
     @Throws(Exception::class)
     fun t17() {
-        val request = requestPart(
-            """
-            {
-                "name": "잘못된 카테고리 상품",
-                "description": "테스트 설명",
-                "startPrice": 10000,
-                "buyNowPrice": 20000,
-                "categoryId": 99999,
-                "durationHours": 24
-            }
-            """
+        val request = mapOf(
+            "name" to "잘못된 카테고리 상품",
+            "description" to "테스트 설명",
+            "startPrice" to "10000",
+            "buyNowPrice" to "20000",
+            "categoryId" to "99999",
+            "durationHours" to "24"
         )
 
-        mvc.perform(
-            MockMvcRequestBuilders.multipart("/api/v1/auctions")
-                .file(request)
-                .with(SecurityMockMvcRequestPostProcessors.csrf())
-                .contentType(MediaType.MULTIPART_FORM_DATA)
-        )
+        mvc.perform(createAuctionRequest(request))
             .andDo(MockMvcResultHandlers.print())
             .andExpect(MockMvcResultMatchers.status().isNotFound())
             .andExpect(MockMvcResultMatchers.jsonPath("$.resultCode").value("404-2"))
@@ -484,24 +466,15 @@ class AuctionControllerTest {
     @DisplayName("경매 등록 실패 - 필수값 누락(name)")
     @Throws(Exception::class)
     fun t18() {
-        val request = requestPart(
-            """
-            {
-                "description": "테스트 설명",
-                "startPrice": 10000,
-                "buyNowPrice": 20000,
-                "categoryId": 1,
-                "durationHours": 24
-            }
-            """
+        val request = mapOf(
+            "description" to "테스트 설명",
+            "startPrice" to "10000",
+            "buyNowPrice" to "20000",
+            "categoryId" to "1",
+            "durationHours" to "24"
         )
 
-        mvc.perform(
-            MockMvcRequestBuilders.multipart("/api/v1/auctions")
-                .file(request)
-                .with(SecurityMockMvcRequestPostProcessors.csrf())
-                .contentType(MediaType.MULTIPART_FORM_DATA)
-        )
+        mvc.perform(createAuctionRequest(request))
             .andDo(MockMvcResultHandlers.print())
             .andExpect(MockMvcResultMatchers.status().isBadRequest())
             .andExpect(MockMvcResultMatchers.jsonPath("$.resultCode").value("400-1"))
@@ -512,25 +485,16 @@ class AuctionControllerTest {
     @DisplayName("경매 등록 실패 - durationHours 최소값 위반")
     @Throws(Exception::class)
     fun t19() {
-        val request = requestPart(
-            """
-            {
-                "name": "기간 오류 상품",
-                "description": "테스트 설명",
-                "startPrice": 10000,
-                "buyNowPrice": 20000,
-                "categoryId": 1,
-                "durationHours": 0
-            }
-            """
+        val request = mapOf(
+            "name" to "기간 오류 상품",
+            "description" to "테스트 설명",
+            "startPrice" to "10000",
+            "buyNowPrice" to "20000",
+            "categoryId" to "1",
+            "durationHours" to "0"
         )
 
-        mvc.perform(
-            MockMvcRequestBuilders.multipart("/api/v1/auctions")
-                .file(request)
-                .with(SecurityMockMvcRequestPostProcessors.csrf())
-                .contentType(MediaType.MULTIPART_FORM_DATA)
-        )
+        mvc.perform(createAuctionRequest(request))
             .andDo(MockMvcResultHandlers.print())
             .andExpect(MockMvcResultMatchers.status().isBadRequest())
             .andExpect(MockMvcResultMatchers.jsonPath("$.resultCode").value("400-1"))
@@ -542,12 +506,8 @@ class AuctionControllerTest {
     @Throws(Exception::class)
     fun t20() {
         val auctionId = findAuctionIdBySeller("user1")
-        val request = requestPart(
-            """
-            {
-                "name": "권한 없는 수정"
-            }
-            """
+        val request = mapOf(
+            "name" to "권한 없는 수정"
         )
 
         mvc.perform(patchAuctionRequest(auctionId, request))
@@ -566,12 +526,8 @@ class AuctionControllerTest {
         auction.updateBid(auction.startPrice!! + 1000)
         auctionRepository.save(auction)
 
-        val request = requestPart(
-            """
-            {
-                "name": "입찰 후 수정 시도"
-            }
-            """
+        val request = mapOf(
+            "name" to "입찰 후 수정 시도"
         )
 
         mvc.perform(patchAuctionRequest(auctionId, request))
@@ -586,12 +542,8 @@ class AuctionControllerTest {
     @Throws(Exception::class)
     fun t22() {
         val auctionId = findAuctionIdBySellerAndBidCount("user1", 0)
-        val request = requestPart(
-            """
-            {
-                "endAt": "2000-01-01T00:00:00"
-            }
-            """
+        val request = mapOf(
+            "endAt" to "2000-01-01T00:00:00"
         )
 
         mvc.perform(patchAuctionRequest(auctionId, request))
@@ -606,13 +558,9 @@ class AuctionControllerTest {
     @Throws(Exception::class)
     fun t23() {
         val auctionId = findAuctionIdBySellerAndBidCount("user1", 0)
-        val request = requestPart(
-            """
-            {
-                "startPrice": 50000,
-                "buyNowPrice": 10000
-            }
-            """
+        val request = mapOf(
+            "startPrice" to "50000",
+            "buyNowPrice" to "10000"
         )
 
         mvc.perform(patchAuctionRequest(auctionId, request))
@@ -626,12 +574,8 @@ class AuctionControllerTest {
     @DisplayName("경매 수정 실패 - 존재하지 않는 경매")
     @Throws(Exception::class)
     fun t24() {
-        val request = requestPart(
-            """
-            {
-                "name": "없는 경매 수정"
-            }
-            """
+        val request = mapOf(
+            "name" to "없는 경매 수정"
         )
 
         mvc.perform(patchAuctionRequest(99999, request))
