@@ -20,7 +20,7 @@ class AuthTokenService(
         val id = member.id
         val username = member.username
         val name = member.nickname
-        val role = member.role!!.name
+        val role = member.role?.name ?: throw NullPointerException("Member role is required.")
 
         return Ut.jwt.toString(
             jwtSecretKey,

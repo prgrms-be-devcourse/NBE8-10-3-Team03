@@ -80,15 +80,10 @@ class MemberService(
     // OAuth 회원가입 / 로그인
     @Transactional
     fun modifyOrJoin(username: String, password: String?, nickname: String, profileImgUrl: String?): RsData<Member?> {
-        var member = findByUsername(username)?.orElse(null)
-
-        if (member == null) {
-            member = join(username, password, nickname, profileImgUrl)
-            return RsData("201-1", "회원가입이 완료되었습니다.", member)
-        }
+        val member = findByUsername(username).orElse(null)
+            ?: return RsData("201-1", "회원가입이 완료되었습니다.", join(username, password, nickname, profileImgUrl))
 
         modify(member, nickname, profileImgUrl)
-
         return RsData("200-1", "회원 정보가 수정되었습니다.", member)
     }
 
@@ -114,7 +109,7 @@ class MemberService(
             throw ServiceException("400-5", "계정이 일시적으로 잠겼습니다.")
         }
 
-        password?.let {checkPassword(member, it)}
+        password?.let { checkPassword(member, it) }
 
         member.resetFailCount()
     }
@@ -145,7 +140,7 @@ class MemberService(
     // 회원 탈퇴
     @Transactional
     fun withdraw(actor: Member) {
-        val member = memberRepository.findById(actor.getId())
+        val member = memberRepository.findById(actor.id)
             .orElseThrow { ServiceException("404-1", "존재하지 않는 회원입니다.") }
 
         if (member.status == MemberStatus.WITHDRAWN) {
@@ -162,29 +157,17 @@ class MemberService(
     }
 
 
-    fun findByUsername(username: String): Optional<Member> {
-        return memberRepository.findByUsername(username)
-    }
+    fun findByUsername(username: String): Optional<Member> = memberRepository.findByUsername(username)
 
-    fun findByApiKey(apiKey: String): Optional<Member> {
-        return memberRepository.findByApiKey(apiKey)
-    }
+    fun findByApiKey(apiKey: String): Optional<Member> = memberRepository.findByApiKey(apiKey)
 
-    fun genAccessToken(member: Member): String {
-        return authTokenService.genAccessToken(member)
-    }
+    fun genAccessToken(member: Member): String = authTokenService.genAccessToken(member)
 
-    fun payload(accessToken: String): Map<String, Any>? {
-        return authTokenService.payload(accessToken)
-    }
+    fun payload(accessToken: String): Map<String, Any>? = authTokenService.payload(accessToken)
 
-    fun findById(id: Int): Optional<Member> {
-        return memberRepository.findById(id)
-    }
+    fun findById(id: Int): Optional<Member> = memberRepository.findById(id)
 
-    fun findAll(): MutableList<Member> {
-        return memberRepository.findAll()
-    }
+    fun findAll(): MutableList<Member> = memberRepository.findAll()
 
 
     @Transactional
@@ -206,10 +189,10 @@ class MemberService(
     // 신고에 의한 신용도 감소
     @Transactional
     fun decreaseByNofiy(target: Member, reporter: Member) {
-        val targetId = target.getId()
-        val reporterId = reporter.getId()
+        val targetId = target.id
+        val reporterId = reporter.id
 
-        var count = reportRepository.countByReporterIdAndCreateDateAfter(reporterId, LocalDateTime.now().minusDays(1))
+        val count = reportRepository.countByReporterIdAndCreateDateAfter(reporterId, LocalDateTime.now().minusDays(1))
 
         // 신고는 하루에 3번만 가능
         if (count >= 3) throw ServiceException("400-6", "신고는 하루에 3번만 가능합니다.")
@@ -233,7 +216,7 @@ class MemberService(
             else -> Unit
         }
 
-        var reputation = reputationRepository.findById(target.id).get()
+        val reputation = reputationRepository.findById(target.id).get()
         reputation.increaseNotify()
 
         // 신고 10회 이상 => 평판 감소

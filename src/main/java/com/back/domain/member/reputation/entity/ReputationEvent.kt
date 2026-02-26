@@ -5,8 +5,6 @@ import com.back.domain.member.reputation.enums.EventType
 import com.back.domain.member.reputation.enums.RefType
 import com.back.global.jpa.entity.BaseEntity
 import jakarta.persistence.*
-import lombok.Getter
-import lombok.NoArgsConstructor
 
 @Entity
 @Table(name = "reputation_events")
