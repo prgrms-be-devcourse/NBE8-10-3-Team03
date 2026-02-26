@@ -1,4 +1,4 @@
-.PHONY: help local-up k6 local-probe-up probe-k6 local-prodlike-up prodlike-k6 local-up down limits ps logs clean perf-check-env perf
+.PHONY: help local-up k6 local-probe-up local-prodlike-up local-up down limits ps logs clean perf-check-env perf
 
 help:
 	@echo ""
@@ -12,7 +12,6 @@ help:
 	@echo ""
 	@echo "[Probe 환경 - 문제 탐지]"
 	@echo "  make local-probe-up      # probe 환경 실행"
-	@echo "  make probe-k6            # probe 환경에서 k6 실행"
 	@echo ""
 	@echo "[Prodlike 환경 - 운영 유사]"
 	@echo "  make local-prodlike-up   # prodlike 환경 실행"
@@ -23,7 +22,7 @@ help:
 	@echo "  make perf ENV=cloud PERF_SCENARIO=load"
 	@echo ""
 	@echo "[유틸]"
-	@echo "  make down               # 컨테이너 종료"
+	@echo "  make local-down         # 컨테이너 종료"
 	@echo "  make limits             # CPU/MEM 제한 확인"
 	@echo "  make ps                 # 실행중 컨테이너 확인"
 	@echo "  make logs               # 로그 확인"
@@ -56,13 +55,6 @@ local-probe-up:
 		-f docker/compose/docker-compose.local.yml \
 		up -d
 
-probe-k6:
-	docker compose \
-		-f docker-compose.yml \
-		-f docker/compose/docker-compose.probe.yml \
-		-f docker/compose/docker-compose.k6.yml \
-		run --rm k6
-
 # ----------------------------
 # 로컬 환경 prodlike (운영 유사)
 # ----------------------------
@@ -74,31 +66,19 @@ local-prodlike-up:
 		-f docker/compose/docker-compose.local.yml \
 		up -d
 
-prodlike-k6:
-	docker compose \
-		-f docker-compose.yml \
-		-f docker-compose.prodlike.yml \
-		--profile k6 run --rm k6
-
 # ----------------------------
 # 클라우드 환경 (자원 제한 없음)
 # ----------------------------
 cloud-up:
 	docker compose \
-		-f docker-compose.yml \
 		-f docker/compose/docker-compose.monitoring.yml \
 		-f docker/compose/docker-compose.cloud.yml \
 		up -d
 
-k6:
-	docker compose \
-    	-f docker/compose/docker-compose.k6.yml \
-    	run --rm k6
-
 # ----------------------------
 # 공통
 # ----------------------------
-down:
+local-down:
 	docker compose \
 	    -f docker-compose.yml \
 	    -f docker/compose/docker-compose.monitoring.yml \
