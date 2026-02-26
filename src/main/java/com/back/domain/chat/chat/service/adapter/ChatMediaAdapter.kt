@@ -1,12 +1,12 @@
 package com.back.domain.chat.chat.service.adapter
 
-import com.back.domain.auction.auction.service.FileStorageService
 import com.back.domain.chat.chat.entity.Chat
 import com.back.domain.chat.chat.entity.ChatImage
 import com.back.domain.chat.chat.service.port.ChatMediaPort
 import com.back.domain.chat.chat.service.port.ChatUploadFile
 import com.back.domain.image.image.entity.Image
 import com.back.domain.image.image.repository.ImageRepository
+import com.back.global.storage.port.FileStoragePort
 import org.springframework.stereotype.Component
 import org.springframework.web.multipart.MultipartFile
 import java.io.ByteArrayInputStream
@@ -18,7 +18,7 @@ import java.io.InputStream
  */
 @Component
 class ChatMediaAdapter(
-    private val fileStorageService: FileStorageService,
+    private val fileStoragePort: FileStoragePort,
     private val imageRepository: ImageRepository,
 ) : ChatMediaPort {
     /** 비어있지 않은 파일만 처리해 메시지 이미지로 연결한다. */
@@ -26,7 +26,7 @@ class ChatMediaAdapter(
         files.filterNot { it.isEmpty }
             .forEach { upload ->
                 val multipart = SimpleMultipartFile(upload)
-                val imageUrl = fileStorageService.storeFile(multipart)
+                val imageUrl = fileStoragePort.storeFile(multipart, "chat")
                 val savedImage = imageRepository.save(Image(imageUrl))
                 chat.addChatImage(ChatImage(chat, savedImage))
             }
