@@ -2,6 +2,7 @@ import http from 'k6/http';
 import { check, sleep, group } from 'k6';
 import { Rate, Trend } from 'k6/metrics';
 import { BASE_URL, TEST_USERS, TEST_PASSWORD, login } from '../common.js';
+import { FormData } from 'https://jslib.k6.io/formdata/0.0.2/index.js';
 
 const errorRate = new Rate('errors');
 const postCreateDuration = new Trend('post_create_duration');
@@ -57,18 +58,17 @@ function parseJson(res) {
 
 function buildCreatePayload() {
   const uid = `${__VU}-${__ITER}`;
-  const payload = {
-    title: `LT-POST-${uid}`,
-    content: `LT-POST content for create load test ${uid}`,
-    price: String(10000 + __ITER),
-    categoryId: String(CATEGORY_ID),
-  };
+  const form = new FormData();
+  form.append('title', `LT-POST-${uid}`);
+  form.append('content', `LT-POST content for create load test ${uid}`);
+  form.append('price', String(10000 + __ITER));
+  form.append('categoryId', String(CATEGORY_ID));
 
   if (CREATE_STEP === 2) {
-    payload.images = [http.file(IMAGE_200KB_BIN, 'image-200kb.jpg', 'image/jpeg')];
+    form.append('images', http.file(IMAGE_200KB_BIN, 'image-200kb.jpg', 'image/jpeg'));
   }
 
-  return payload;
+  return form;
 }
 
 export default function () {
@@ -76,11 +76,15 @@ export default function () {
   if (!authHeader) return;
 
   group('Post Create API', () => {
+    const createPayload = buildCreatePayload();
     const createRes = http.post(
       `${BASE_URL}/api/v1/posts`,
-      buildCreatePayload(),
+      createPayload.body(),
       {
-        headers: authHeader,
+        headers: {
+          ...authHeader,
+          'Content-Type': `multipart/form-data; boundary=${createPayload.boundary}`,
+        },
         tags: {
           scenario: 'post_create_load',
           endpoint: 'post_create',
