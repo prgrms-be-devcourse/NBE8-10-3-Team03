@@ -22,7 +22,7 @@ import org.springframework.transaction.annotation.Transactional
 import java.time.LocalDateTime
 import kotlin.random.Random
 
-@Profile("loadtest")
+@Profile("loadtest|loadtest-cloud")
 @Configuration
 class LoadtestSeeder(
     @Lazy private val self: LoadtestSeeder, // 내부 호출용 self 주입
@@ -36,7 +36,7 @@ class LoadtestSeeder(
 ) {
 
     @Bean
-    @Profile("loadtest")
+    @Profile("loadtest|loadtest-cloud")
     fun loadTestSeederApplicationRunner() = ApplicationRunner {
         self.work1()
         self.work2()
