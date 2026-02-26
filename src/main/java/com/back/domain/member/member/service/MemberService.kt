@@ -1,7 +1,6 @@
 package com.back.domain.member.member.service
 
 import com.back.domain.auction.auction.repository.AuctionRepository
-import com.back.domain.auction.auction.service.FileStorageService
 import com.back.domain.image.image.entity.Image
 import com.back.domain.image.image.repository.ImageRepository
 import com.back.domain.member.member.entity.Member
@@ -21,8 +20,8 @@ import com.back.domain.member.review.repository.ReviewRepository
 import com.back.global.audit.enums.AuditType
 import com.back.global.audit.service.SecurityAuditService
 import com.back.global.exception.ServiceException
-import com.back.global.infra.storage.FileStorageProvider
 import com.back.global.rsData.RsData
+import com.back.global.storage.port.FileStoragePort
 import jakarta.servlet.http.HttpServletRequest
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
@@ -45,7 +44,7 @@ class MemberService(
     private val loginFailService: LoginFailService,
     private val auditService: SecurityAuditService,
     private val servletRequest: HttpServletRequest,
-    private val fileStorageProvider: FileStorageProvider,
+    private val fileStoragePort: FileStoragePort,
     private val imageRepository: ImageRepository
 ) {
 
@@ -366,7 +365,7 @@ class MemberService(
         val managedMember = memberRepository.findById(memberId)
             .orElseThrow { ServiceException("404-1", "존재하지 않는 회원입니다.") }
 
-        val imageUrl = fileStorageProvider.storeFile(profileImg)
+        val imageUrl = fileStoragePort.storeFile(profileImg, "member")
 
         imageRepository.save(Image(imageUrl))
 
