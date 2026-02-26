@@ -41,8 +41,8 @@ class CustomOAuth2AuthorizationRequestResolver(
         req ?: return null
 
         // ✅ 요청 파라미터에서 redirectUrl 가져오기
-        var redirectUrl = request.getParameter("redirectUrl")
-        redirectUrl ?: "/"
+        var redirectUrl = request.getParameter("redirectUrl") ?: "/"
+        //redirectUrl ?: "/"
 
         // ✅ CSRF 방지용 nonce 추가
         val originState: String = UUID.randomUUID().toString()
