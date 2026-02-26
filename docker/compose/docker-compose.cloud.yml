@@ -1,0 +1,12 @@
+services:
+  app:
+    environment:
+      SPRING_PROFILES_ACTIVE: loadtest
+
+      # 로그/SQL 출력 최소화(성능 측정 흔들림 방지)
+      SPRING_JPA_SHOW_SQL: "false"
+      LOGGING_LEVEL_ROOT: "WARN"
+
+      # JVM 메모리 고정(컨테이너/VM 환경에서 재현성 ↑)
+      # VM 메모리 여유에 맞춰 조정 (예: 1~2GB VM이면 아래 정도가 무난)
+      JAVA_TOOL_OPTIONS: "-Xms512m -Xmx768m -XX:+UseG1GC"

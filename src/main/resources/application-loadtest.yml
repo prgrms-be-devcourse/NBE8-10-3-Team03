@@ -1,0 +1,53 @@
+ratelimit:
+  enabled: false
+
+spring:
+  # JPA
+  jpa:
+    show-sql: false                    # 필수 - 로그 왜곡 방지
+    hibernate:
+      ddl-auto: validate               # create/update 절대 금지
+    properties:
+      hibernate:
+        format_sql: false
+        default_batch_fetch_size: 100
+
+  # HikariCP 커넥션풀 고정
+  datasource:
+    hikari:
+      maximum-pool-size: 10            # AWS RDS t3.micro 기준
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+
+  # Redis 설정
+  data:
+    redis:
+      host: ${SPRING_DATA_REDIS_HOST:localhost}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
+
+  # Cache 설정
+  cache:
+    type: redis
+    redis:
+      time-to-live: 600000  # 10분 (밀리초)
+      cache-null-values: false
+
+# 로그 레벨 최소화
+logging:
+  level:
+    root: WARN
+    com.back.global.initData: INFO              # INFO
+
+
+# Actuator - Prometheus 수집용
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, prometheus, metrics
+  metrics:
+    export:
+      prometheus:
+        enabled: true

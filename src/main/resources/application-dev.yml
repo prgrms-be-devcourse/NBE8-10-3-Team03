@@ -1,3 +1,6 @@
+initdata:
+  enabled: true
+
 spring:
   datasource:
     # Docker Compose 환경: mysql 컨테이너 사용
