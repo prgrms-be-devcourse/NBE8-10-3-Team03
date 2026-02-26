@@ -47,6 +47,8 @@ jobs:
           context: .
           platforms: ${{ vars.DOCKER_PLATFORMS || 'linux/arm64' }}
           push: true
+          cache-from: type=gha,scope=cd-main
+          cache-to: type=gha,mode=max,scope=cd-main
           tags: |
             ${{ steps.meta.outputs.image_repo }}:${{ steps.meta.outputs.image_tag }}
             ${{ steps.meta.outputs.image_repo }}:latest
