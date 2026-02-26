@@ -16,7 +16,8 @@ import org.springframework.web.filter.OncePerRequestFilter
     name = ["ratelimit.enabled"],
     havingValue = "true",
     matchIfMissing = true
-)class ApiRateLimitFilter(
+)
+class ApiRateLimitFilter(
     private val rateLimiter: Bucket4jRateLimiter
 ) : OncePerRequestFilter() {
 
@@ -62,7 +63,7 @@ import org.springframework.web.filter.OncePerRequestFilter
     }
 
     private fun resolvePolicy(path: String): RateLimitPolicy =
-        when{
+        when {
             path.startsWith("/api/orders") -> RateLimitPolicy.API_HEAVY
             else -> RateLimitPolicy.API_DEFAULT
         }

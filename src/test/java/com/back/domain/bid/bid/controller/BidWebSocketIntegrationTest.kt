@@ -10,7 +10,7 @@ import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.web.server.LocalServerPort
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
 import org.springframework.http.MediaType
-import org.springframework.messaging.converter.MappingJackson2MessageConverter
+import org.springframework.messaging.converter.JacksonJsonMessageConverter
 import org.springframework.messaging.simp.stomp.StompFrameHandler
 import org.springframework.messaging.simp.stomp.StompHeaders
 import org.springframework.messaging.simp.stomp.StompSession
@@ -60,7 +60,8 @@ class BidWebSocketIntegrationTest {
         val stompClient = WebSocketStompClient(
             SockJsClient(listOf(WebSocketTransport(StandardWebSocketClient())))
         ).apply {
-            messageConverter = MappingJackson2MessageConverter()
+            // MappingJackson2MessageConverter 대체: 동일한 JSON 역직렬화를 제공하는 비권장 아님 컨버터 사용
+            messageConverter = JacksonJsonMessageConverter()
         }
 
         val connectHeaders = StompHeaders().apply {

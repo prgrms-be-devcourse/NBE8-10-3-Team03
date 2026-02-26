@@ -2,11 +2,8 @@ package com.back.global.security
 
 import com.back.domain.member.member.entity.Member
 import com.back.domain.member.member.service.MemberService
-import lombok.RequiredArgsConstructor
-import lombok.extern.slf4j.Slf4j
 import org.springframework.security.oauth2.client.userinfo.DefaultOAuth2UserService
 import org.springframework.security.oauth2.client.userinfo.OAuth2UserRequest
-import org.springframework.security.oauth2.core.OAuth2AuthenticationException
 import org.springframework.security.oauth2.core.user.OAuth2User
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -24,18 +21,24 @@ class CustomOAuth2UserService(
 
         val oauthUserId = oAuth2User.name
         val providerTypeCode = userRequest.clientRegistration.registrationId.uppercase(Locale.getDefault())
+        val username = "${providerTypeCode}__${oauthUserId}"
 
-        val attributes = oAuth2User.attributes
-        val attributesProperties = attributes.get("properties") as MutableMap<*, *>
+        // provider별 사용자 추가 정보는 "properties" 하위 맵에 담겨 들어온다.
+        val attributesProperties = oAuth2User.attributes["properties"] as? Map<*, *>
+            ?: error("OAuth2 properties is missing.")
 
         val userNicknameAttributeName = "nickname"
         val profileImgUrlAttributeName = "profile_image"
 
-        val nickname = attributesProperties.get(userNicknameAttributeName) as String
-        val profileImgUrl = attributesProperties.get(profileImgUrlAttributeName) as String?
-        val username = providerTypeCode + "__${oauthUserId}"
-        val password = ""
-        val member: Member = memberService.modifyOrJoin(username, password, nickname, profileImgUrl).data!!
+        val nickname = attributesProperties[userNicknameAttributeName] as? String
+            ?: error("OAuth2 nickname is missing.")
+        val profileImgUrl = attributesProperties[profileImgUrlAttributeName] as? String
+        val member: Member = memberService.modifyOrJoin(
+            username = username,
+            password = "",
+            nickname = nickname,
+            profileImgUrl = profileImgUrl,
+        ).data ?: error("modifyOrJoin returned null member.")
 
         return SecurityUser(
             member.getId(),

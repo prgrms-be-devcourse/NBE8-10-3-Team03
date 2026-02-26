@@ -135,7 +135,7 @@ class AuthTokenServiceTest {
 
         println("accessToken = " + accessToken)
 
-        val parsedPayload: MutableMap<String, Any>? = authTokenService.payload(accessToken)
+        val parsedPayload: Map<String, Any>? = authTokenService.payload(accessToken)
 
         Assertions.assertThat(parsedPayload)
             .containsAllEntriesOf(

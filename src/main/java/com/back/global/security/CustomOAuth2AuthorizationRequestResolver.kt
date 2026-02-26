@@ -1,7 +1,6 @@
 package com.back.global.security
 
 import jakarta.servlet.http.HttpServletRequest
-import lombok.RequiredArgsConstructor
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository
 import org.springframework.security.oauth2.client.web.DefaultOAuth2AuthorizationRequestResolver
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestRedirectFilter
@@ -41,14 +40,13 @@ class CustomOAuth2AuthorizationRequestResolver(
         req ?: return null
 
         // ✅ 요청 파라미터에서 redirectUrl 가져오기
-        var redirectUrl = request.getParameter("redirectUrl") ?: "/"
-        //redirectUrl ?: "/"
+        val redirectUrl = request.getParameter("redirectUrl") ?: "/"
 
         // ✅ CSRF 방지용 nonce 추가
-        val originState: String = UUID.randomUUID().toString()
+        val originState = UUID.randomUUID().toString()
 
         // ✅ redirectUrl#originState 결합
-        val rawState = redirectUrl + "#" + originState
+        val rawState = "$redirectUrl#$originState"
 
         // ✅ Base64 URL-safe 인코딩
         val encodedState = Base64.getUrlEncoder().encodeToString(rawState.toByteArray(StandardCharsets.UTF_8))
