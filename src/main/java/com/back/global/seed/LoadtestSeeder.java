@@ -6,6 +6,8 @@ import com.back.domain.auction.auction.service.AuctionService;
 import com.back.domain.bid.bid.service.BidService;
 import com.back.domain.category.category.entity.Category;
 import com.back.domain.category.category.repository.CategoryRepository;
+import com.back.domain.image.image.entity.Image;
+import com.back.domain.image.image.repository.ImageRepository;
 import com.back.domain.member.member.entity.Member;
 import com.back.domain.member.member.enums.MemberStatus;
 import com.back.domain.member.member.enums.Role;
@@ -14,6 +16,9 @@ import com.back.domain.member.member.service.MemberService;
 import com.back.domain.member.reputation.entity.Reputation;
 import com.back.domain.member.reputation.repository.ReputationRepository;
 import com.back.domain.member.review.repository.ReviewRepository;
+import com.back.domain.post.post.entity.Post;
+import com.back.domain.post.post.entity.PostImage;
+import com.back.domain.post.post.entity.PostStatus;
 import com.back.domain.post.post.repository.PostRepository;
 import com.back.global.app.AppConfig;
 import com.back.global.initData.BaseInitData;
@@ -34,6 +39,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Profile("loadtest")
@@ -53,6 +59,7 @@ public class LoadtestSeeder{
     private final AuctionService auctionService;
     private final BidService bidService;
     private final PostRepository postRepository;
+    private final ImageRepository imageRepository;
 
     private final PasswordEncoder passwordEncoder;
     private final EntityManager entityManager;
@@ -64,8 +71,7 @@ public class LoadtestSeeder{
             self.work1();
             self.work2();
             self.work3();
-//            self.work4();
-//            self.work5();
+            self.work4();
         };
     }
 
@@ -184,6 +190,85 @@ public class LoadtestSeeder{
 
         entityManager.flush();
         entityManager.clear();
+    }
+
+    @Transactional
+    public void work4() {
+        final int targetPostCount = 10_000;
+        if (postRepository.count() >= targetPostCount) return;
+
+        List<Member> sellers = memberService.findAll().stream()
+                .filter(member -> member.getStatus() == MemberStatus.ACTIVE)
+                .toList();
+        List<Category> categories = categoryRepository.findAll();
+
+        if (sellers.size() < 1_000 || categories.isEmpty()) return;
+
+        // 고정 분포: SALE 70% / RESERVED 20% / SOLD 10%
+        final int saleCount = 7_000;
+        final int reservedCount = 2_000;
+
+        // 고정 분포: 0장 60% / 1장 30% / 3장 10%
+        final int zeroImageCount = 6_000;
+        final int oneImageCount = 3_000;
+        final String[] sampleImageUrls = {
+                "/uploads/loadtest/sample-1.jpg",
+                "/uploads/loadtest/sample-2.jpg",
+                "/uploads/loadtest/sample-3.jpg",
+                "/uploads/loadtest/sample-4.jpg",
+                "/uploads/loadtest/sample-5.jpg"
+        };
+
+        List<Integer> hotspotIds = new ArrayList<>();
+
+        for (int i = 1; i <= targetPostCount; i++) {
+            Member seller = sellers.get((i - 1) % 1_000);
+            Category category = categories.get((i - 1) % categories.size());
+
+            PostStatus status;
+            if (i <= saleCount) status = PostStatus.SALE;
+            else if (i <= saleCount + reservedCount) status = PostStatus.RESERVED;
+            else status = PostStatus.SOLD;
+
+            Post post = new Post(
+                    seller,
+                    "[LT-POST] 상품 " + i,
+                    "[LT-POST] loadtest seed content #" + i,
+                    10_000 + (i * 10),
+                    category,
+                    status,
+                    false
+            );
+
+            if (i > zeroImageCount) {
+                int imageCount = (i <= zeroImageCount + oneImageCount) ? 1 : 3;
+                for (int imgIdx = 1; imgIdx <= imageCount; imgIdx++) {
+                    int sampleIndex = Math.floorMod(i + imgIdx - 2, sampleImageUrls.length);
+                    Image image = imageRepository.save(new Image(
+                            sampleImageUrls[sampleIndex]
+                    ));
+                    post.addPostImage(new PostImage(post, image));
+                }
+            }
+
+            postRepository.save(post);
+
+            if (hotspotIds.size() < 3) {
+                hotspotIds.add(post.getId());
+            }
+
+            if (i % 1000 == 0) {
+                entityManager.flush();
+                entityManager.clear();
+            }
+        }
+
+        entityManager.flush();
+        entityManager.clear();
+
+        System.out.println("[LOADTEST] post seed completed: total=10000, status=7000/2000/1000, images=6000/3000/1000");
+        System.out.println("[LOADTEST] hotspot post ids (for focused detail mode): " + hotspotIds);
+        System.out.println("[LOADTEST] export as env: POST_HOT_IDS=" + hotspotIds.get(0) + "," + hotspotIds.get(1) + "," + hotspotIds.get(2));
     }
 
 }
