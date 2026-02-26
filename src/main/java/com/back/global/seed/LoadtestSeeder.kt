@@ -4,12 +4,19 @@ import com.back.domain.auction.auction.entity.Auction
 import com.back.domain.auction.auction.repository.AuctionRepository
 import com.back.domain.category.category.entity.Category
 import com.back.domain.category.category.repository.CategoryRepository
+import com.back.domain.image.image.entity.Image
+import com.back.domain.image.image.repository.ImageRepository
 import com.back.domain.member.member.entity.Member
+import com.back.domain.member.member.enums.MemberStatus
 import com.back.domain.member.member.enums.Role
 import com.back.domain.member.member.repository.MemberRepository
 import com.back.domain.member.member.service.MemberService
 import com.back.domain.member.reputation.entity.Reputation
 import com.back.domain.member.reputation.repository.ReputationRepository
+import com.back.domain.post.post.entity.Post
+import com.back.domain.post.post.entity.PostImage
+import com.back.domain.post.post.entity.PostStatus
+import com.back.domain.post.post.repository.PostRepository
 import com.back.global.app.AppConfig
 import jakarta.persistence.EntityManager
 import org.springframework.boot.ApplicationRunner
@@ -31,6 +38,8 @@ class LoadtestSeeder(
     private val auctionRepository: AuctionRepository,
     private val reputationRepository: ReputationRepository,
     private val memberRepository: MemberRepository,
+    private val postRepository: PostRepository,
+    private val imageRepository: ImageRepository,
     private val passwordEncoder: PasswordEncoder,
     private val entityManager: EntityManager
 ) {
@@ -41,6 +50,7 @@ class LoadtestSeeder(
         self.work1()
         self.work2()
         self.work3()
+        self.work4()
     }
 
     @Transactional
@@ -113,5 +123,80 @@ class LoadtestSeeder(
         }
         entityManager.flush()
         entityManager.clear()
+    }
+
+    @Transactional
+    fun work4() {
+        val targetPostCount = 10_000L
+        if (postRepository.count() >= targetPostCount) return
+
+        val sellers = memberService.findAll().filter { it.status == MemberStatus.ACTIVE }
+        val categories = categoryRepository.findAll()
+        if (sellers.size < 1_000 || categories.isEmpty()) return
+
+        val saleCount = 7_000
+        val reservedCount = 2_000
+
+        val zeroImageCount = 6_000
+        val oneImageCount = 3_000
+        val sampleImageUrls = arrayOf(
+            "/uploads/loadtest/sample-1.jpg",
+            "/uploads/loadtest/sample-2.jpg",
+            "/uploads/loadtest/sample-3.jpg",
+            "/uploads/loadtest/sample-4.jpg",
+            "/uploads/loadtest/sample-5.jpg"
+        )
+
+        val hotspotIds = mutableListOf<Int>()
+
+        for (i in 1..10_000) {
+            val seller = sellers[(i - 1) % 1_000]
+            val category = categories[(i - 1) % categories.size]
+
+            val status = when {
+                i <= saleCount -> PostStatus.SALE
+                i <= saleCount + reservedCount -> PostStatus.RESERVED
+                else -> PostStatus.SOLD
+            }
+
+            val post = Post(
+                seller,
+                "[LT-POST] 상품 $i",
+                "[LT-POST] loadtest seed content #$i",
+                10_000 + (i * 10),
+                category,
+                status,
+                false
+            )
+
+            if (i > zeroImageCount) {
+                val imageCount = if (i <= zeroImageCount + oneImageCount) 1 else 3
+                for (imgIdx in 1..imageCount) {
+                    val sampleIndex = Math.floorMod(i + imgIdx - 2, sampleImageUrls.size)
+                    val image = imageRepository.save(Image(sampleImageUrls[sampleIndex]))
+                    post.addPostImage(PostImage(post, image))
+                }
+            }
+
+            postRepository.save(post)
+
+            if (hotspotIds.size < 3) {
+                post.id?.let { hotspotIds.add(it) }
+            }
+
+            if (i % 1000 == 0) {
+                entityManager.flush()
+                entityManager.clear()
+            }
+        }
+
+        entityManager.flush()
+        entityManager.clear()
+
+        println("[LOADTEST] post seed completed: total=10000, status=7000/2000/1000, images=6000/3000/1000")
+        if (hotspotIds.size == 3) {
+            println("[LOADTEST] hotspot post ids (for focused detail mode): $hotspotIds")
+            println("[LOADTEST] export as env: POST_HOT_IDS=${hotspotIds[0]},${hotspotIds[1]},${hotspotIds[2]}")
+        }
     }
 }
