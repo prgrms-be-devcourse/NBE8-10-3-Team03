@@ -950,10 +950,7 @@ class ChatControllerTest {
                 .param("txType", txType),
         ).andReturn()
 
-        return objectMapper.readTree(result.response.contentAsString)
-            .path("data")
-            .path("roomId")
-            .asText()
+        return JsonPath.read(result.response.contentAsString, "$.data.roomId")
     }
 
     private fun sendMessageAsUser(roomId: String, message: String, member: Member, imageFile: MockMultipartFile?): Int {
