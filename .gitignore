@@ -50,3 +50,6 @@ uploads/*
 docs/design/**/*.md
 !README.md
 !readme.me
+
+### Load Test Results ###
+perf/results/*

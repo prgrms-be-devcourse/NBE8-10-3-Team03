@@ -25,9 +25,11 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.ApplicationRunner;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.context.annotation.Profile;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
 import com.back.domain.post.post.repository.PostRepository;
@@ -35,6 +37,7 @@ import com.back.domain.post.post.repository.PostRepository;
 import java.time.LocalDateTime;
 import java.util.List;
 
+@Profile("!loadtest")
 @Slf4j
 @Configuration
 @RequiredArgsConstructor
@@ -56,6 +59,7 @@ public class BaseInitData {
     private final EntityManager entityManager;
 
     @Bean
+    @ConditionalOnProperty(name="initdata.enabled", havingValue="true")
     ApplicationRunner baseInitDataApplicationRunner() {
         return args -> {
             self.work1();

@@ -1,0 +1,54 @@
+services:
+  app:
+    environment:
+      SPRING_PROFILES_ACTIVE: loadtest
+
+    # 로컬 모니터링 스펙 변경 시 이 부분만 변경
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'      # AWS EC2 t3.micro 스펙
+          memory: 980M
+        reservations:
+          cpus: '1.0'
+          memory: 512M
+
+  mysql:
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'      # AWS RDS db.t3.micro 스펙
+          memory: 980M
+        reservations:
+          cpus: '1.0'
+          memory: 512M
+
+  redis:
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'      # AWS ElastiCache cache.t3.micro 스펙
+          memory: 510M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+
+  redis-exporter:
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 128M
+        reservations:
+          cpus: '0.25'
+          memory: 64M
+
+  mysql-exporter:
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 128M
+        reservations:
+          cpus: '0.25'
+          memory: 64M
