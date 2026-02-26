@@ -72,7 +72,8 @@ class CustomAuthenticationFilter(
 
         val accessTokenMember = if (isAccessTokenExists) resolveMemberFromAccessToken(accessToken) else null
         val member = accessTokenMember
-            ?: memberService.findByApiKey(apiKey).orElseThrow { ServiceException("401-3", "API 키가 유효하지 않습니다.") }
+            ?: memberService.findByApiKey(apiKey)
+            ?: throw ServiceException("401-3", "API 키가 유효하지 않습니다.")
         val isAccessTokenValid = accessTokenMember != null
 
         // 액세스 토큰은 있는데 기간이 만료되었다면(유효하지 않다면) 재발급

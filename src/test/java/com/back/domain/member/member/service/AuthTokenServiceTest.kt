@@ -34,9 +34,9 @@ class AuthTokenServiceTest {
     private val accessTokenExpirationSeconds = 0
 
     private fun ensureMember(username: String, nickname: String): com.back.domain.member.member.entity.Member =
-        memberService.findByUsername(username).orElseGet {
-            memberService.join(username, "Qw!9zK2m", nickname, null)
-        }
+        memberService.findByUsername(username)
+            ?: memberService.join(username, "Qw!9zK2m", nickname, null)
+
 
     private fun createJwt(payload: Map<String, Any?>): String {
         val keyBytes = jwtSecretKey.toByteArray(StandardCharsets.UTF_8)

@@ -62,7 +62,7 @@ class PostServiceTest {
             images = null
         )
 
-        `when`(memberService.findById(1)).thenReturn(Optional.of(actor))
+        `when`(memberService.findById(1)).thenReturn(actor)
         `when`(categoryPort.getByIdOrThrow(10)).thenReturn(category)
 
         val postId = postService.create(actor, req)
@@ -80,7 +80,7 @@ class PostServiceTest {
             price = 1000,
             categoryId = 1
         )
-        `when`(memberService.findById(1)).thenReturn(Optional.of(actor))
+        `when`(memberService.findById(1)).thenReturn(actor)
 
         assertThatThrownBy { postService.create(actor, req) }
             .isInstanceOf(ServiceException::class.java)
@@ -98,7 +98,7 @@ class PostServiceTest {
             price = 1000,
             categoryId = null
         )
-        `when`(memberService.findById(1)).thenReturn(Optional.of(actor))
+        `when`(memberService.findById(1)).thenReturn(actor)
 
         assertThatThrownBy { postService.create(actor, req) }
             .isInstanceOf(ServiceException::class.java)
@@ -120,7 +120,7 @@ class PostServiceTest {
             images = listOf(imageFile)
         )
 
-        `when`(memberService.findById(1)).thenReturn(Optional.of(actor))
+        `when`(memberService.findById(1)).thenReturn(actor)
         `when`(categoryPort.getByIdOrThrow(1)).thenReturn(category)
         `when`(fileStoragePort.storeFile(imageFile, "post")).thenThrow(RuntimeException("S3 down"))
 
@@ -176,7 +176,7 @@ class PostServiceTest {
         )
 
         `when`(postRepository.findByIdAndDeletedFalse(11)).thenReturn(post)
-        `when`(memberService.findById(1)).thenReturn(Optional.of(actor))
+        `when`(memberService.findById(1)).thenReturn(actor)
         `when`(categoryPort.getByIdOrThrow(2)).thenReturn(Category("가구"))
 
         postService.modify(actor, 11, req)

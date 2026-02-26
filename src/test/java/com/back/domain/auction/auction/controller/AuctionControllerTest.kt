@@ -333,7 +333,7 @@ class AuctionControllerTest {
     fun t12() {
         val auctionId = findAuctionIdBySeller("user1")
         val auction = auctionRepository.findById(auctionId).orElseThrow()
-        val winner = memberService.findByUsername("user2").orElseThrow()
+        val winner = memberService.findByUsername("user2")!!
         auction.completeWithWinner(winner.id)
         auctionRepository.save(auction)
 
@@ -364,7 +364,7 @@ class AuctionControllerTest {
         auction.updateBid(auction.startPrice!! + 1000)
         auctionRepository.save(auction)
 
-        val beforeScore = memberService.findByUsername("user1").orElseThrow().reputation!!.score
+        val beforeScore = memberService.findByUsername("user1")!!.reputation!!.score
 
         val resultActions = mvc
             .perform(
@@ -380,7 +380,7 @@ class AuctionControllerTest {
             .andExpect(MockMvcResultMatchers.jsonPath("$.resultCode").value("200-1"))
             .andExpect(MockMvcResultMatchers.jsonPath("$.msg").value("경매가 정상적으로 취소되었습니다."))
 
-        val afterScore = memberService.findByUsername("user1").orElseThrow().reputation!!.score
+        val afterScore = memberService.findByUsername("user1")!!.reputation!!.score
         Assertions.assertThat(afterScore).isLessThan(beforeScore)
     }
 
@@ -390,7 +390,7 @@ class AuctionControllerTest {
     @Throws(Exception::class)
     fun t14() {
         val auctionId = findAuctionIdBySellerAndBidCount("user2", 0)
-        val beforeScore = memberService.findByUsername("user2").orElseThrow().reputation!!.score
+        val beforeScore = memberService.findByUsername("user2")!!.reputation!!.score
 
         val resultActions = mvc
             .perform(
@@ -406,7 +406,7 @@ class AuctionControllerTest {
             .andExpect(MockMvcResultMatchers.jsonPath("$.resultCode").value("200-1"))
             .andExpect(MockMvcResultMatchers.jsonPath("$.msg").value("경매가 정상적으로 취소되었습니다."))
 
-        val afterScore = memberService.findByUsername("user2").orElseThrow().reputation!!.score
+        val afterScore = memberService.findByUsername("user2")!!.reputation!!.score
         Assertions.assertThat(afterScore).isEqualTo(beforeScore)
     }
 
@@ -607,7 +607,7 @@ class AuctionControllerTest {
     fun t26() {
         val auctionId = findAuctionIdBySeller("user1")
         val auction = auctionRepository.findById(auctionId).orElseThrow()
-        val winner = memberService.findByUsername("user2").orElseThrow()
+        val winner = memberService.findByUsername("user2")!!
         auction.completeWithWinner(winner.id)
         auctionRepository.save(auction)
 
@@ -627,7 +627,7 @@ class AuctionControllerTest {
     fun t27() {
         val auctionId = findAuctionIdBySeller("user1")
         val auction = auctionRepository.findById(auctionId).orElseThrow()
-        val winner = memberService.findByUsername("user2").orElseThrow()
+        val winner = memberService.findByUsername("user2")!!
         auction.completeWithWinner(winner.id)
         auctionRepository.save(auction)
 
