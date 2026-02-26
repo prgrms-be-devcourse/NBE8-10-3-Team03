@@ -61,6 +61,14 @@ spring:
 
 file:
   upload-dir: ./uploads
+  storage:
+    provider: ${FILE_STORAGE_PROVIDER:local}
+    path-prefix: ${FILE_STORAGE_PATH_PREFIX:${spring.profiles.active:dev}}
+    oci:
+      namespace: ${OCI_OBJECT_STORAGE_NAMESPACE:}
+      bucket: ${OCI_OBJECT_STORAGE_BUCKET:}
+      region: ${OCI_REGION:ap-chuncheon-1}
+      par-expire-minutes: ${OCI_OBJECT_STORAGE_PAR_EXPIRE_MINUTES:30}
 
 # Swagger 설정
 springdoc:
