@@ -1,7 +1,7 @@
 // k6/scripts/common.js
 import http from 'k6/http';
 
-export const BASE_URL = __ENV.BASE_URL || 'http://host.docker.internal:8080';
+export const BASE_URL = __ENV.BASE_URL;
 
 // 시딩 계정: user1~user5 (정상), user6(SUSPENDED), user7(BANNED), admin, system
 // 비밀번호: 전부 '1234'
