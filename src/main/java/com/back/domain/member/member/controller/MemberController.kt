@@ -1,7 +1,7 @@
 package com.back.domain.member.member.controller
 
 import com.back.domain.auction.auction.dto.response.AuctionSliceResponse
-import com.back.domain.auction.auction.service.AuctionService
+import com.back.domain.auction.auction.service.port.AuctionUseCase
 import com.back.domain.member.member.dto.MemberDto
 import com.back.domain.member.member.dto.MemberWithUsernameDto
 import com.back.domain.member.member.service.MemberService
@@ -42,7 +42,7 @@ import org.springframework.web.multipart.MultipartFile
 @RequestMapping("/api/v1/members")
 open class MemberController(
     private val memberService: MemberService,
-    private val auctionService: AuctionService,
+    private val auctionService: AuctionUseCase,
     private val postService: PostService,
     private val auditService: SecurityAuditService,
     private val servletRequest: HttpServletRequest,
@@ -373,7 +373,13 @@ open class MemberController(
         ApiResponse(responseCode = "200", description = "조회 성공"),
         ApiResponse(responseCode = "401", description = "인증 실패")
     )
-    fun me(): MemberWithUsernameDto = MemberWithUsernameDto(rq.actorFromDb)
+    fun me(): MemberWithUsernameDto {
+        val actorId = rq.actor.id
+        val actor = memberService.findById(actorId)
+            .orElseThrow { ServiceException("404-1", "존재하지 않는 회원입니다.") }
+
+        return MemberWithUsernameDto(actor)
+    }
 
     @GetMapping("/me/auctions")
     @Transactional(readOnly = true)
@@ -408,7 +414,9 @@ open class MemberController(
         ApiResponse(responseCode = "400", description = "이미 탈퇴한 계정"),
     )
     fun withdraw(): RsData<Void?> {
-        val actor = rq.actorFromDb
+        val actorId = rq.actor.id
+        val actor = memberService.findById(actorId)
+            .orElseThrow { ServiceException("404-1", "존재하지 않는 회원입니다.") }
         rq.deleteCookie("apiKey")
         rq.deleteCookie("accessToken")
         memberService.withdraw(actor)
@@ -424,7 +432,8 @@ open class MemberController(
         ApiResponse(responseCode = "401", description = "인증 실패"),
     )
     fun modifyNickname(@RequestBody @Valid reqBody: MemberNameModifyReqBody): RsData<Void?> {
-        val member = memberService.findById(rq.actor.id).get()
+        val member = memberService.findById(rq.actor.id)
+            .orElseThrow { ServiceException("404-1", "존재하지 않는 회원입니다.") }
         member.checkActorCanModify(member)
         memberService.modifyNickname(member, reqBody.nickname)
 
@@ -439,7 +448,8 @@ open class MemberController(
         ApiResponse(responseCode = "401", description = "인증 실패"),
     )
     fun modifyPassword(@RequestBody @Valid reqBody: MemberPwModifyReqBody): RsData<Void?> {
-        val member = memberService.findById(rq.actor.id).get()
+        val member = memberService.findById(rq.actor.id)
+            .orElseThrow { ServiceException("404-1", "존재하지 않는 회원입니다.") }
         member.checkActorCanModify(member)
         memberService.modifyPassword(member, reqBody.password, reqBody.newPassword, reqBody.checkPassword)
 

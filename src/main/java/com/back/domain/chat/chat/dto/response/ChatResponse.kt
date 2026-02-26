@@ -1,7 +1,6 @@
 package com.back.domain.chat.chat.dto.response
 
 import com.back.domain.chat.chat.entity.Chat
-import com.back.domain.chat.chat.entity.ChatRoomType
 import java.time.LocalDateTime
 
 data class ChatResponse(
@@ -19,14 +18,9 @@ data class ChatResponse(
         fun from(chat: Chat, senderProfileImageUrl: String? = null): ChatResponse {
             val room = chat.chatRoom
 
-            val itemId = when (room.txType) {
-                ChatRoomType.POST -> room.post?.id
-                ChatRoomType.AUCTION -> room.auction?.id
-            }
-
             return ChatResponse(
                 id = chat.id,
-                itemId = itemId,
+                itemId = room.itemId,
                 roomId = room.roomId,
                 senderId = chat.senderId,
                 senderProfileImageUrl = senderProfileImageUrl,

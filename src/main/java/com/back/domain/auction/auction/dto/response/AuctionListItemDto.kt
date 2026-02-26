@@ -4,27 +4,34 @@ import com.back.domain.auction.auction.entity.Auction
 import com.back.domain.auction.auction.entity.AuctionStatus
 import java.time.LocalDateTime
 
-class AuctionListItemDto(
-    auction: Auction,
+data class AuctionListItemDto(
+    val auctionId: Int,
+    val name: String,
+    val startPrice: Int?,
+    val currentHighestBid: Int?,
+    val buyNowPrice: Int?,
+    val status: AuctionStatus,
+    val endAt: LocalDateTime,
+    val bidCount: Int,
+    val seller: SellerDto,
+    val categoryName: String,
     val thumbnailUrl: String?
 ) {
-    val auctionId: Int = auction.id
-    val name: String = auction.name
-    val startPrice: Int? = auction.startPrice
-    val currentHighestBid: Int? = auction.currentHighestBid
-    val buyNowPrice: Int? = auction.buyNowPrice
-    val status: AuctionStatus = auction.status
-    val endAt: LocalDateTime = auction.endAt
-    val bidCount: Int = auction.bidCount
-    val seller: SellerDto
-    val categoryName: String = auction.category.name
-
-    init {
-        val reputationScore = auction.seller.reputation?.score
+    constructor(auction: Auction, thumbnailUrl: String?) : this(
+        auctionId = auction.id,
+        name = auction.name,
+        startPrice = auction.startPrice,
+        currentHighestBid = auction.currentHighestBid,
+        buyNowPrice = auction.buyNowPrice,
+        status = auction.status,
+        endAt = auction.endAt,
+        bidCount = auction.bidCount,
         seller = SellerDto(
             auction.seller.id,
             auction.seller.nickname,
-            reputationScore
-        )
-    }
+            auction.seller.reputation?.score
+        ),
+        categoryName = auction.category.name,
+        thumbnailUrl = thumbnailUrl
+    )
 }

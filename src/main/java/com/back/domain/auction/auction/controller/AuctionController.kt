@@ -7,7 +7,7 @@ import com.back.domain.auction.auction.dto.response.AuctionDetailResponse
 import com.back.domain.auction.auction.dto.response.AuctionIdResponse
 import com.back.domain.auction.auction.dto.response.AuctionPageResponse
 import com.back.domain.auction.auction.dto.response.AuctionUpdateResponse
-import com.back.domain.auction.auction.service.AuctionService
+import com.back.domain.auction.auction.service.port.AuctionUseCase
 import com.back.global.controller.BaseController
 import com.back.global.rq.Rq
 import com.back.global.rsData.RsData
@@ -31,7 +31,7 @@ import org.springframework.web.bind.annotation.RestController
 @RequestMapping("/api/v1/auctions")
 class AuctionController(
     rq: Rq,
-    private val auctionService: AuctionService
+    private val auctionService: AuctionUseCase
 ) : BaseController(rq) {
 
     @Operation(summary = "경매 물품 등록")

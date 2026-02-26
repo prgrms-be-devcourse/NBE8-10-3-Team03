@@ -20,7 +20,9 @@ import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders
 import org.springframework.test.web.servlet.result.MockMvcResultHandlers
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers
+import org.springframework.test.util.ReflectionTestUtils
 import org.springframework.transaction.annotation.Transactional
+import java.time.LocalDateTime
 import java.util.*
 
 @SpringBootTest
@@ -566,6 +568,47 @@ class BidControllerTest {
             .andExpect(MockMvcResultMatchers.jsonPath("$.resultCode").value("200-1"))
             .andExpect(MockMvcResultMatchers.jsonPath("$.data.page").value(0))
             .andExpect(MockMvcResultMatchers.jsonPath("$.data.size").value(20))
+    }
+
+    @Test
+    @DisplayName("23. 입찰 생성 실패 - 종료 시간 지난 경매")
+    @Throws(Exception::class)
+    fun t23() {
+        val auctionId = 2
+        val auction = auctionRepository.findById(auctionId).orElseThrow()
+        ReflectionTestUtils.setField(auction, "endAt", LocalDateTime.now().minusMinutes(1))
+
+        mvc.perform(
+            MockMvcRequestBuilders.post("/api/v1/auctions/{auctionId}/bids", auctionId)
+                .header("Authorization", bearer("user1"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""{"price":13000}""")
+        )
+            .andDo(MockMvcResultHandlers.print())
+            .andExpect(MockMvcResultMatchers.status().isBadRequest())
+            .andExpect(MockMvcResultMatchers.jsonPath("$.resultCode").value("400-2"))
+
+        Assertions.assertThat(uniqueBroadcastCount(auctionId)).isZero()
+    }
+
+    @Test
+    @DisplayName("24. 입찰 생성 성공 - 최고 입찰가 기준 150% 경계값")
+    @Throws(Exception::class)
+    fun t24() {
+        val auctionId = 3 // startPrice: 13,000, maxAllowed: 19,500
+
+        mvc.perform(
+            MockMvcRequestBuilders.post("/api/v1/auctions/{auctionId}/bids", auctionId)
+                .header("Authorization", bearer("user1"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""{"price":19500}""")
+        )
+            .andDo(MockMvcResultHandlers.print())
+            .andExpect(MockMvcResultMatchers.status().isOk())
+            .andExpect(MockMvcResultMatchers.jsonPath("$.resultCode").value("200-1"))
+            .andExpect(MockMvcResultMatchers.jsonPath("$.data.price").value(19500))
+
+        Assertions.assertThat(uniqueBroadcastCount(auctionId)).isEqualTo(1)
     }
 
     private fun bearer(apiKey: String): String {

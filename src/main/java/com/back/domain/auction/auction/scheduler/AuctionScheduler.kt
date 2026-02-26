@@ -1,9 +1,8 @@
 package com.back.domain.auction.auction.scheduler
 
 import com.back.domain.auction.auction.entity.Auction
-import com.back.domain.auction.auction.entity.AuctionStatus
-import com.back.domain.auction.auction.repository.AuctionRepository
-import com.back.domain.bid.bid.repository.BidRepository
+import com.back.domain.auction.auction.service.port.AuctionPersistencePort
+import com.back.domain.auction.auction.service.port.BidReadPort
 import org.slf4j.LoggerFactory
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
@@ -12,8 +11,8 @@ import java.time.LocalDateTime
 
 @Component
 class AuctionScheduler(
-    private val auctionRepository: AuctionRepository,
-    private val bidRepository: BidRepository
+    private val auctionPersistencePort: AuctionPersistencePort,
+    private val bidReadPort: BidReadPort
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
@@ -21,8 +20,7 @@ class AuctionScheduler(
     @Transactional
     fun processExpiredAuctions() {
         val now = LocalDateTime.now()
-        val expiredAuctions = auctionRepository.findByStatusAndEndAtBefore(AuctionStatus.OPEN, now)
-
+        val expiredAuctions = auctionPersistencePort.findExpiredOpenAuctions(now)
         if (expiredAuctions.isEmpty()) return
 
         log.info("만료된 경매 {}건 처리 시작", expiredAuctions.size)
@@ -31,23 +29,21 @@ class AuctionScheduler(
     }
 
     private fun processExpiredAuction(auction: Auction) {
-        val highestBid = bidRepository.findTopByAuctionIdOrderByPriceDesc(auction.id)
-
-        if (highestBid.isPresent) {
-            val winningBid = highestBid.get()
-            auction.completeWithWinner(winningBid.bidder.id)
+        // 최고 입찰이 있으면 낙찰 완료, 없으면 유찰 종료로 상태를 전이한다.
+        val winningBid = bidReadPort.findHighestBidByAuctionId(auction.id)
+        if (winningBid != null) {
+            auction.completeWithWinner(winningBid.bidderId)
 
             log.info(
                 "경매 ID {} 낙찰 완료 - 낙찰자: {}, 낙찰가: {}원",
                 auction.id,
-                winningBid.bidder.nickname,
+                winningBid.bidderNickname,
                 winningBid.price
             )
         } else {
             auction.closeWithoutBid()
             log.info("경매 ID {} 입찰 없이 종료", auction.id)
         }
-
-        auctionRepository.save(auction)
+        auctionPersistencePort.save(auction)
     }
 }

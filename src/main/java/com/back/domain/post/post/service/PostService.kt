@@ -1,8 +1,7 @@
 package com.back.domain.post.post.service
 
 import com.back.domain.auction.auction.service.FileStorageService
-import com.back.domain.category.category.entity.Category
-import com.back.domain.category.category.repository.CategoryRepository
+import com.back.domain.category.category.service.port.CategoryPort
 import com.back.domain.image.image.entity.Image
 import com.back.domain.image.image.repository.ImageRepository
 import com.back.domain.member.member.entity.Member
@@ -24,7 +23,7 @@ import org.springframework.web.multipart.MultipartFile
 @Transactional(readOnly = true)
 class PostService(
     private val postRepository: PostRepository,
-    private val categoryRepository: CategoryRepository,
+    private val categoryPort: CategoryPort,
     private val imageRepository: ImageRepository,
     private val fileStorageService: FileStorageService,
     private val memberService: MemberService
@@ -41,8 +40,8 @@ class PostService(
         }
 
         val categoryId = req.categoryId ?: throw ServiceException("400", "카테고리 ID가 누락되었습니다.")
-        val category = categoryRepository.findById(categoryId)
-            .orElseThrow { ServiceException("404-2", "존재하지 않는 카테고리입니다.") }
+        // Post 도메인도 CategoryRepository 대신 포트에 의존해 DIP를 유지한다.
+        val category = categoryPort.getByIdOrThrow(categoryId)
 
         val post = Post(
             seller = actor,
@@ -87,8 +86,8 @@ class PostService(
         }
 
         val categoryId = req.categoryId ?: throw ServiceException("400", "카테고리 ID가 누락되었습니다.")
-        val category = categoryRepository.findById(categoryId)
-            .orElseThrow { ServiceException("404-2", "카테고리 오류") }
+        // 카테고리 조회 실패 메시지/코드 정책은 CategoryPort 구현체에서 일관되게 관리한다.
+        val category = categoryPort.getByIdOrThrow(categoryId)
 
         post.update(req.title, req.content, req.price, category)
         updateImages(req, post)
