@@ -13,6 +13,7 @@ import com.back.domain.post.post.entity.PostImage
 import com.back.domain.post.post.entity.PostStatus
 import com.back.domain.post.post.repository.PostRepository
 import com.back.global.exception.ServiceException
+import com.back.global.infra.storage.FileStorageProvider
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Service
@@ -25,7 +26,7 @@ class PostService(
     private val postRepository: PostRepository,
     private val categoryPort: CategoryPort,
     private val imageRepository: ImageRepository,
-    private val fileStorageService: FileStorageService,
+    private val fileStorageProvider: FileStorageProvider,
     private val memberService: MemberService
 ) {
 
@@ -58,7 +59,7 @@ class PostService(
         req.images?.forEach { file ->
             if (!file.isEmpty) {
                 try {
-                    val imageUrl = fileStorageService.storeFile(file)
+                    val imageUrl = fileStorageProvider.storeFile(file)
                     val image = imageRepository.save(Image(imageUrl))
                     post.addPostImage(PostImage(post, image))
                 } catch (e: Exception) {
@@ -103,7 +104,7 @@ class PostService(
 
         req.images?.forEach { file ->
             if (!file.isEmpty) {
-                val url = fileStorageService.storeFile(file)
+                val url = fileStorageProvider.storeFile(file)
                 val img = imageRepository.save(Image(url))
                 post.addPostImage(PostImage(post, img))
             }
