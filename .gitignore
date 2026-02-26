@@ -50,3 +50,9 @@ uploads/*
 docs/design/**/*.md
 !README.md
 !readme.me
+
+### Load Test Results ###
+perf/results/*
+
+### Local Agent Rules (Do not publish) ###
+AGENTS.md

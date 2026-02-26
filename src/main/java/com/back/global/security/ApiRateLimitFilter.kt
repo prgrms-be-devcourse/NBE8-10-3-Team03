@@ -6,11 +6,17 @@ import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
 import org.slf4j.LoggerFactory
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.stereotype.Component
 import org.springframework.web.filter.OncePerRequestFilter
 
 @Component
+@ConditionalOnProperty(
+    name = ["ratelimit.enabled"],
+    havingValue = "true",
+    matchIfMissing = true
+)
 class ApiRateLimitFilter(
     private val rateLimiter: Bucket4jRateLimiter
 ) : OncePerRequestFilter() {
@@ -57,7 +63,7 @@ class ApiRateLimitFilter(
     }
 
     private fun resolvePolicy(path: String): RateLimitPolicy =
-        when{
+        when {
             path.startsWith("/api/orders") -> RateLimitPolicy.API_HEAVY
             else -> RateLimitPolicy.API_DEFAULT
         }

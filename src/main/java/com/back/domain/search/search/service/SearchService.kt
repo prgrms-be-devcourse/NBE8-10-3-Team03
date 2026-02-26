@@ -13,17 +13,32 @@ import org.springframework.transaction.annotation.Transactional
 @Service
 @Transactional(readOnly = true)
 class SearchService(
+/*
     private val postRepository: PostRepository,
     private val auctionRepository: AuctionRepository
+
+ */
+    private val searchProviders: List<SearchProvider>
 ) {
+
     // 통합 검색 (POST + AUCTION)
     fun searchUnified(keyword: String, pageable: Pageable): Page<UnifiedSearchResponse> {
+
+        // 1. 모든 도메인(Post, Auction 등)에서 검색 결과 획득 및 병합
+        val combinedResults = searchProviders.flatMap { it.search(keyword, pageable) }
+            .sortedByDescending { it.createDate } // 2. 최신순 정렬
+
+        // 3. 코틀린스러운 컬렉션 함수를 이용한 안전한 페이징 처리
+        val start = pageable.offset.toInt()
+        val pagedResults = combinedResults.drop(start).take(pageable.pageSize)
+
+        return PageImpl(pagedResults, pageable, combinedResults.size.toLong())
+/*
         val posts = postRepository.search(keyword, pageable)
         val auctions = auctionRepository.search(keyword, pageable)
 
         val combinedResults = mutableListOf<UnifiedSearchResponse>()
 
-        // 1. Post 변환
         posts.forEach { post ->
             combinedResults.add(
                 UnifiedSearchResponse(
@@ -44,7 +59,7 @@ class SearchService(
             )
         }
 
-        // 2. Auction 변환 (Auction은 아직 Java 코드)
+
         auctions.forEach { auction ->
             combinedResults.add(
                 UnifiedSearchResponse(
@@ -60,10 +75,10 @@ class SearchService(
             )
         }
 
-        // 3. 최신순 정렬 (코틀린의 간결한 정렬 문법)
+        // 최신순 정렬
         val sortedResults = combinedResults.sortedByDescending { it.createDate }
 
-        // 4. 페이징 처리
+        // 페이징 처리
         val start = pageable.offset.toInt()
         val end = (start + pageable.pageSize).coerceAtMost(sortedResults.size)
 
@@ -74,5 +89,7 @@ class SearchService(
         }
 
         return PageImpl(pagedResults, pageable, sortedResults.size.toLong())
+
+ */
     }
 }

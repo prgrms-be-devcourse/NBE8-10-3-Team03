@@ -1,0 +1,10 @@
+services:
+  prometheus:
+    cpus: "0.25"
+    mem_limit: 512M
+    memswap_limit: 512M
+
+  grafana:
+    cpus: "0.25"
+    mem_limit: 512M
+    memswap_limit: 512M

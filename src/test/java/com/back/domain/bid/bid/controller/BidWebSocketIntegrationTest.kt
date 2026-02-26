@@ -1,5 +1,6 @@
 package com.back.domain.bid.bid.controller
 
+import com.back.domain.auction.auction.repository.AuctionRepository
 import com.back.domain.member.member.repository.MemberRepository
 import com.back.domain.member.member.service.AuthTokenService
 import org.assertj.core.api.Assertions.assertThat
@@ -9,7 +10,7 @@ import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.web.server.LocalServerPort
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
 import org.springframework.http.MediaType
-import org.springframework.messaging.converter.MappingJackson2MessageConverter
+import org.springframework.messaging.converter.JacksonJsonMessageConverter
 import org.springframework.messaging.simp.stomp.StompFrameHandler
 import org.springframework.messaging.simp.stomp.StompHeaders
 import org.springframework.messaging.simp.stomp.StompSession
@@ -43,10 +44,13 @@ class BidWebSocketIntegrationTest {
     @Autowired
     private lateinit var authTokenService: AuthTokenService
 
+    @Autowired
+    private lateinit var auctionRepository: AuctionRepository
+
     @Test
     fun `입찰 성공 시 구독 중인 클라이언트로 실시간 메시지가 전송된다`() {
-        val auctionId = 2
-        val bidPrice = 13000
+        val auctionId = findOpenAuctionIdForBidder("user1")
+        val bidPrice = nextValidBidPrice(auctionId)
         val destination = "/sub/v1/auctions/$auctionId"
         val messageQueue = LinkedBlockingQueue<Map<*, *>>()
 
@@ -56,7 +60,8 @@ class BidWebSocketIntegrationTest {
         val stompClient = WebSocketStompClient(
             SockJsClient(listOf(WebSocketTransport(StandardWebSocketClient())))
         ).apply {
-            messageConverter = MappingJackson2MessageConverter()
+            // MappingJackson2MessageConverter 대체: 동일한 JSON 역직렬화를 제공하는 비권장 아님 컨버터 사용
+            messageConverter = JacksonJsonMessageConverter()
         }
 
         val connectHeaders = StompHeaders().apply {
@@ -106,5 +111,22 @@ class BidWebSocketIntegrationTest {
             session?.disconnect()
             stompClient.stop()
         }
+    }
+
+    private fun findOpenAuctionIdForBidder(bidderUsername: String): Int {
+        return auctionRepository.findAll()
+            .firstOrNull { auction ->
+                auction.isActive() &&
+                    auction.bidCount == 0 &&
+                    auction.currentHighestBid == null &&
+                    auction.startPrice != null &&
+                    auction.seller.username != bidderUsername
+            }?.id
+            ?: throw IllegalStateException("조건에 맞는 경매를 찾을 수 없습니다.")
+    }
+
+    private fun nextValidBidPrice(auctionId: Int): Int {
+        val auction = auctionRepository.findById(auctionId).orElseThrow()
+        return (auction.startPrice ?: 10_000) + 1000
     }
 }

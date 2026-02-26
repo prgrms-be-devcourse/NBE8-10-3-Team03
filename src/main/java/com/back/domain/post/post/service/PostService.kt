@@ -1,6 +1,5 @@
 package com.back.domain.post.post.service
 
-import com.back.domain.auction.auction.service.FileStorageService
 import com.back.domain.category.category.service.port.CategoryPort
 import com.back.domain.image.image.entity.Image
 import com.back.domain.image.image.repository.ImageRepository
@@ -13,6 +12,7 @@ import com.back.domain.post.post.entity.PostImage
 import com.back.domain.post.post.entity.PostStatus
 import com.back.domain.post.post.repository.PostRepository
 import com.back.global.exception.ServiceException
+import com.back.global.storage.port.FileStoragePort
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Service
@@ -25,7 +25,7 @@ class PostService(
     private val postRepository: PostRepository,
     private val categoryPort: CategoryPort,
     private val imageRepository: ImageRepository,
-    private val fileStorageService: FileStorageService,
+    private val fileStoragePort: FileStoragePort,
     private val memberService: MemberService
 ) {
 
@@ -58,7 +58,7 @@ class PostService(
         req.images?.forEach { file ->
             if (!file.isEmpty) {
                 try {
-                    val imageUrl = fileStorageService.storeFile(file)
+                    val imageUrl = fileStoragePort.storeFile(file, "post")
                     val image = imageRepository.save(Image(imageUrl))
                     post.addPostImage(PostImage(post, image))
                 } catch (e: Exception) {
@@ -103,7 +103,7 @@ class PostService(
 
         req.images?.forEach { file ->
             if (!file.isEmpty) {
-                val url = fileStorageService.storeFile(file)
+                val url = fileStoragePort.storeFile(file, "post")
                 val img = imageRepository.save(Image(url))
                 post.addPostImage(PostImage(post, img))
             }

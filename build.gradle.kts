@@ -74,6 +74,10 @@ dependencies {
 
     // bucket4j
     implementation("com.bucket4j:bucket4j-core:8.10.1")
+
+    // OCI Object Storage
+    implementation("com.oracle.oci.sdk:oci-java-sdk-objectstorage:3.58.0")
+    implementation("com.oracle.oci.sdk:oci-java-sdk-common-httpclient-jersey3:3.58.0")
 }
 
 tasks.withType<Test> {
