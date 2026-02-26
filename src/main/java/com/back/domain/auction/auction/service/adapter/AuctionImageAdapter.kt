@@ -2,17 +2,17 @@ package com.back.domain.auction.auction.service.adapter
 
 import com.back.domain.auction.auction.entity.Auction
 import com.back.domain.auction.auction.entity.AuctionImage
-import com.back.domain.auction.auction.service.FileStorageService
 import com.back.domain.auction.auction.service.port.AuctionImagePort
 import com.back.domain.image.image.entity.Image
 import com.back.domain.image.image.repository.ImageRepository
 import com.back.global.exception.ServiceException
+import com.back.global.storage.port.FileStoragePort
 import org.springframework.stereotype.Component
 import org.springframework.web.multipart.MultipartFile
 
 @Component
 class AuctionImageAdapter(
-    private val fileStorageService: FileStorageService,
+    private val fileStoragePort: FileStoragePort,
     private val imageRepository: ImageRepository
 ) : AuctionImagePort {
     override fun saveImages(auction: Auction, imageFiles: List<MultipartFile>) {
@@ -42,7 +42,7 @@ class AuctionImageAdapter(
 
     private fun persistAuctionImage(auction: Auction, file: MultipartFile) {
         try {
-            val imageUrl = fileStorageService.storeFile(file)
+            val imageUrl = fileStoragePort.storeFile(file, "auction")
             val savedImage = imageRepository.save(Image(imageUrl))
             auction.addAuctionImage(AuctionImage(auction, savedImage))
         } catch (e: Exception) {
