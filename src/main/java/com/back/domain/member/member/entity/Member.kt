@@ -86,7 +86,7 @@ class Member(
         null,
         ""
     ) {
-        setId(id)
+        this.id = id
     }
 
     constructor(id: Int, username: String, nickname: String, role: Role?) : this(
@@ -96,7 +96,7 @@ class Member(
         role,
         ""
     ) {
-        setId(id)
+        this.id = id
     }
 
     constructor(username: String, password: String?, nickname: String) : this(

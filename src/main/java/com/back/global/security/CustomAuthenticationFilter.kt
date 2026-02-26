@@ -95,7 +95,7 @@ class CustomAuthenticationFilter(
 
         // Spring Security 인증 객체 생성 ⭐
         val user: UserDetails = SecurityUser(
-            member.getId(),
+            member.id,
             member.username,
             "",
             member.nickname,
