@@ -15,7 +15,7 @@ import com.back.domain.post.post.entity.PostImage
 import com.back.domain.post.post.entity.PostStatus
 import com.back.domain.post.post.repository.PostRepository
 import com.back.global.exception.ServiceException
-import com.back.global.infra.storage.FileStorageProvider
+import com.back.global.storage.port.FileStoragePort
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.DisplayName
@@ -38,14 +38,14 @@ class PostServiceTest {
     }
     private val categoryPort: CategoryPort = mock(CategoryPort::class.java)
     private val imageRepository: ImageRepository = mock(ImageRepository::class.java)
-    private val fileStorageProvider: FileStorageProvider = mock(FileStorageProvider::class.java)
+    private val fileStoragePort: FileStoragePort = mock(FileStoragePort::class.java)
     private val memberService: MemberService = mock(MemberService::class.java)
 
     private val postService = PostService(
         postRepository,
         categoryPort,
         imageRepository,
-        fileStorageProvider,
+        fileStoragePort,
         memberService
     )
 
@@ -122,7 +122,7 @@ class PostServiceTest {
 
         `when`(memberService.findById(1)).thenReturn(Optional.of(actor))
         `when`(categoryPort.getByIdOrThrow(1)).thenReturn(category)
-        `when`(fileStorageProvider.storeFile(imageFile)).thenThrow(RuntimeException("S3 down"))
+        `when`(fileStoragePort.storeFile(imageFile, "post")).thenThrow(RuntimeException("S3 down"))
 
         assertThatThrownBy { postService.create(actor, req) }
             .isInstanceOf(ServiceException::class.java)
