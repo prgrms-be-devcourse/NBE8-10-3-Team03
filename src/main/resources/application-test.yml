@@ -18,3 +18,5 @@ spring:
       time-to-live: 600000  # 10분 (밀리초)
       cache-null-values: false
 
+initdata:
+  enabled: true
