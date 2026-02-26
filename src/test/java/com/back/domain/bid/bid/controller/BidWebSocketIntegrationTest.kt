@@ -1,5 +1,6 @@
 package com.back.domain.bid.bid.controller
 
+import com.back.domain.auction.auction.repository.AuctionRepository
 import com.back.domain.member.member.repository.MemberRepository
 import com.back.domain.member.member.service.AuthTokenService
 import org.assertj.core.api.Assertions.assertThat
@@ -43,10 +44,13 @@ class BidWebSocketIntegrationTest {
     @Autowired
     private lateinit var authTokenService: AuthTokenService
 
+    @Autowired
+    private lateinit var auctionRepository: AuctionRepository
+
     @Test
     fun `입찰 성공 시 구독 중인 클라이언트로 실시간 메시지가 전송된다`() {
-        val auctionId = 2
-        val bidPrice = 13000
+        val auctionId = findOpenAuctionIdForBidder("user1")
+        val bidPrice = nextValidBidPrice(auctionId)
         val destination = "/sub/v1/auctions/$auctionId"
         val messageQueue = LinkedBlockingQueue<Map<*, *>>()
 
@@ -106,5 +110,22 @@ class BidWebSocketIntegrationTest {
             session?.disconnect()
             stompClient.stop()
         }
+    }
+
+    private fun findOpenAuctionIdForBidder(bidderUsername: String): Int {
+        return auctionRepository.findAll()
+            .firstOrNull { auction ->
+                auction.isActive() &&
+                    auction.bidCount == 0 &&
+                    auction.currentHighestBid == null &&
+                    auction.startPrice != null &&
+                    auction.seller.username != bidderUsername
+            }?.id
+            ?: throw IllegalStateException("조건에 맞는 경매를 찾을 수 없습니다.")
+    }
+
+    private fun nextValidBidPrice(auctionId: Int): Int {
+        val auction = auctionRepository.findById(auctionId).orElseThrow()
+        return (auction.startPrice ?: 10_000) + 1000
     }
 }

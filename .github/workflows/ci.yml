@@ -67,6 +67,7 @@ jobs:
           SPRING_DATASOURCE_USERNAME: root
           SPRING_DATASOURCE_PASSWORD: root
           SPRING_DATASOURCE_DRIVER_CLASS_NAME: com.mysql.cj.jdbc.Driver
+          SPRING_JPA_HIBERNATE_DDL_AUTO: create-drop
         run: ./gradlew test --no-daemon
 
       - name: Test (push)
@@ -76,6 +77,7 @@ jobs:
           SPRING_DATASOURCE_USERNAME: root
           SPRING_DATASOURCE_PASSWORD: root
           SPRING_DATASOURCE_DRIVER_CLASS_NAME: com.mysql.cj.jdbc.Driver
+          SPRING_JPA_HIBERNATE_DDL_AUTO: create-drop
         run: ./gradlew test --no-daemon
 
       - name: Upload test reports
