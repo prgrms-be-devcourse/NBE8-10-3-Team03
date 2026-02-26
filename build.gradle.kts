@@ -78,6 +78,7 @@ dependencies {
     // OCI Object Storage
     implementation("com.oracle.oci.sdk:oci-java-sdk-objectstorage:3.58.0")
     implementation("com.oracle.oci.sdk:oci-java-sdk-common-httpclient-jersey:3.58.0")
+    implementation("javax.ws.rs:javax.ws.rs-api:2.1.1")
 }
 
 tasks.withType<Test> {
