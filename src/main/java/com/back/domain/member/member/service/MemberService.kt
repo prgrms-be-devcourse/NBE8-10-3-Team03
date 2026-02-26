@@ -21,6 +21,7 @@ import com.back.domain.member.review.repository.ReviewRepository
 import com.back.global.audit.enums.AuditType
 import com.back.global.audit.service.SecurityAuditService
 import com.back.global.exception.ServiceException
+import com.back.global.infra.storage.FileStorageProvider
 import com.back.global.rsData.RsData
 import jakarta.servlet.http.HttpServletRequest
 import org.springframework.security.crypto.password.PasswordEncoder
@@ -44,7 +45,7 @@ class MemberService(
     private val loginFailService: LoginFailService,
     private val auditService: SecurityAuditService,
     private val servletRequest: HttpServletRequest,
-    private val fileStorageService: FileStorageService,
+    private val fileStorageProvider: FileStorageProvider,
     private val imageRepository: ImageRepository
 ) {
 
@@ -365,7 +366,7 @@ class MemberService(
         val managedMember = memberRepository.findById(memberId)
             .orElseThrow { ServiceException("404-1", "존재하지 않는 회원입니다.") }
 
-        val imageUrl = fileStorageService.storeFile(profileImg)
+        val imageUrl = fileStorageProvider.storeFile(profileImg)
 
         imageRepository.save(Image(imageUrl))
 
