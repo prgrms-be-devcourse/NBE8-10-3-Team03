@@ -4,6 +4,9 @@ target/
 *.jar
 *.war
 out/
+!build/
+!build/libs/
+!build/libs/app.jar
 
 # Gradle
 .gradle/
@@ -62,4 +65,3 @@ src/test/
 # 기타
 node_modules/
 npm-debug.log
-
