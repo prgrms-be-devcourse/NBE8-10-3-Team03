@@ -1,0 +1,21 @@
+services:
+  app-canary:
+    image: ${IMAGE_REPO}:${IMAGE_TAG}
+    container_name: ${CANARY_CONTAINER_NAME:-back-app-canary}
+    restart: unless-stopped
+    env_file:
+      - .env.canary
+    ports:
+      - "${CANARY_APP_PORT:-8081}:8080"
+    volumes:
+      - uploads-data-canary:/app/uploads
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+volumes:
+  uploads-data-canary:
+    driver: local
