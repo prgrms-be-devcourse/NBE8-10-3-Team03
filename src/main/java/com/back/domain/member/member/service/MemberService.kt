@@ -174,7 +174,7 @@ class MemberService(
         return authTokenService.genAccessToken(member)
     }
 
-    fun payload(accessToken: String): MutableMap<String, Any>? {
+    fun payload(accessToken: String): Map<String, Any>? {
         return authTokenService.payload(accessToken)
     }
 
