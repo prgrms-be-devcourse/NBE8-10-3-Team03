@@ -1,6 +1,7 @@
 package com.back.domain.auction.auction.service
 
 import com.back.global.exception.ServiceException
+import com.back.global.infra.storage.FileStorageProvider
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
 import org.springframework.web.multipart.MultipartFile
@@ -14,7 +15,7 @@ import java.util.UUID
 @Service
 class FileStorageService(
     @Value("\${file.upload-dir}") uploadDir: String
-) {
+) : FileStorageProvider {
     private val fileStorageLocation: Path = Paths.get(uploadDir).toAbsolutePath().normalize()
 
     init {
@@ -25,7 +26,7 @@ class FileStorageService(
         }
     }
 
-    fun storeFile(file: MultipartFile): String {
+    override fun storeFile(file: MultipartFile): String {
         val originalFileName = file.originalFilename
         if (originalFileName.isNullOrEmpty()) {
             throw ServiceException("400-3", "파일 이름이 유효하지 않습니다.")
