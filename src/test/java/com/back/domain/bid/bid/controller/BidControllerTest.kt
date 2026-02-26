@@ -48,7 +48,8 @@ class BidControllerTest {
     @DisplayName("1. 입찰 생성 성공")
     @Throws(Exception::class)
     fun t1() {
-        val auctionId = 1 // seller: user2, startPrice: 11,000
+        val auctionId = findOpenAuctionIdForBidders("user1")
+        val bidPrice = nextValidBidPrice(auctionId)
 
         mvc.perform(
             MockMvcRequestBuilders.post("/api/v1/auctions/{auctionId}/bids", auctionId)
@@ -56,7 +57,7 @@ class BidControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
                     """
-                                {"price":12000}
+                                {"price":$bidPrice}
                                 
                                 """.trimIndent()
                 )
@@ -66,7 +67,7 @@ class BidControllerTest {
             .andExpect(MockMvcResultMatchers.handler().methodName("createBid"))
             .andExpect(MockMvcResultMatchers.status().isOk())
             .andExpect(MockMvcResultMatchers.jsonPath("$.resultCode").value("200-1"))
-            .andExpect(MockMvcResultMatchers.jsonPath("$.data.price").value(12000))
+            .andExpect(MockMvcResultMatchers.jsonPath("$.data.price").value(bidPrice))
             .andExpect(MockMvcResultMatchers.jsonPath("$.data.auctionId").value(auctionId))
             .andExpect(MockMvcResultMatchers.jsonPath("$.data.buyNow").value(false))
 
@@ -105,16 +106,19 @@ class BidControllerTest {
     @DisplayName("3. 입찰 생성 - 즉시구매가로 입찰 시 경매 즉시 종료")
     @Throws(Exception::class)
     fun t3() {
-        val auctionId = 1 // startPrice: 11,000, buyNowPrice: 22,000
+        val auctionId = findOpenAuctionIdWithBuyNowForBidders("user1", "user3")
+        val auction = auctionRepository.findById(auctionId).orElseThrow()
+        val buyNowPrice = auction.buyNowPrice ?: throw IllegalStateException("즉시구매가가 없는 경매입니다.")
+        val preBidPrice = ((auction.startPrice ?: 10_000) * 3) / 2
 
-        // 현재가를 먼저 올려야 buyNow 입찰(22,000)이 150% 제한에 걸리지 않는다.
+        // 현재가를 먼저 올려야 buyNow 입찰이 150% 제한에 걸리지 않는다.
         mvc.perform(
             MockMvcRequestBuilders.post("/api/v1/auctions/{auctionId}/bids", auctionId)
                 .header("Authorization", bearer("user1"))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
                     """
-                                {"price":16000}
+                                {"price":$preBidPrice}
                                 
                                 """.trimIndent()
                 )
@@ -128,7 +132,7 @@ class BidControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
                     """
-                                {"price":22000}
+                                {"price":$buyNowPrice}
                                 
                                 """.trimIndent()
                 )
@@ -138,7 +142,7 @@ class BidControllerTest {
             .andExpect(MockMvcResultMatchers.handler().methodName("createBid"))
             .andExpect(MockMvcResultMatchers.status().isOk())
             .andExpect(MockMvcResultMatchers.jsonPath("$.resultCode").value("200-1"))
-            .andExpect(MockMvcResultMatchers.jsonPath("$.data.price").value(22000))
+            .andExpect(MockMvcResultMatchers.jsonPath("$.data.price").value(buyNowPrice))
             .andExpect(MockMvcResultMatchers.jsonPath("$.data.buyNow").value(true))
 
         Assertions.assertThat(uniqueBroadcastCount(auctionId)).isEqualTo(2)
@@ -203,7 +207,8 @@ class BidControllerTest {
     @DisplayName("6. 입찰 생성 실패 - 연속 입찰 시도")
     @Throws(Exception::class)
     fun t6() {
-        val auctionId = 2
+        val auctionId = findOpenAuctionIdForBidders("user1")
+        val firstBidPrice = nextValidBidPrice(auctionId)
 
         mvc.perform(
             MockMvcRequestBuilders.post("/api/v1/auctions/{auctionId}/bids", auctionId)
@@ -211,7 +216,7 @@ class BidControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
                     """
-                                {"price":13000}
+                                {"price":$firstBidPrice}
                                 
                                 """.trimIndent()
                 )
@@ -225,7 +230,7 @@ class BidControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
                     """
-                                {"price":14000}
+                                {"price":${firstBidPrice + 1000}}
                                 
                                 """.trimIndent()
                 )
@@ -241,7 +246,10 @@ class BidControllerTest {
     @DisplayName("7. 입찰 생성 실패 - 최고 입찰가 기준 50% 초과")
     @Throws(Exception::class)
     fun t7() {
-        val auctionId = 3 // startPrice: 13,000, maxAllowed: 19,500
+        val auctionId = findOpenAuctionIdForBidders("user1")
+        val auction = auctionRepository.findById(auctionId).orElseThrow()
+        val maxAllowed = ((auction.startPrice ?: 10_000) * 3) / 2
+        val overPrice = maxAllowed + 1
 
         mvc.perform(
             MockMvcRequestBuilders.post("/api/v1/auctions/{auctionId}/bids", auctionId)
@@ -249,7 +257,7 @@ class BidControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
                     """
-                                {"price":20000}
+                                {"price":$overPrice}
                                 
                                 """.trimIndent()
                 )
@@ -265,7 +273,8 @@ class BidControllerTest {
     @DisplayName("8. 특정 경매의 입찰 목록 조회 성공")
     @Throws(Exception::class)
     fun t8() {
-        val auctionId = 4
+        val auctionId = findOpenAuctionIdForBidders("user1")
+        val bidPrice = nextValidBidPrice(auctionId)
 
         mvc.perform(
             MockMvcRequestBuilders.post("/api/v1/auctions/{auctionId}/bids", auctionId)
@@ -273,7 +282,7 @@ class BidControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
                     """
-                                {"price":15000}
+                                {"price":$bidPrice}
                                 
                                 """.trimIndent()
                 )
@@ -288,14 +297,14 @@ class BidControllerTest {
             .andExpect(MockMvcResultMatchers.jsonPath("$.resultCode").value("200-1"))
             .andExpect(MockMvcResultMatchers.jsonPath("$.data.content").isArray())
             .andExpect(MockMvcResultMatchers.jsonPath("$.data.content.length()").value(1))
-            .andExpect(MockMvcResultMatchers.jsonPath("$.data.content[0].price").value(15000))
+            .andExpect(MockMvcResultMatchers.jsonPath("$.data.content[0].price").value(bidPrice))
     }
 
     @Test
     @DisplayName("9. 입찰 목록 조회 - 입찰 없는 경매")
     @Throws(Exception::class)
     fun t9() {
-        val auctionId = 6 // 존재하는 경매, 기본 데이터에서 입찰 없음
+        val auctionId = findOpenAuctionIdForBidders() // 입찰 없는 OPEN 경매
 
         mvc.perform(MockMvcRequestBuilders.get("/api/v1/auctions/{auctionId}/bids", auctionId))
             .andDo(MockMvcResultHandlers.print())
@@ -328,14 +337,17 @@ class BidControllerTest {
     @DisplayName("11. 입찰 생성 실패 - 즉시구매가 초과")
     @Throws(Exception::class)
     fun t11() {
-        val auctionId = 1 // startPrice: 11,000, buyNowPrice: 22,000
+        val auctionId = findOpenAuctionIdWithBuyNowForBidders("user1", "user3")
+        val auction = auctionRepository.findById(auctionId).orElseThrow()
+        val buyNowPrice = auction.buyNowPrice ?: throw IllegalStateException("즉시구매가가 없는 경매입니다.")
+        val preBidPrice = ((auction.startPrice ?: 10_000) * 3) / 2
 
-        // 현재가를 16,000으로 높여 400-4(150% 초과)보다 400-5(즉시구매가 초과)가 먼저 검증되도록 만든다.
+        // 현재가를 먼저 높여 400-4(150% 초과)보다 400-5(즉시구매가 초과)가 먼저 검증되도록 만든다.
         mvc.perform(
             MockMvcRequestBuilders.post("/api/v1/auctions/{auctionId}/bids", auctionId)
                 .header("Authorization", bearer("user1"))
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("""{"price":16000}""")
+                .content("""{"price":$preBidPrice}""")
         )
             .andExpect(MockMvcResultMatchers.status().isOk())
             .andExpect(MockMvcResultMatchers.jsonPath("$.resultCode").value("200-1"))
@@ -344,7 +356,7 @@ class BidControllerTest {
             MockMvcRequestBuilders.post("/api/v1/auctions/{auctionId}/bids", auctionId)
                 .header("Authorization", bearer("user3"))
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("""{"price":23000}""")
+                .content("""{"price":${buyNowPrice + 1000}}""")
         )
             .andDo(MockMvcResultHandlers.print())
             .andExpect(MockMvcResultMatchers.status().isBadRequest())
@@ -513,13 +525,16 @@ class BidControllerTest {
     @DisplayName("21. 입찰 목록 조회 성공 - 페이징/정렬 검증")
     @Throws(Exception::class)
     fun t21() {
-        val auctionId = 2
+        val auctionId = findOpenAuctionIdForBidders("user1", "user2", "user4")
+        val firstBidPrice = nextValidBidPrice(auctionId)
+        val secondBidPrice = firstBidPrice + 1000
+        val thirdBidPrice = secondBidPrice + 1000
 
         mvc.perform(
             MockMvcRequestBuilders.post("/api/v1/auctions/{auctionId}/bids", auctionId)
                 .header("Authorization", bearer("user1"))
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("""{"price":13000}""")
+                .content("""{"price":$firstBidPrice}""")
         )
             .andExpect(MockMvcResultMatchers.status().isOk())
 
@@ -527,7 +542,7 @@ class BidControllerTest {
             MockMvcRequestBuilders.post("/api/v1/auctions/{auctionId}/bids", auctionId)
                 .header("Authorization", bearer("user2"))
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("""{"price":15000}""")
+                .content("""{"price":$secondBidPrice}""")
         )
             .andExpect(MockMvcResultMatchers.status().isOk())
 
@@ -535,7 +550,7 @@ class BidControllerTest {
             MockMvcRequestBuilders.post("/api/v1/auctions/{auctionId}/bids", auctionId)
                 .header("Authorization", bearer("user4"))
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("""{"price":18000}""")
+                .content("""{"price":$thirdBidPrice}""")
         )
             .andExpect(MockMvcResultMatchers.status().isOk())
 
@@ -552,8 +567,8 @@ class BidControllerTest {
             .andExpect(MockMvcResultMatchers.jsonPath("$.data.totalElements").value(3))
             .andExpect(MockMvcResultMatchers.jsonPath("$.data.totalPages").value(2))
             .andExpect(MockMvcResultMatchers.jsonPath("$.data.content.length()").value(2))
-            .andExpect(MockMvcResultMatchers.jsonPath("$.data.content[0].price").value(18000))
-            .andExpect(MockMvcResultMatchers.jsonPath("$.data.content[1].price").value(15000))
+            .andExpect(MockMvcResultMatchers.jsonPath("$.data.content[0].price").value(thirdBidPrice))
+            .andExpect(MockMvcResultMatchers.jsonPath("$.data.content[1].price").value(secondBidPrice))
     }
 
     @Test
@@ -595,18 +610,20 @@ class BidControllerTest {
     @DisplayName("24. 입찰 생성 성공 - 최고 입찰가 기준 150% 경계값")
     @Throws(Exception::class)
     fun t24() {
-        val auctionId = 3 // startPrice: 13,000, maxAllowed: 19,500
+        val auctionId = findOpenAuctionIdForBidders("user1")
+        val auction = auctionRepository.findById(auctionId).orElseThrow()
+        val boundaryPrice = ((auction.startPrice ?: 10_000) * 3) / 2
 
         mvc.perform(
             MockMvcRequestBuilders.post("/api/v1/auctions/{auctionId}/bids", auctionId)
                 .header("Authorization", bearer("user1"))
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("""{"price":19500}""")
+                .content("""{"price":$boundaryPrice}""")
         )
             .andDo(MockMvcResultHandlers.print())
             .andExpect(MockMvcResultMatchers.status().isOk())
             .andExpect(MockMvcResultMatchers.jsonPath("$.resultCode").value("200-1"))
-            .andExpect(MockMvcResultMatchers.jsonPath("$.data.price").value(19500))
+            .andExpect(MockMvcResultMatchers.jsonPath("$.data.price").value(boundaryPrice))
 
         Assertions.assertThat(uniqueBroadcastCount(auctionId)).isEqualTo(1)
     }
@@ -629,5 +646,37 @@ class BidControllerTest {
             .filter { invocation: Invocation? -> destination == invocation!!.getArguments()[0] }
             .map<Any?> { invocation: Invocation? -> invocation!!.getArguments()[1] }
             .toList()
+    }
+
+    private fun findOpenAuctionIdForBidders(vararg bidderUsernames: String): Int {
+        val blockedSellers = bidderUsernames.toSet()
+        return auctionRepository.findAll()
+            .firstOrNull { auction ->
+                auction.isActive() &&
+                    auction.bidCount == 0 &&
+                    auction.currentHighestBid == null &&
+                    auction.startPrice != null &&
+                    auction.seller.username !in blockedSellers
+            }?.id
+            ?: throw IllegalStateException("조건에 맞는 경매를 찾을 수 없습니다.")
+    }
+
+    private fun nextValidBidPrice(auctionId: Int): Int {
+        val auction = auctionRepository.findById(auctionId).orElseThrow()
+        return (auction.startPrice ?: 10_000) + 1000
+    }
+
+    private fun findOpenAuctionIdWithBuyNowForBidders(vararg bidderUsernames: String): Int {
+        val blockedSellers = bidderUsernames.toSet()
+        return auctionRepository.findAll()
+            .firstOrNull { auction ->
+                auction.isActive() &&
+                    auction.bidCount == 0 &&
+                    auction.currentHighestBid == null &&
+                    auction.startPrice != null &&
+                    auction.buyNowPrice != null &&
+                    auction.seller.username !in blockedSellers
+            }?.id
+            ?: throw IllegalStateException("즉시구매가가 있는 경매를 찾을 수 없습니다.")
     }
 }
