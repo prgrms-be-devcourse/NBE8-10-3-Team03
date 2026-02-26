@@ -53,3 +53,6 @@ docs/design/**/*.md
 
 ### Load Test Results ###
 perf/results/*
+
+### Local Agent Rules (Do not publish) ###
+AGENTS.md
