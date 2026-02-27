@@ -1,0 +1,74 @@
+name: Monitoring Deploy
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: monitoring-deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check required secrets
+        run: |
+          [ -n "${{ secrets.OCI_HOST }}" ] || (echo "OCI_HOST empty" && exit 1)
+          [ -n "${{ secrets.OCI_USER }}" ] || (echo "OCI_USER empty" && exit 1)
+          [ -n "${{ secrets.OCI_SSH_KEY }}" ] || (echo "OCI_SSH_KEY empty" && exit 1)
+
+      - name: Upload monitoring files
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.OCI_HOST }}
+          port: ${{ secrets.OCI_PORT }}
+          username: ${{ secrets.OCI_USER }}
+          key: ${{ secrets.OCI_SSH_KEY }}
+          source: docker/compose/docker-compose.monitoring.cloud.yml,docker/prometheus/prometheus.canary.yml
+          target: ${{ vars.DEPLOY_PATH || '/home/ubuntu/app' }}
+
+      - name: Deploy monitoring stack via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          DEPLOY_PATH: ${{ vars.DEPLOY_PATH || '/home/ubuntu/app' }}
+        with:
+          host: ${{ secrets.OCI_HOST }}
+          port: ${{ secrets.OCI_PORT }}
+          username: ${{ secrets.OCI_USER }}
+          key: ${{ secrets.OCI_SSH_KEY }}
+          script_stop: true
+          envs: DEPLOY_PATH
+          script: |
+            set -euo pipefail
+
+            mkdir -p "${DEPLOY_PATH}/docker/compose"
+            mkdir -p "${DEPLOY_PATH}/docker/prometheus"
+            cd "${DEPLOY_PATH}"
+
+            docker network create auction-network || true
+            docker network create perf-network || true
+
+            docker compose -p monitoring-cloud -f docker/compose/docker-compose.monitoring.cloud.yml up -d
+
+            for i in {1..20}; do
+              p_ready="$(curl -fsS -o /dev/null -w '%{http_code}' http://localhost:9090/-/ready || true)"
+              g_ready="$(curl -fsS -o /dev/null -w '%{http_code}' http://localhost:3000/api/health || true)"
+              if [ "${p_ready}" = "200" ] && [ "${g_ready}" = "200" ]; then
+                echo "Monitoring stack is healthy"
+                exit 0
+              fi
+              sleep 3
+            done
+
+            echo "Monitoring deploy health check failed"
+            docker ps -a | grep -E 'prometheus-cloud|grafana-cloud' || true
+            docker logs --tail 100 prometheus-cloud || true
+            docker logs --tail 100 grafana-cloud || true
+            exit 1
