@@ -14,6 +14,7 @@ import com.back.domain.post.post.entity.Post
 import com.back.domain.post.post.entity.PostImage
 import com.back.domain.post.post.entity.PostStatus
 import com.back.domain.post.post.repository.PostRepository
+import com.back.domain.post.post.service.port.PostPort
 import com.back.global.exception.ServiceException
 import com.back.global.storage.port.FileStoragePort
 import org.assertj.core.api.Assertions.assertThat
@@ -27,9 +28,10 @@ import org.springframework.mock.web.MockMultipartFile
 import org.springframework.test.util.ReflectionTestUtils
 import java.time.LocalDateTime
 import java.util.Optional
+import kotlin.jvm.java
 
 class PostServiceTest {
-    private val postRepository: PostRepository = mock(PostRepository::class.java) { invocation ->
+    private val postPort: PostPort = mock(PostPort::class.java) { invocation ->
         if (invocation.method.name == "save") {
             invocation.arguments[0]
         } else {
@@ -42,7 +44,7 @@ class PostServiceTest {
     private val memberService: MemberService = mock(MemberService::class.java)
 
     private val postService = PostService(
-        postRepository,
+        postPort,
         categoryPort,
         imageRepository,
         fileStoragePort,
@@ -96,7 +98,7 @@ class PostServiceTest {
             title = "제목",
             content = "10자 이상 내용입니다.",
             price = 1000,
-            categoryId = null
+            categoryId = 1
         )
         `when`(memberService.findById(1)).thenReturn(actor)
 
@@ -135,7 +137,7 @@ class PostServiceTest {
     fun t5() {
         val actor = member(1, "seller")
         val req = PostUpdateRequest("제목", "내용", 1000, 1)
-        `when`(postRepository.findByIdAndDeletedFalse(999)).thenReturn(null)
+        `when`(postPort.findByIdAndDeletedFalse(999)).thenReturn(null)
 
         assertThatThrownBy { postService.modify(actor, 999, req) }
             .isInstanceOf(ServiceException::class.java)
@@ -150,7 +152,7 @@ class PostServiceTest {
         val actor = member(2, "other")
         val post = post(id = 10, seller = owner)
         val req = PostUpdateRequest("제목", "내용", 1000, 1)
-        `when`(postRepository.findByIdAndDeletedFalse(10)).thenReturn(post)
+        `when`(postPort.findByIdAndDeletedFalse(10)).thenReturn(post)
 
         assertThatThrownBy { postService.modify(actor, 10, req) }
             .isInstanceOf(ServiceException::class.java)
@@ -175,7 +177,7 @@ class PostServiceTest {
             keepImageUrls = emptyList()
         )
 
-        `when`(postRepository.findByIdAndDeletedFalse(11)).thenReturn(post)
+        `when`(postPort.findByIdAndDeletedFalse(11)).thenReturn(post)
         `when`(memberService.findById(1)).thenReturn(actor)
         `when`(categoryPort.getByIdOrThrow(2)).thenReturn(Category("가구"))
 
@@ -190,7 +192,7 @@ class PostServiceTest {
     fun t8() {
         val actor = member(1, "seller")
         val post = post(id = 12, seller = actor)
-        `when`(postRepository.findByIdAndDeletedFalse(12)).thenReturn(post)
+        `when`(postPort.findByIdAndDeletedFalse(12)).thenReturn(post)
 
         postService.delete(actor, 12)
 
@@ -203,7 +205,7 @@ class PostServiceTest {
         val actor = member(1, "seller")
         val post = post(id = 13, seller = actor)
         ReflectionTestUtils.setField(post, "createDate", LocalDateTime.now().minusDays(1))
-        `when`(postRepository.findByIdAndDeletedFalse(13)).thenReturn(post)
+        `when`(postPort.findByIdAndDeletedFalse(13)).thenReturn(post)
 
         val detail = postService.getDetail(13)
 
@@ -217,7 +219,7 @@ class PostServiceTest {
         val owner = member(1, "owner")
         val actor = member(2, "other")
         val post = post(id = 14, seller = owner)
-        `when`(postRepository.findByIdAndDeletedFalse(14)).thenReturn(post)
+        `when`(postPort.findByIdAndDeletedFalse(14)).thenReturn(post)
 
         assertThatThrownBy { postService.updatePostStatus(actor, 14, PostStatus.SOLD) }
             .isInstanceOf(ServiceException::class.java)
