@@ -2,6 +2,7 @@ package com.back.global.seed
 
 import com.back.domain.auction.auction.entity.Auction
 import com.back.domain.auction.auction.repository.AuctionRepository
+import com.back.domain.bid.bid.repository.BidRepository
 import com.back.domain.category.category.entity.Category
 import com.back.domain.category.category.repository.CategoryRepository
 import com.back.domain.image.image.entity.Image
@@ -18,6 +19,7 @@ import com.back.domain.post.post.entity.PostImage
 import com.back.domain.post.post.entity.PostStatus
 import com.back.domain.post.post.repository.PostRepository
 import com.back.global.app.AppConfig
+import com.back.global.exception.ServiceException
 import jakarta.persistence.EntityManager
 import org.springframework.boot.ApplicationRunner
 import org.springframework.context.annotation.Bean
@@ -29,13 +31,14 @@ import org.springframework.transaction.annotation.Transactional
 import java.time.LocalDateTime
 import kotlin.random.Random
 
-@Profile("loadtest")
+@Profile("loadtest|loadtest-cloud")
 @Configuration
 class LoadtestSeeder(
     @Lazy private val self: LoadtestSeeder, // 내부 호출용 self 주입
     private val memberService: MemberService,
     private val categoryRepository: CategoryRepository,
     private val auctionRepository: AuctionRepository,
+    private val bidRepository: BidRepository,
     private val reputationRepository: ReputationRepository,
     private val memberRepository: MemberRepository,
     private val postRepository: PostRepository,
@@ -43,6 +46,11 @@ class LoadtestSeeder(
     private val passwordEncoder: PasswordEncoder,
     private val entityManager: EntityManager
 ) {
+    companion object {
+        private const val LT_AUCTION_PREFIX = "[LT-AUCTION]"
+        private const val LT_POST_PREFIX = "[LT-POST]"
+        private const val LT_IMAGE_PREFIX = "/uploads/loadtest/"
+    }
 
     @Bean
     @Profile("loadtest")
@@ -83,7 +91,7 @@ class LoadtestSeeder(
 
     @Transactional
     fun work3() {
-        if (auctionRepository.count() > 0) return
+        if (auctionRepository.countByNameStartingWith(LT_AUCTION_PREFIX) > 0) return
 
         val members = memberService.findAll()
         val categories = categoryRepository.findAll()
@@ -107,7 +115,7 @@ class LoadtestSeeder(
                 Auction.builder()
                     .seller(seller)
                     .category(category)
-                    .name("$productName #$index")
+                    .name("$LT_AUCTION_PREFIX $productName #$index")
                     .description("서비스 시연용 경매 상품입니다. $index 번째 상품.")
                     .startPrice(startPrice)
                     .buyNowPrice(startPrice * 2)
@@ -128,7 +136,7 @@ class LoadtestSeeder(
     @Transactional
     fun work4() {
         val targetPostCount = 10_000L
-        if (postRepository.count() >= targetPostCount) return
+        if (postRepository.countByTitleStartingWith(LT_POST_PREFIX) >= targetPostCount) return
 
         val sellers = memberService.findAll().filter { it.status == MemberStatus.ACTIVE }
         val categories = categoryRepository.findAll()
@@ -161,8 +169,8 @@ class LoadtestSeeder(
 
             val post = Post(
                 seller,
-                "[LT-POST] 상품 $i",
-                "[LT-POST] loadtest seed content #$i",
+                "$LT_POST_PREFIX 상품 $i",
+                "$LT_POST_PREFIX loadtest seed content #$i",
                 10_000 + (i * 10),
                 category,
                 status,
@@ -198,5 +206,33 @@ class LoadtestSeeder(
             println("[LOADTEST] hotspot post ids (for focused detail mode): $hotspotIds")
             println("[LOADTEST] export as env: POST_HOT_IDS=${hotspotIds[0]},${hotspotIds[1]},${hotspotIds[2]}")
         }
+    }
+
+    @Transactional
+    fun reset(actorId: Int) {
+        val actor = memberService.findById(actorId)
+            ?: throw ServiceException("404-1", "존재하지 않는 회원입니다.")
+
+        if (actor.status != MemberStatus.ACTIVE) {
+            throw ServiceException("403-2", "활성 계정만 수동 리셋을 실행할 수 있습니다.")
+        }
+
+        cleanupLoadtestData()
+        work1()
+        work2()
+        work3()
+        work4()
+    }
+
+    @Transactional
+    fun cleanupLoadtestData() {
+        val auctionIds = auctionRepository.findIdsByNameStartingWith(LT_AUCTION_PREFIX)
+        if (auctionIds.isNotEmpty()) {
+            bidRepository.deleteByAuctionIdIn(auctionIds)
+            auctionRepository.deleteByNameStartingWith(LT_AUCTION_PREFIX)
+        }
+
+        postRepository.deleteByTitleStartingWith(LT_POST_PREFIX)
+        imageRepository.deleteByUrlStartingWith(LT_IMAGE_PREFIX)
     }
 }
