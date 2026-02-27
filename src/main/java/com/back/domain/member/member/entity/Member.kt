@@ -26,9 +26,9 @@ class Member(
     var nickname: String,
 
     @Enumerated(EnumType.STRING)
-    var role: Role?,
+    var role: Role? = Role.USER,
 
-    var profileImgUrl: String?,
+    var profileImgUrl: String? = "",
 
 ) : BaseEntity() {
 
@@ -86,7 +86,7 @@ class Member(
         null,
         ""
     ) {
-        setId(id)
+        this.id = id
     }
 
     constructor(id: Int, username: String, nickname: String, role: Role?) : this(
@@ -96,7 +96,7 @@ class Member(
         role,
         ""
     ) {
-        setId(id)
+        this.id = id
     }
 
     constructor(username: String, password: String?, nickname: String) : this(
@@ -145,8 +145,10 @@ class Member(
     val isAdmin: Boolean
         get() = role == Role.ADMIN
 
-    fun getName(): String =
-        if (status == MemberStatus.WITHDRAWN) "탈퇴한 회원" else nickname
+    //fun getName(): String =
+    //    if (status == MemberStatus.WITHDRAWN) "탈퇴한 회원" else nickname
+    val name: String
+        get() = if (status == MemberStatus.WITHDRAWN) "탈퇴한 회원" else nickname
 
     val authorities: Collection<GrantedAuthority>
         get() = buildList {

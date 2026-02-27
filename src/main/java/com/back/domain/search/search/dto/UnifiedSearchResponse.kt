@@ -12,7 +12,7 @@ data class UnifiedSearchResponse(
     val categoryName: String, // 공통 카테고리명
     val thumbnailUrl: String?,// 공통 대표 이미지
     val createDate: LocalDateTime,
-    val viewCount: Long = 0,
+    val viewCount: Long? = null,
     val sellerId: Int? = null,
     val sellerNickname: String? = null,
     val sellerBadge: String? = null

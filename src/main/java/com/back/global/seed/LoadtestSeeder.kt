@@ -2,6 +2,7 @@ package com.back.global.seed
 
 import com.back.domain.auction.auction.entity.Auction
 import com.back.domain.auction.auction.repository.AuctionRepository
+import com.back.domain.bid.bid.repository.BidRepository
 import com.back.domain.category.category.entity.Category
 import com.back.domain.category.category.repository.CategoryRepository
 import com.back.domain.image.image.entity.Image
@@ -29,13 +30,14 @@ import org.springframework.transaction.annotation.Transactional
 import java.time.LocalDateTime
 import kotlin.random.Random
 
-@Profile("loadtest")
+@Profile("loadtest|loadtest-cloud")
 @Configuration
 class LoadtestSeeder(
     @Lazy private val self: LoadtestSeeder, // 내부 호출용 self 주입
     private val memberService: MemberService,
     private val categoryRepository: CategoryRepository,
     private val auctionRepository: AuctionRepository,
+    private val bidRepository: BidRepository,
     private val reputationRepository: ReputationRepository,
     private val memberRepository: MemberRepository,
     private val postRepository: PostRepository,
@@ -43,6 +45,12 @@ class LoadtestSeeder(
     private val passwordEncoder: PasswordEncoder,
     private val entityManager: EntityManager
 ) {
+    companion object {
+        private const val LT_MEMBER_TARGET_COUNT = 1000
+        private const val LT_AUCTION_PREFIX = "[LT-AUCTION]"
+        private const val LT_POST_PREFIX = "[LT-POST]"
+        private const val LT_IMAGE_PREFIX = "/uploads/loadtest/"
+    }
 
     @Bean
     @Profile("loadtest")
@@ -55,11 +63,14 @@ class LoadtestSeeder(
 
     @Transactional
     fun work1() {
-        if (memberService.count() > 0) return
-
-        repeat(1000) { i ->
+        repeat(LT_MEMBER_TARGET_COUNT) { i ->
             val index = i + 1
-            val member = Member("user$index", passwordEncoder.encode("1234"), "유저$index", Role.USER, null).apply {
+            val username = "user$index"
+            if (memberRepository.findByUsername(username).isPresent) {
+                return@repeat
+            }
+
+            val member = Member(username, passwordEncoder.encode("1234"), "유저$index", Role.USER, null).apply {
                 if (AppConfig.isNotProd()) modifyApiKey(username)
             }
             memberRepository.save(member)
@@ -83,11 +94,11 @@ class LoadtestSeeder(
 
     @Transactional
     fun work3() {
-        if (auctionRepository.count() > 0) return
+        if (auctionRepository.countByNameStartingWith(LT_AUCTION_PREFIX) > 0) return
 
-        val members = memberService.findAll()
+        val members = getLoadtestMembers()
         val categories = categoryRepository.findAll()
-        if (members.size < 1000 || categories.isEmpty()) return
+        if (members.size < LT_MEMBER_TARGET_COUNT || categories.isEmpty()) return
 
         val productTypes = arrayOf(
             "아이폰", "갤럭시", "노트북", "태블릿", "에어팟", "청소기", "TV", "냉장고",
@@ -98,7 +109,7 @@ class LoadtestSeeder(
 
         repeat(100_000) { i ->
             val index = i + 1
-            val seller = members[i % 1000]
+            val seller = members[i % LT_MEMBER_TARGET_COUNT]
             val category = categories[i % categories.size]
             val productName = productTypes[i % productTypes.size]
 
@@ -107,7 +118,7 @@ class LoadtestSeeder(
                 Auction.builder()
                     .seller(seller)
                     .category(category)
-                    .name("$productName #$index")
+                    .name("$LT_AUCTION_PREFIX $productName #$index")
                     .description("서비스 시연용 경매 상품입니다. $index 번째 상품.")
                     .startPrice(startPrice)
                     .buyNowPrice(startPrice * 2)
@@ -128,11 +139,11 @@ class LoadtestSeeder(
     @Transactional
     fun work4() {
         val targetPostCount = 10_000L
-        if (postRepository.count() >= targetPostCount) return
+        if (postRepository.countByTitleStartingWith(LT_POST_PREFIX) >= targetPostCount) return
 
-        val sellers = memberService.findAll().filter { it.status == MemberStatus.ACTIVE }
+        val sellers = getLoadtestMembers()
         val categories = categoryRepository.findAll()
-        if (sellers.size < 1_000 || categories.isEmpty()) return
+        if (sellers.size < LT_MEMBER_TARGET_COUNT || categories.isEmpty()) return
 
         val saleCount = 7_000
         val reservedCount = 2_000
@@ -150,7 +161,7 @@ class LoadtestSeeder(
         val hotspotIds = mutableListOf<Int>()
 
         for (i in 1..10_000) {
-            val seller = sellers[(i - 1) % 1_000]
+            val seller = sellers[(i - 1) % LT_MEMBER_TARGET_COUNT]
             val category = categories[(i - 1) % categories.size]
 
             val status = when {
@@ -161,8 +172,8 @@ class LoadtestSeeder(
 
             val post = Post(
                 seller,
-                "[LT-POST] 상품 $i",
-                "[LT-POST] loadtest seed content #$i",
+                "$LT_POST_PREFIX 상품 $i",
+                "$LT_POST_PREFIX loadtest seed content #$i",
                 10_000 + (i * 10),
                 category,
                 status,
@@ -199,4 +210,30 @@ class LoadtestSeeder(
             println("[LOADTEST] export as env: POST_HOT_IDS=${hotspotIds[0]},${hotspotIds[1]},${hotspotIds[2]}")
         }
     }
+
+    @Transactional
+    fun reset() {
+        cleanupLoadtestData()
+        work1()
+        work2()
+        work3()
+        work4()
+    }
+
+    @Transactional
+    fun cleanupLoadtestData() {
+        val auctionIds = auctionRepository.findIdsByNameStartingWith(LT_AUCTION_PREFIX)
+        if (auctionIds.isNotEmpty()) {
+            bidRepository.deleteByAuctionIdIn(auctionIds)
+            auctionRepository.deleteByNameStartingWith(LT_AUCTION_PREFIX)
+        }
+
+        postRepository.deleteByTitleStartingWith(LT_POST_PREFIX)
+        imageRepository.deleteByUrlStartingWith(LT_IMAGE_PREFIX)
+    }
+
+    private fun getLoadtestMembers(): List<Member> =
+        (1..LT_MEMBER_TARGET_COUNT)
+            .mapNotNull { idx -> memberRepository.findByUsername("user$idx").orElse(null) }
+            .filter { it.status == MemberStatus.ACTIVE }
 }

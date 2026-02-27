@@ -23,7 +23,7 @@ class CustomOAuth2LoginSuccessHandler(
     ) {
         val actorId = rq.actor.id
         val actor = memberService.findById(actorId)
-            .orElseThrow { IllegalStateException("인증된 사용자를 DB에서 찾을 수 없습니다. id=$actorId") }
+            ?: throw  IllegalStateException("인증된 사용자를 DB에서 찾을 수 없습니다. id=$actorId")
 
         val accessToken = memberService.genAccessToken(actor)
 

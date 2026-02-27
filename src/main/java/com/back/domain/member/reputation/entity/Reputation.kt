@@ -3,9 +3,6 @@ package com.back.domain.member.reputation.entity
 import com.back.domain.member.member.entity.Member
 import com.back.global.jpa.entity.BaseEntity
 import jakarta.persistence.*
-import lombok.Getter
-import lombok.NoArgsConstructor
-import lombok.Setter
 import kotlin.math.min
 
 @Entity

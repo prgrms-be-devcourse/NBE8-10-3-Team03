@@ -27,7 +27,7 @@ class MemberTest {
         val member = Member("u1", "pw", "닉네임", Role.USER, null)
         member.withdraw()
 
-        assertThat(member.getName()).isEqualTo("탈퇴한 회원")
+        assertThat(member.name).isEqualTo("탈퇴한 회원")
     }
 
     @Test

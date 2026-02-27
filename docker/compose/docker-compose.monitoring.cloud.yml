@@ -1,0 +1,45 @@
+services:
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus-cloud
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=15d"
+      - "--web.enable-remote-write-receiver"
+      - "--enable-feature=native-histograms"
+    ports:
+      - "9090:9090"
+    volumes:
+      - ${PWD}/docker/prometheus/prometheus.canary.yml:/etc/prometheus/prometheus.yml:ro
+      - prom_data_cloud:/prometheus
+    networks: [perf, auction-network]
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana-cloud
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      TZ: Asia/Seoul
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data_cloud:/var/lib/grafana
+      - ${PWD}/docker/grafana/provisioning:/etc/grafana/provisioning
+      - ${PWD}/docker/grafana/dashboards:/etc/grafana/dashboards
+    depends_on:
+      - prometheus
+    networks: [perf]
+
+networks:
+  perf:
+    name: perf-network
+  auction-network:
+    external: true
+    name: auction-network
+
+volumes:
+  prom_data_cloud:
+  grafana_data_cloud:

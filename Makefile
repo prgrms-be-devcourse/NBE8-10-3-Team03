@@ -21,6 +21,8 @@ help:
 	@echo "[Cloud 환경]"
 	@echo "  make local-up ENV=cloud  # cloud 환경 실행"
 	@echo "  make perf ENV=cloud PERF_SCENARIO=load"
+	@echo "  make cloud-monitor-up    # VM 전용 모니터링 스택(prometheus+grafana) 실행"
+	@echo "  make cloud-monitor-down  # VM 전용 모니터링 스택 종료"
 	@echo ""
 	@echo "[유틸]"
 	@echo "  make down               # 컨테이너 종료"
@@ -94,6 +96,18 @@ k6:
 	docker compose \
     	-f docker/compose/docker-compose.k6.yml \
     	run --rm k6
+
+cloud-monitor-up:
+	docker compose \
+		-p monitoring-cloud \
+		-f docker/compose/docker-compose.monitoring.cloud.yml \
+		up -d
+
+cloud-monitor-down:
+	docker compose \
+		-p monitoring-cloud \
+		-f docker/compose/docker-compose.monitoring.cloud.yml \
+		down
 
 # ----------------------------
 # 공통

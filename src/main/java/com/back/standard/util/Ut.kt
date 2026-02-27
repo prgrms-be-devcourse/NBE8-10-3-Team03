@@ -42,28 +42,30 @@ class Ut {
         fun payload(secret: String, jwtStr: String?): MutableMap<String, Any>? {
             val secretKey = Keys.hmacShaKeyFor(secret.toByteArray())
 
-            return runCatching {
+            val claims = runCatching {
                 Jwts.parser()
                     .verifyWith(secretKey)
                     .build()
                     .parseSignedClaims(jwtStr)
                     .payload
                     .toMap()
-            }.getOrNull() as MutableMap<String, Any>?
+            }.getOrNull() ?: return null
+
+            return claims.entries
+                .mapNotNull { (key, value) -> (value as? Any)?.let { key to it } }
+                .toMap()
+                .toMutableMap()
         }
     }
 
     object json {
-        @JvmField
-        var objectMapper: ObjectMapper? = null
+        lateinit var objectMapper: ObjectMapper
 
         @JvmOverloads
-        fun toString(`object`: Any?, defaultValue: String? = null): String? {
-            try {
-                return objectMapper!!.writeValueAsString(`object`)
-            } catch (e: Exception) {
-                return defaultValue
-            }
-        }
+        fun toString(`object`: Any?, defaultValue: String? = null): String? =
+            runCatching {
+                check(::objectMapper.isInitialized) { "ObjectMapper is not initialized." }
+                objectMapper.writeValueAsString(`object`)
+            }.getOrElse { defaultValue }
     }
 }
