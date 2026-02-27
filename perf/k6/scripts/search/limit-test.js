@@ -82,6 +82,7 @@ export function searchLimit() {
 
   const response = http.get(url, {
     tags: {
+      name: 'GET /api/v1/search',
       scenario: SCENARIO_TAG,
       endpoint: 'search_list',
       method: 'GET',

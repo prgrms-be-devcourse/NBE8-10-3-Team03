@@ -12,7 +12,10 @@ export const TEST_PASSWORD = '1234';
 export function login(username, password) {
   const res = http.post(`${BASE_URL}/api/v1/members/login`,
     JSON.stringify({ username, password }),
-    { headers: { 'Content-Type': 'application/json' } }
+    {
+      headers: { 'Content-Type': 'application/json' },
+      tags: { name: 'POST /api/v1/members/login' },
+    }
   );
 
   const body = res.json();

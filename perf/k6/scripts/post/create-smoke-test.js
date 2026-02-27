@@ -67,6 +67,7 @@ export default function () {
         'Content-Type': `multipart/form-data; boundary=${createPayload.boundary}`,
       },
       tags: {
+        name: 'POST /api/v1/posts',
         scenario: 'post_create_smoke',
         endpoint: 'post_create',
         method: 'POST',
@@ -94,6 +95,7 @@ export default function () {
     {
       headers: authHeader,
       tags: {
+        name: 'DELETE /api/v1/posts/:id',
         scenario: 'post_create_smoke',
         endpoint: 'post_delete_cleanup',
         method: 'DELETE',

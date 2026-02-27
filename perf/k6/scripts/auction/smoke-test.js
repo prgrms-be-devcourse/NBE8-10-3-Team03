@@ -38,6 +38,7 @@ export function setup() {
       }),
       {
         headers: { 'Content-Type': 'application/json' },
+        tags: { name: 'POST /api/v1/members/login' },
       }
     );
 
@@ -84,7 +85,10 @@ export default function (data) {
   // 1️⃣ 내 정보 조회
   const listRes = http.get(
     'http://host.docker.internal:8080/api/v1/members/me/auctions',
-    { headers }
+    {
+      headers,
+      tags: { name: 'GET /api/v1/members/me/auctions' },
+    }
   );
 
   check(listRes, {

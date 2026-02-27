@@ -51,17 +51,28 @@ export default function () {
 
   // ── 📌 멤버 도메인 ──
   group('Member API', () => {
-    const me = http.get(`${BASE_URL}/api/v1/members/me`, headers);
+    const me = http.get(`${BASE_URL}/api/v1/members/me`, {
+      ...headers,
+      tags: { name: 'GET /api/v1/members/me' },
+    });
     check(me, { '회원 정보 조회 성공': (r) => r.status === 200 });
     errorRate.add(me.status !== 200);
 
     const myAuctions = http.get(
-      `${BASE_URL}/api/v1/members/me/auctions?page=0&size=10&sort=createdAt,desc`, headers
+      `${BASE_URL}/api/v1/members/me/auctions?page=0&size=10&sort=createdAt,desc`,
+      {
+        ...headers,
+        tags: { name: 'GET /api/v1/members/me/auctions' },
+      }
     );
     check(myAuctions, { '내 경매 목록 조회 성공': (r) => r.status === 200 });
 
     const myPosts = http.get(
-      `${BASE_URL}/api/v1/members/me/posts?page=0&size=10`, headers
+      `${BASE_URL}/api/v1/members/me/posts?page=0&size=10`,
+      {
+        ...headers,
+        tags: { name: 'GET /api/v1/members/me/posts' },
+      }
     );
     check(myPosts, { '내 거래글 목록 조회 성공': (r) => r.status === 200 });
     sleep(1);
@@ -70,13 +81,17 @@ export default function () {
   // ── 📌 경매 도메인 (GET은 permitAll) ──
   group('Auction API', () => {
     const start = Date.now();
-    const list = http.get(`${BASE_URL}/api/v1/auctions?page=0&size=10&sort=createdAt,desc`);
+    const list = http.get(`${BASE_URL}/api/v1/auctions?page=0&size=10&sort=createdAt,desc`, {
+      tags: { name: 'GET /api/v1/auctions' },
+    });
     check(list, { '경매 목록 조회 성공': (r) => r.status === 200 });
 
     const listBody = list.json();
     if (listBody.data && listBody.data.content && listBody.data.content.length > 0) {
       const auctionId = listBody.data.content[0].auctionId || listBody.data.content[0].id;
-      const detail = http.get(`${BASE_URL}/api/v1/auctions/${auctionId}`);
+      const detail = http.get(`${BASE_URL}/api/v1/auctions/${auctionId}`, {
+        tags: { name: 'GET /api/v1/auctions/:id' },
+      });
       check(detail, { '경매 상세 조회 성공': (r) => r.status === 200 });
     }
     auctionDuration.add(Date.now() - start);
@@ -90,7 +105,9 @@ export default function () {
 	  const myUsername = TEST_USERS[(__VU - 1) % TEST_USERS.length];
 
 	  // OPEN 상태 경매 여러 개 조회 (분산 입찰용)
-	  const auctions = http.get(`${BASE_URL}/api/v1/auctions?page=0&size=10&status=OPEN`);
+	  const auctions = http.get(`${BASE_URL}/api/v1/auctions?page=0&size=10&status=OPEN`, {
+      tags: { name: 'GET /api/v1/auctions (open list)' },
+    });
 	  const auctionsBody = auctions.json();
 
 	  if (auctionsBody.data && auctionsBody.data.content && auctionsBody.data.content.length > 0) {
@@ -100,7 +117,8 @@ export default function () {
 
 	    // 입찰 목록 조회 → 최상위 입찰자 & 가격 확인
 	    const bidList = http.get(
-	      `${BASE_URL}/api/v1/auctions/${auctionId}/bids?page=0&size=1&sort=price,desc`
+	      `${BASE_URL}/api/v1/auctions/${auctionId}/bids?page=0&size=1&sort=price,desc`,
+        { tags: { name: 'GET /api/v1/auctions/:id/bids (top1)' } }
 	    );
 	    check(bidList, { '입찰 목록 조회 성공': (r) => r.status === 200 });
 
@@ -115,7 +133,10 @@ export default function () {
 	      const bidRes = http.post(
 	        `${BASE_URL}/api/v1/auctions/${auctionId}/bids`,
 	        JSON.stringify({ price: newPrice }),
-	        headers
+	        {
+            ...headers,
+            tags: { name: 'POST /api/v1/auctions/:id/bids' },
+          }
 	      );
 	      check(bidRes, { '입찰 성공': (r) => r.status === 200 });
 	      errorRate.add(bidRes.status !== 200);
@@ -125,7 +146,8 @@ export default function () {
 	      const altIdx = (idx + 1) % items.length;
 	      const altAuctionId = items[altIdx].auctionId || items[altIdx].id;
 	      const altBids = http.get(
-	        `${BASE_URL}/api/v1/auctions/${altAuctionId}/bids?page=0&size=1&sort=price,desc`
+	        `${BASE_URL}/api/v1/auctions/${altAuctionId}/bids?page=0&size=1&sort=price,desc`,
+          { tags: { name: 'GET /api/v1/auctions/:id/bids (top1)' } }
 	      );
 	      const altBody = altBids.json();
 	      const altTopBid = altBody.data?.content?.[0];
@@ -137,7 +159,10 @@ export default function () {
 	        const bidRes = http.post(
 	          `${BASE_URL}/api/v1/auctions/${altAuctionId}/bids`,
 	          JSON.stringify({ price: altPrice }),
-	          headers
+	          {
+              ...headers,
+              tags: { name: 'POST /api/v1/auctions/:id/bids' },
+            }
 	        );
 	        check(bidRes, { '대체 경매 입찰 성공': (r) => r.status === 200 });
 	        errorRate.add(bidRes.status !== 200);
@@ -151,13 +176,17 @@ export default function () {
   // ── 📌 거래(Post) 도메인 ──
   group('Post API', () => {
     const start = Date.now();
-    const list = http.get(`${BASE_URL}/api/v1/posts?page=0&size=10`);
+    const list = http.get(`${BASE_URL}/api/v1/posts?page=0&size=10`, {
+      tags: { name: 'GET /api/v1/posts' },
+    });
     check(list, { '거래글 목록 조회 성공': (r) => r.status === 200 });
 
     const listBody = list.json();
     if (listBody.data && listBody.data.content && listBody.data.content.length > 0) {
       const postId = listBody.data.content[0].id;
-      const detail = http.get(`${BASE_URL}/api/v1/posts/${postId}`);
+      const detail = http.get(`${BASE_URL}/api/v1/posts/${postId}`, {
+        tags: { name: 'GET /api/v1/posts/:id' },
+      });
       check(detail, { '거래글 상세 조회 성공': (r) => r.status === 200 });
     }
     postDuration.add(Date.now() - start);
@@ -168,13 +197,19 @@ export default function () {
   // ── 📌 채팅 도메인 (REST API) ──
   group('Chat API', () => {
     const start = Date.now();
-    const rooms = http.get(`${BASE_URL}/api/v1/chat/list`, headers);
+    const rooms = http.get(`${BASE_URL}/api/v1/chat/list`, {
+      ...headers,
+      tags: { name: 'GET /api/v1/chat/list' },
+    });
     check(rooms, { '채팅방 목록 조회 성공': (r) => r.status === 200 });
 
     const roomsBody = rooms.json();
     if (roomsBody.data && roomsBody.data.length > 0) {
       const roomId = roomsBody.data[0].roomId || roomsBody.data[0].id;
-      const messages = http.get(`${BASE_URL}/api/v1/chat/room/${roomId}`, headers);
+      const messages = http.get(`${BASE_URL}/api/v1/chat/room/${roomId}`, {
+        ...headers,
+        tags: { name: 'GET /api/v1/chat/room/:id' },
+      });
       check(messages, { '채팅 메시지 조회 성공': (r) => r.status === 200 });
     }
     chatDuration.add(Date.now() - start);

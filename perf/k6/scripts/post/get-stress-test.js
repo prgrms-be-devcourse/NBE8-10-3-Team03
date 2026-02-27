@@ -110,7 +110,16 @@ export default function () {
   group('Post API', () => {
     const listRes = http.get(
       `${BASE_URL}/api/v1/posts?page=0&size=10`,
-      { ...headers, tags: { scenario: 'post_get_stress', endpoint: 'post_list', method: 'GET', detail_mode: DETAIL_MODE } }
+      {
+        ...headers,
+        tags: {
+          name: 'GET /api/v1/posts',
+          scenario: 'post_get_stress',
+          endpoint: 'post_list',
+          method: 'GET',
+          detail_mode: DETAIL_MODE,
+        },
+      }
     );
     postListDuration.add(listRes.timings.duration);
     const listOk = listChecks(listRes);
@@ -122,7 +131,16 @@ export default function () {
     if (detailId) {
       const detailRes = http.get(
         `${BASE_URL}/api/v1/posts/${detailId}`,
-        { ...headers, tags: { scenario: 'post_get_stress', endpoint: 'post_detail', method: 'GET', detail_mode: DETAIL_MODE } }
+        {
+          ...headers,
+          tags: {
+            name: 'GET /api/v1/posts/:id',
+            scenario: 'post_get_stress',
+            endpoint: 'post_detail',
+            method: 'GET',
+            detail_mode: DETAIL_MODE,
+          },
+        }
       );
       postDetailDuration.add(detailRes.timings.duration);
       const detailOk = detailChecks(detailRes);
