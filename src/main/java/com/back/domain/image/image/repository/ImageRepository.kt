@@ -19,4 +19,6 @@ interface ImageRepository : JpaRepository<Image, Int> {
             "WHERE ai.auction.id IN :ids AND ai.image.id = (SELECT MIN(ai2.image.id) FROM AuctionImage ai2 WHERE ai2.auction.id = ai.auction.id)"
     )
     fun findAuctionMainImages(@Param("ids") ids: List<Int>): List<Array<Any?>>
+
+    fun deleteByUrlStartingWith(prefix: String): Long
 }

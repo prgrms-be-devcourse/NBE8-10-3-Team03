@@ -4,6 +4,7 @@ import com.back.domain.bid.bid.entity.Bid
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.Modifying
 import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
 import org.springframework.stereotype.Repository
@@ -21,4 +22,7 @@ interface BidRepository : JpaRepository<Bid, Int> {
     fun findTopByAuctionIdOrderByPriceDesc(@Param("auctionId") auctionId: Int): Bid?
 
     fun existsByAuctionIdAndBidderId(auctionId: Int, bidderId: Int): Boolean
+
+    @Modifying
+    fun deleteByAuctionIdIn(auctionIds: Collection<Int>): Long
 }
