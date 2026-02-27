@@ -11,26 +11,17 @@ const auctionDuration = new Trend('auction_duration');
 const postDuration = new Trend('post_duration');
 const chatDuration = new Trend('chat_duration');
 
-const CASES = [
-    { name: "open_all_newest", params: "status=OPEN&sort=newest&size=20" },
-    { name: "open_cat_newest", params: "status=OPEN&categoryName=디지털기기&sort=createdAt,desc&size=20" },
-    { name: "open_all_endingSoon", params: "status=OPEN&sort=endingSoon&size=20" },
-    { name: "open_cat_endingSoon", params: "status=OPEN&categoryName=유아동&sort=createdAt,asc&size=20" },
-    { name: "closed_all_newest", params: "status=CLOSED&size=20" },
-    { name: "open_all_price_desc", params: "status=OPEN&sort=createdAt,asc&size=20" },
-];
-
 export const options = {
   scenarios: {
     load_test: {
       executor: 'ramping-vus',
       startVUs: 0,
       stages: [
-        { duration: '2m', target: 50 },
-        { duration: '5m', target: 50 },
-        { duration: '2m', target: 100 },
-        { duration: '5m', target: 100 },
-        { duration: '2m', target: 0 },
+          { duration: '2m', target: 50 },
+          { duration: '5m', target: 50 },
+          { duration: '2m', target: 100 },
+          { duration: '5m', target: 100 },
+          { duration: '2m', target: 0 },
       ],
     },
   },
@@ -53,30 +44,18 @@ function getHeaders() {
   return cachedHeaders;
 }
 
-function pick(arr) {
-  return arr[Math.floor(Math.random() * arr.length)];
-}
-
 export default function () {
   const headers = getHeaders();
   if (!headers) return;
 
-  const c = pick(CASES);
-
   // ── 📌 경매 도메인 (GET은 permitAll) ──
   group('Auction API', () => {
     const start = Date.now();
-    const url = `${BASE_URL}/api/v1/auctions?${encodeURI(c.params)}`;
-
-    const res = http.get(url, { tags: { case: c.name } });
-
-    check(res, {
-      "경매 조회 성공": (r) => r.status === 200,
-    });
-
+    const list = http.get(`${BASE_URL}/api/v1/auctions`);
+    check(list, { '경매 목록 조회 성공': (r) => r.status === 200 });
 
     auctionDuration.add(Date.now() - start);
-    errorRate.add(res.status !== 200);
+    errorRate.add(list.status !== 200);
     sleep(1);
   });
 }

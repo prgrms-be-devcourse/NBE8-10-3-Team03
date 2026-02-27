@@ -84,38 +84,23 @@ export default function () {
 
     // 2) 최상위 입찰 1건 조회
     const bidList = http.get(
-      `${BASE_URL}/api/v1/auctions/${auctionId}/bids`,
+      `${BASE_URL}/api/v1/auctions/${auctionId}/bids?page=0&size=1&sort=price,desc`,
       { tags: { name: 'GET /api/v1/auctions/:id/bids (top1)' } }
     );
-
-    const nowAuction = http.get(
-              `${BASE_URL}/api/v1/auctions/${auctionId}`,
-              { tags: { name: 'GET /api/v1/auctions/:id (top1)' } }
-            );
-
-    check(bidList, { '입찰 조회 성공': (r) => r.status === 200 });
+    check(bidList, { '입찰 목록 조회 성공': (r) => r.status === 200 });
     errorRate.add(bidList.status !== 200);
 
     if (bidList.status !== 200) return;
 
-    const nowAuctionBody = nowAuction.json();
-    const bidBody = bidList.json();
+    const bidListBody = bidList.json();
+    const topBid = bidListBody?.data?.content?.[0];
 
-    // 입찰 최고가
-    // 입찰 최고가가 없다면 (입찰이 없다면) 시작가가 입찰 최고가가 된다.
-    const topPrice = nowAuctionBody?.data?.currentHighestBid ?? nowAuctionBody?.data?.startPrice;
-    const topBid = bidBody?.data?.content?.[0];
+    const topBidder = topBid?.username || topBid?.memberUsername || '';
+    const topPrice = topBid?.price || 0;
 
-    // 최고가 입찰자
-    const topBidder = topBid?.bidderId || '';
-    // 판매자 (경매 글 올린 사람)
-    const sellerId = nowAuctionBody?.data?.seller?.id;
-    // 내 ID (가상 사용자 ID)
-    const myId = Number(myUsername?.replace(/\D/g, ''));
-
-    // 3) 내가 최상위가 아닐 때 && 내가 판매자가 아닐때만 입찰
-    if (topBidder !== myId && myId !== sellerId) {
-      const newPrice = topPrice + 1000;
+    // 3) 내가 최상위가 아닐 때만 입찰
+    if (topBidder !== myUsername) {
+      const newPrice = topPrice + Math.floor(Math.random() * 1000) + 100;
 
       const bidRes = http.post(
         `${BASE_URL}/api/v1/auctions/${auctionId}/bids`,

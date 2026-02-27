@@ -42,8 +42,4 @@ interface PostRepository : JpaRepository<Post, Int> {
     fun findBySellerIdAndStatus(sellerId: Int, status: PostStatus, pageable: Pageable): Page<Post>
 
     fun findBySellerId(sellerId: Int, pageable: Pageable): Page<Post>
-
-    fun countByTitleStartingWith(prefix: String): Long
-
-    fun deleteByTitleStartingWith(prefix: String): Long
 }

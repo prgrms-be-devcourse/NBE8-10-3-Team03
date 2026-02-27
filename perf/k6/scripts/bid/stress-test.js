@@ -86,36 +86,23 @@ export default function () {
 
     // 2) 최상위 입찰 1건 조회
     const bidList = http.get(
-      `${BASE_URL}/api/v1/auctions/${auctionId}/bids`,
+      `${BASE_URL}/api/v1/auctions/${auctionId}/bids?page=0&size=1&sort=price,desc`,
       { tags: { name: 'GET /api/v1/auctions/:id/bids (top1)' } }
     );
-
-    const nowAuction = http.get(
-              `${BASE_URL}/api/v1/auctions/${auctionId}`,
-              { tags: { name: 'GET /api/v1/auctions/:id (top1)' } }
-            );
-
-    check(bidList, { '입찰 조회 성공': (r) => r.status === 200 });
+    check(bidList, { '입찰 목록 조회 성공': (r) => r.status === 200 });
     errorRate.add(bidList.status !== 200);
 
     if (bidList.status !== 200) return;
 
-    const nowAuctionBody = nowAuction.json();
-    const bidBody = bidList.json();
-    const topPrice = nowAuctionBody?.data?.currentHighestBid ?? nowAuctionBody?.data?.startPrice;
-    const topBid = bidBody?.data?.content?.[0];
+    const bidListBody = bidList.json();
+    const topBid = bidListBody?.data?.content?.[0];
 
-    const topBidder = topBid?.bidderId || '';
-    console.log(`topPrice : ${topPrice}`);
-    console.log(`topBidder : ${topBidder}`);
-
-    const sellerId = nowAuctionBody?.data?.seller?.id;
-    const myId = Number(myUsername?.replace(/\D/g, '')); // string → number
-    console.log(`myId : ${myId}`);
+    const topBidder = topBid?.username || topBid?.memberUsername || '';
+    const topPrice = topBid?.price || 0;
 
     // 3) 내가 최상위가 아닐 때만 입찰
-    if (topBidder !== myId && myId !== sellerId) {
-      const newPrice = topPrice + 1000;
+    if (topBidder !== myUsername) {
+      const newPrice = topPrice + Math.floor(Math.random() * 1000) + 100;
 
       const bidRes = http.post(
         `${BASE_URL}/api/v1/auctions/${auctionId}/bids`,
@@ -125,8 +112,6 @@ export default function () {
           tags: { name: 'POST /api/v1/auctions/:id/bids' },
         }
       );
-
-      console.log(`[BID_API] status=${bidRes.status} body=${bidRes.body}`);
 
       check(bidRes, { '입찰 성공': (r) => r.status === 200 });
       errorRate.add(bidRes.status !== 200);

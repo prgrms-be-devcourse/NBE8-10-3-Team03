@@ -9,7 +9,6 @@ import org.springframework.data.jpa.repository.EntityGraph
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Lock
 import org.springframework.data.jpa.repository.Query
-import org.springframework.data.jpa.repository.Modifying
 import org.springframework.data.repository.query.Param
 import org.springframework.stereotype.Repository
 import java.time.LocalDateTime
@@ -48,12 +47,4 @@ interface AuctionRepository : JpaRepository<Auction, Int> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT a FROM Auction a WHERE a.id = :id")
     fun findByIdWithLock(@Param("id") id: Int): Optional<Auction>
-
-    fun countByNameStartingWith(prefix: String): Long
-
-    @Modifying
-    fun deleteByNameStartingWith(prefix: String): Long
-
-    @Query("SELECT a.id FROM Auction a WHERE a.name LIKE CONCAT(:prefix, '%')")
-    fun findIdsByNameStartingWith(@Param("prefix") prefix: String): List<Int>
 }

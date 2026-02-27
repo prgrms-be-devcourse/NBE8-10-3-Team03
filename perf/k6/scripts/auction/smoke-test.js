@@ -1,8 +1,6 @@
 import http from 'k6/http';
 import { check, sleep } from 'k6';
 
-const BASE_URL = __ENV.BASE_URL || 'http://host.docker.internal:8080';
-
 /**
  * 테스트 옵션 (점진적 부하)
  */
@@ -33,7 +31,7 @@ export function setup() {
 
   for (const user of users) {
     const loginRes = http.post(
-      `${BASE_URL}/api/v1/members/login`,
+      'http://host.docker.internal:8080/api/v1/members/login',
       JSON.stringify({
         username: user.username,
         password: user.password,
@@ -85,7 +83,7 @@ export default function (data) {
 
   // 1️⃣ 내 정보 조회
   const listRes = http.get(
-    `${BASE_URL}/api/v1/members/me/auctions`,
+    'http://host.docker.internal:8080/api/v1/members/me/auctions',
     { headers }
   );
 

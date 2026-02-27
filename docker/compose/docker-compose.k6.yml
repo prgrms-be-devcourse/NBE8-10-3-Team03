@@ -4,8 +4,6 @@ services:
     container_name: k6
     profiles: [ "k6" ]
     working_dir: /scripts
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     environment:
       K6_OUT: experimental-prometheus-rw
       K6_PROMETHEUS_RW_SERVER_URL: http://prometheus:9090/api/v1/write
@@ -15,8 +13,12 @@ services:
       - ../../perf/results:/results
     networks:
       - perf
+      - auction-network
 
 networks:
   perf:
     external: true
     name: perf-network   # prometheus가 속한 네트워크
+  auction-network:
+    external: true
+    name: auction-network
