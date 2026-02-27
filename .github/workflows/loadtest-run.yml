@@ -1,4 +1,5 @@
-name: Loadtest Run
+name: Loadtest Run Cloud
+run-name: "Loadtest | target=${{ inputs.target }} domain=${{ inputs.domain }} scenario=${{ inputs.scenario }}"
 
 on:
   workflow_dispatch:
