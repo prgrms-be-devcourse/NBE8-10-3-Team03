@@ -215,7 +215,6 @@ class LoadtestSeeder(
     @Transactional
     fun resetByAdmin(actorId: Int) {
         val actor = memberService.findById(actorId)
-            .orElse(null)
             ?: throw ServiceException("404-1", "존재하지 않는 회원입니다.")
 
         if (!actor.isAdmin) {
