@@ -7,6 +7,7 @@ import com.back.domain.member.member.entity.Member
 import com.back.domain.member.member.enums.MemberStatus
 import com.back.domain.member.member.enums.Role
 import com.back.domain.member.member.repository.MemberRepository
+import com.back.domain.member.member.service.port.MemberPort
 import com.back.domain.member.reputation.entity.Report
 import com.back.domain.member.reputation.entity.Reputation
 import com.back.domain.member.reputation.entity.ReputationEvent
@@ -34,7 +35,8 @@ import kotlin.math.abs
 @Service
 class MemberService(
     private val authTokenService: AuthTokenService,
-    private val memberRepository: MemberRepository,
+    //private val memberRepository: MemberRepository,
+    private val memberPort: MemberPort,
     private val passwordEncoder: PasswordEncoder,
     private val reputationRepository: ReputationRepository,
     private val eventRepository: ReputationEventRepository,
@@ -49,17 +51,17 @@ class MemberService(
 ) {
 
 
-    fun count(): Long = memberRepository.count()
+    fun count(): Long = memberPort.count()
 
     @Transactional
     fun join(username: String, password: String?, name: String, profileImgUrl: String?): Member {
         val nickname = name.trim()
 
-        memberRepository.findByUsername(username)
-            .ifPresent { throw ServiceException("409-1", "이미 존재하는 아이디입니다.") }
+        memberPort.findByUsername(username)
+            ?.let { throw ServiceException("409-1", "이미 존재하는 아이디입니다.") }
 
-        memberRepository.findByUsername(username)
-            .ifPresent{ throw ServiceException("409-1", "이미 존재하는 아이디입니다.")}
+        memberPort.findByUsername(username)
+            ?.let{ throw ServiceException("409-1", "이미 존재하는 아이디입니다.")}
 
         val encodedPassword = password
             ?.takeIf { it.isNotBlank() }
@@ -74,13 +76,13 @@ class MemberService(
         val reputation = Reputation(member, 50.0)
         reputationRepository.save(reputation)
 
-        return memberRepository.save(member)
+        return memberPort.save(member)
     }
 
     // OAuth 회원가입 / 로그인
     @Transactional
     fun modifyOrJoin(username: String, password: String?, nickname: String, profileImgUrl: String?): RsData<Member?> {
-        val member = findByUsername(username).orElse(null)
+        val member = findByUsername(username)
             ?: return RsData("201-1", "회원가입이 완료되었습니다.", join(username, password, nickname, profileImgUrl))
 
         modify(member, nickname, profileImgUrl)
@@ -140,8 +142,8 @@ class MemberService(
     // 회원 탈퇴
     @Transactional
     fun withdraw(actor: Member) {
-        val member = memberRepository.findById(actor.id)
-            .orElseThrow { ServiceException("404-1", "존재하지 않는 회원입니다.") }
+        val member = memberPort.findById(actor.id)
+            ?: throw ServiceException("404-1", "존재하지 않는 회원입니다.")
 
         if (member.status == MemberStatus.WITHDRAWN) {
             throw ServiceException("400-1", "이미 탈퇴한 회원입니다.")
@@ -157,18 +159,18 @@ class MemberService(
     }
 
 
-    fun findByUsername(username: String): Optional<Member> = memberRepository.findByUsername(username)
-
-    fun findByApiKey(apiKey: String): Optional<Member> = memberRepository.findByApiKey(apiKey)
-
+    //fun findByUsername(username: String): Optional<Member> = memberPort.findByUsername(username)
+    fun findByUsername(username: String): Member? = memberPort.findByUsername(username)
+    //fun findByApiKey(apiKey: String): Optional<Member> = memberPort.findByApiKey(apiKey)
+    fun findByApiKey(apiKey: String): Member? = memberPort.findByApiKey(apiKey)
     fun genAccessToken(member: Member): String = authTokenService.genAccessToken(member)
 
     fun payload(accessToken: String): Map<String, Any>? = authTokenService.payload(accessToken)
 
-    fun findById(id: Int): Optional<Member> = memberRepository.findById(id)
-
-    fun findAll(): MutableList<Member> = memberRepository.findAll()
-
+    //fun findById(id: Int): Optional<Member> = memberPort.findById(id)
+    fun findById(id: Int): Member? = memberPort.findById(id)
+    //fun findAll(): MutableList<Member> = memberPort.findAll()
+    fun findAll(): List<Member> = memberPort.findAll()
 
     @Transactional
     fun modifyNickname(member: Member, nickname: String) = member.modifyName(nickname)
@@ -236,7 +238,8 @@ class MemberService(
     @Transactional
     fun decreaseByCancel(auctionId: Int, actorId: Int) {
         val auction = auctionRepository.findById(auctionId).get()
-        val seller = memberRepository.findById(actorId).get()
+        val seller = memberPort.findById(actorId)
+            ?: throw ServiceException("404-1", "존재하지 않는 회원입니다.")
 
         // if 입찰 O
         if (auction.bidCount > 0) {
@@ -256,7 +259,8 @@ class MemberService(
     @Transactional
     fun increaseByDeal(dealId: Int) {
         val auction = auctionRepository.findById(dealId).get()
-        val seller = memberRepository.findById(auction.seller.id).get()
+        val seller = memberPort.findById(auction.seller.id)
+            ?: throw ServiceException("404-1", "존재하지 않는 회원입니다.")
 
         val reputation = reputationRepository.findById(seller.id).get()
         // 증감 계산
@@ -272,7 +276,12 @@ class MemberService(
     // 리뷰 생성
     @Transactional
     fun createReview(star: Int, msg: String?, member: Member, reviewerId: Int): Review {
-        if (findById(reviewerId).get().status == MemberStatus.SUSPENDED) {
+//        if (findById(reviewerId).get().status == MemberStatus.SUSPENDED) {
+//            throw ServiceException("403-3", "정지된 회원은 해당 기능을 사용할 수 없습니다.")
+//        }
+        val reviewer = findById(reviewerId) ?: throw ServiceException("404-1", "작성자를 찾을 수 없습니다.")
+
+        if (reviewer.status == MemberStatus.SUSPENDED) {
             throw ServiceException("403-3", "정지된 회원은 해당 기능을 사용할 수 없습니다.")
         }
         val review = Review(member, star, msg, reviewerId)
@@ -284,9 +293,9 @@ class MemberService(
         password ?: return
 
         // 길이 검증 (이미 @Size로 체크되지만 명시적으로)
-        if (password.length !in 8..20)
-            throw ServiceException("400-1", "비밀번호는 8-20자여야 합니다")
-
+        //if (password.length !in 8..20)
+        //    throw ServiceException("400-1", "비밀번호는 8-20자여야 합니다")
+        require(password.length in 8..20) { throw ServiceException("400-1", "비밀번호는 8-20자여야 합니다") }
 
         // 복잡도 검증 (영문 대/소문자, 숫자, 특수문자 중 3가지 이상)
         val complexityCount = listOf(                       // [15] 복잡도 체크 간결화
@@ -301,8 +310,9 @@ class MemberService(
 
 
         // 연속된 문자 검증
-        if (hasConsecutiveChars(password))
-            throw ServiceException("400-1", "연속된 문자 또는 숫자 3개 이상 사용할 수 없습니다")
+        //if (hasConsecutiveChars(password))
+        //    throw ServiceException("400-1", "연속된 문자 또는 숫자 3개 이상 사용할 수 없습니다")
+        require(!hasConsecutiveChars(password)) { throw ServiceException("400-1", "연속된 문자/숫자를 사용할 수 없습니다") }
 
         // 동일 문자 반복 검증
         if (Regex("(.)\\1\\1").containsMatchIn(password))  // Pattern.compile → Regex
@@ -323,6 +333,7 @@ class MemberService(
         if (consecutiveNumbers.any { lowerPassword.contains(it) }) return true
 
         // 연속된 알파벳 체크
+/*
         for (i in 0..<lowerPassword.length - 2) {
             val c1 = lowerPassword.get(i)
             val c2 = lowerPassword.get(i + 1)
@@ -336,6 +347,12 @@ class MemberService(
         }
 
         return false
+
+ */
+        return lowerPassword.toList().windowed(3).any { (a, b, c) ->
+            a.isLetter() && b.isLetter() && c.isLetter() && // 셋 다 문자이고
+                    b.code == a.code + 1 && c.code == b.code + 1     // 코드가 1씩 증가하는지 확인
+        }
     }
 
     // 프로필 사진 변경
@@ -345,13 +362,13 @@ class MemberService(
 
 
         // 트랜잭션 내에서 managed entity를 조회해야 dirty checking이 동작함
-        val managedMember = memberRepository.findById(memberId)
-            .orElseThrow { ServiceException("404-1", "존재하지 않는 회원입니다.") }
+        val managedMember = memberPort.findById(memberId)
+            ?: throw ServiceException("404-1", "존재하지 않는 회원입니다.")
 
         val imageUrl = fileStoragePort.storeFile(profileImg, "member")
 
         imageRepository.save(Image(imageUrl))
 
-        managedMember.modify(managedMember.getName(), imageUrl)
+        managedMember.modify(managedMember.name, imageUrl)
     }
 }

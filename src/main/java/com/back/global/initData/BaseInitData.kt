@@ -16,6 +16,7 @@ import com.back.domain.post.post.entity.Post
 import com.back.domain.post.post.entity.PostStatus
 import com.back.domain.post.post.repository.PostRepository
 import com.back.global.app.AppConfig
+import com.back.global.exception.ServiceException
 import jakarta.persistence.EntityManager
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
@@ -145,7 +146,7 @@ class BaseInitData(
 
         val sellers = (1..5).map { index ->
             memberService.findByUsername("user$index")
-                .orElseThrow { IllegalStateException("user$index not found") }
+                ?: throw  IllegalStateException("user$index not found")
         }
 
         val productTypes = listOf(
@@ -187,9 +188,12 @@ class BaseInitData(
     fun seedReviews() {
         if (reviewRepository.count() > 0) return
 
-        val seller = memberService.findByUsername("user1").orElseThrow()
-        val reviewer1 = memberService.findByUsername("user2").orElseThrow()
-        val reviewer2 = memberService.findByUsername("user3").orElseThrow()
+        val seller = memberService.findByUsername("user1")
+            ?: throw ServiceException("404-1", "초기 데이터 생성 실패: user를 찾을 수 없습니다.")
+        val reviewer1 = memberService.findByUsername("user2")
+            ?: throw ServiceException("404-1", "초기 데이터 생성 실패: user를 찾을 수 없습니다.")
+        val reviewer2 = memberService.findByUsername("user3")
+            ?: throw ServiceException("404-1", "초기 데이터 생성 실패: user를 찾을 수 없습니다.")
 
         reviewRepository.save(memberService.createReview(5, "친절하시고 배송이 빠릅니다.", seller, reviewer1.id))
         reviewRepository.save(memberService.createReview(3, "연락이 빠릅니다.", seller, reviewer2.id))
@@ -200,7 +204,8 @@ class BaseInitData(
     fun seedPosts() {
         if (postRepository.count() > 10) return
 
-        val seller = memberService.findByUsername("user1").orElseThrow()
+        val seller = memberService.findByUsername("user1")
+            ?: throw ServiceException("404-1", "초기 데이터 생성 실패: user를 찾을 수 없습니다.")
         val category = categoryPort.findAll().firstOrNull()
             ?: throw IllegalStateException("카테고리가 존재하지 않습니다.")
 

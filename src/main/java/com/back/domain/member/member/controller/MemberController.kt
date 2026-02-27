@@ -279,7 +279,7 @@ open class MemberController(
         @RequestBody @Valid reqBody: MemberLoginReqBody,
         request: HttpServletRequest,
     ): RsData<MemberLoginResBody?> {
-        val member = memberService.findByUsername(reqBody.username)?.orElse(null)
+        val member = memberService.findByUsername(reqBody.username)
             ?: throw ServiceException("401-1", "존재하지 않는 아이디입니다.")
 
         val key = "login:${request.remoteAddr}:${reqBody.username}"
@@ -376,7 +376,7 @@ open class MemberController(
     fun me(): MemberWithUsernameDto {
         val actorId = rq.actor.id
         val actor = memberService.findById(actorId)
-            .orElseThrow { ServiceException("404-1", "존재하지 않는 회원입니다.") }
+            ?: throw  ServiceException("404-1", "존재하지 않는 회원입니다.")
 
         return MemberWithUsernameDto(actor)
     }
@@ -416,7 +416,7 @@ open class MemberController(
     fun withdraw(): RsData<Void?> {
         val actorId = rq.actor.id
         val actor = memberService.findById(actorId)
-            .orElseThrow { ServiceException("404-1", "존재하지 않는 회원입니다.") }
+            ?: throw  ServiceException("404-1", "존재하지 않는 회원입니다.")
         rq.deleteCookie("apiKey")
         rq.deleteCookie("accessToken")
         memberService.withdraw(actor)
@@ -433,7 +433,7 @@ open class MemberController(
     )
     fun modifyNickname(@RequestBody @Valid reqBody: MemberNameModifyReqBody): RsData<Void?> {
         val member = memberService.findById(rq.actor.id)
-            .orElseThrow { ServiceException("404-1", "존재하지 않는 회원입니다.") }
+            ?: throw  ServiceException("404-1", "존재하지 않는 회원입니다.")
         member.checkActorCanModify(member)
         memberService.modifyNickname(member, reqBody.nickname)
 
@@ -449,7 +449,7 @@ open class MemberController(
     )
     fun modifyPassword(@RequestBody @Valid reqBody: MemberPwModifyReqBody): RsData<Void?> {
         val member = memberService.findById(rq.actor.id)
-            .orElseThrow { ServiceException("404-1", "존재하지 않는 회원입니다.") }
+            ?: throw  ServiceException("404-1", "존재하지 않는 회원입니다.")
         member.checkActorCanModify(member)
         memberService.modifyPassword(member, reqBody.password, reqBody.newPassword, reqBody.checkPassword)
 
@@ -466,7 +466,8 @@ open class MemberController(
         ApiResponse(responseCode = "400", description = "일일 신고 횟수 초과 또는 중복 신고"),
     )
     fun decrease(@PathVariable userId: Int): RsData<Void?> {
-        val member = memberService.findById(userId).get()
+        val member = memberService.findById(userId)
+            ?: throw ServiceException("404-1", "존재하지 않는 회원입니다.")
         val reporter = rq.actor
         memberService.decreaseByNofiy(member, reporter)
 
@@ -485,7 +486,8 @@ open class MemberController(
         @PathVariable userId: Int,
         @RequestBody @Valid request: MemberReviewReqBody,
     ): RsData<Void?> {
-        val member = memberService.findById(userId).get()
+        val member = memberService.findById(userId)
+            ?: throw ServiceException("404-1", "존재하지 않는 회원입니다.")
         val reviewer = rq.actor
         memberService.createReview(request.star, request.comment, member, reviewer.id)
 
@@ -500,7 +502,8 @@ open class MemberController(
         ApiResponse(responseCode = "401", description = "인증 실패"),
     )
     fun getReviews(@PathVariable userId: Int): List<ReviewDto>? {
-        val member = memberService.findById(userId).get()
+        val member = memberService.findById(userId)
+            ?: throw ServiceException("404-1", "존재하지 않는 회원입니다.")
         return member.reviews.map { review -> ReviewDto(review) }
     }
 

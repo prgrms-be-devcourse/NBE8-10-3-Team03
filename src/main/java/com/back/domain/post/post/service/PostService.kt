@@ -33,7 +33,7 @@ class PostService(
     fun create(actor: Member, req: PostCreateRequest): Int {
         // 기존 Java의 Optional.get() 호출 방식을 Kotlin 람다로 깔끔하게 변환
         val member = memberService.findById(actor.id as Int)
-            .orElseThrow { ServiceException("404-3", "회원 정보를 찾을 수 없습니다.") }
+            ?: throw  ServiceException("404-3", "회원 정보를 찾을 수 없습니다.")
 
         if (member.status == MemberStatus.SUSPENDED) {
             throw ServiceException("403-3", "정지된 회원은 해당 기능을 사용할 수 없습니다.")
@@ -80,7 +80,7 @@ class PostService(
         }
 
         val member = memberService.findById(actor.id as Int)
-            .orElseThrow { ServiceException("404-3", "회원 정보를 찾을 수 없습니다.") }
+            ?: throw  ServiceException("404-3", "회원 정보를 찾을 수 없습니다.")
         if (member.status == MemberStatus.SUSPENDED) {
             throw ServiceException("403-3", "정지된 회원은 해당 기능을 사용할 수 없습니다.")
         }
