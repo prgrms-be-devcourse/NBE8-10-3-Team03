@@ -31,6 +31,7 @@ class SecurityConfig(
                 authorize("/api/*/members/login", permitAll)
                 authorize("/api/*/members", permitAll)
                 authorize("/api/*/members/logout", permitAll)
+                authorize(HttpMethod.POST, "/api/*/loadtest/reset", permitAll)
                 authorize(HttpMethod.POST, "/api/*/members", permitAll)
                 authorize(HttpMethod.PATCH, "/api/*/members/me/profile", authenticated)
                 authorize(HttpMethod.GET, "/api/*/auctions/**", permitAll)

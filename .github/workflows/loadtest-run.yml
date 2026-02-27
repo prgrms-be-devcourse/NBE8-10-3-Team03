@@ -74,9 +74,6 @@ jobs:
           [ -n "${{ secrets.OCI_HOST }}" ] || (echo "OCI_HOST empty" && exit 1)
           [ -n "${{ secrets.OCI_USER }}" ] || (echo "OCI_USER empty" && exit 1)
           [ -n "${{ secrets.OCI_SSH_KEY }}" ] || (echo "OCI_SSH_KEY empty" && exit 1)
-          if [ "${{ inputs.run_reset }}" = "true" ]; then
-            [ -n "${{ secrets.LOADTEST_RESET_TOKEN }}" ] || (echo "LOADTEST_RESET_TOKEN empty (run_reset=true)" && exit 1)
-          fi
 
       - name: Prepare SSH key
         run: |
@@ -96,7 +93,6 @@ jobs:
           DOMAIN: ${{ inputs.domain }}
           SCENARIO: ${{ inputs.scenario }}
           RUN_RESET: ${{ inputs.run_reset }}
-          LOADTEST_RESET_TOKEN: ${{ secrets.LOADTEST_RESET_TOKEN }}
           RUN_ID: ${{ github.run_id }}
         run: |
           set -euo pipefail
@@ -104,13 +100,12 @@ jobs:
 
           REMOTE_RESULT_PATH="$(
             ssh ${SSH_OPTS} "${OCI_USER}@${OCI_HOST}" \
-              "DEPLOY_PATH='${DEPLOY_PATH}' APP_PORT='${APP_PORT}' BASE_URL='${BASE_URL}' DOMAIN='${DOMAIN}' SCENARIO='${SCENARIO}' RUN_RESET='${RUN_RESET}' LOADTEST_RESET_TOKEN='${LOADTEST_RESET_TOKEN}' RUN_ID='${RUN_ID}' bash -se" <<'EOS'
+              "DEPLOY_PATH='${DEPLOY_PATH}' APP_PORT='${APP_PORT}' BASE_URL='${BASE_URL}' DOMAIN='${DOMAIN}' SCENARIO='${SCENARIO}' RUN_RESET='${RUN_RESET}' RUN_ID='${RUN_ID}' bash -se" <<'EOS'
           set -euo pipefail
           cd "${DEPLOY_PATH}"
 
           if [ "${RUN_RESET}" = "true" ]; then
-            curl -fsS -X POST "http://127.0.0.1:${APP_PORT}/api/v1/loadtest/reset" \
-              -H "Authorization: Bearer ${LOADTEST_RESET_TOKEN}" >/dev/null
+            curl -fsS -X POST "http://127.0.0.1:${APP_PORT}/api/v1/loadtest/reset" >/dev/null
           fi
 
           cp perf/env/cloud.env perf/env/cloud-ci.env
