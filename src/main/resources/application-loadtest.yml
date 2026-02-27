@@ -21,18 +21,9 @@ spring:
       idle-timeout: 600000
       max-lifetime: 1800000
 
-  # Redis 설정
-  data:
-    redis:
-      host: ${SPRING_DATA_REDIS_HOST:localhost}
-      port: ${SPRING_DATA_REDIS_PORT:6379}
-
-  # Cache 설정
+  # Cache 설정 (loadtest 프로파일에서는 Redis 미사용)
   cache:
-    type: redis
-    redis:
-      time-to-live: 600000  # 10분 (밀리초)
-      cache-null-values: false
+    type: simple
 
 # 로그 레벨 최소화
 logging:
@@ -43,6 +34,9 @@ logging:
 
 # Actuator - Prometheus 수집용
 management:
+  health:
+    redis:
+      enabled: false
   endpoints:
     web:
       exposure:
