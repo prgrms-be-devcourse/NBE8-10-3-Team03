@@ -19,7 +19,6 @@ import com.back.domain.post.post.entity.PostImage
 import com.back.domain.post.post.entity.PostStatus
 import com.back.domain.post.post.repository.PostRepository
 import com.back.global.app.AppConfig
-import com.back.global.exception.ServiceException
 import jakarta.persistence.EntityManager
 import org.springframework.boot.ApplicationRunner
 import org.springframework.context.annotation.Bean
@@ -213,14 +212,7 @@ class LoadtestSeeder(
     }
 
     @Transactional
-    fun reset(actorId: Int) {
-        val actor = memberService.findById(actorId)
-            ?: throw ServiceException("404-1", "존재하지 않는 회원입니다.")
-
-        if (actor.status != MemberStatus.ACTIVE) {
-            throw ServiceException("403-2", "활성 계정만 수동 리셋을 실행할 수 있습니다.")
-        }
-
+    fun reset() {
         cleanupLoadtestData()
         work1()
         work2()
