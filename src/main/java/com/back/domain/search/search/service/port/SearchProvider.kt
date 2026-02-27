@@ -1,4 +1,4 @@
-package com.back.domain.search.search.service
+package com.back.domain.search.search.service.port
 
 import com.back.domain.search.search.dto.UnifiedSearchResponse
 import org.springframework.data.domain.Pageable
