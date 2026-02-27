@@ -35,6 +35,7 @@ services:
 
 networks:
   perf:
+    external: true
     name: perf-network
   auction-network:
     external: true
