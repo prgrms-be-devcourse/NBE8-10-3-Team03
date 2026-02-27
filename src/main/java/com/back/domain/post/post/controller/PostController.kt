@@ -2,6 +2,7 @@ package com.back.domain.post.post.controller
 
 import com.back.domain.post.post.dto.*
 import com.back.domain.post.post.service.PostService
+import com.back.domain.post.post.service.port.PostUseCase
 import com.back.global.exception.ServiceException
 import com.back.global.rq.Rq
 import com.back.global.rsData.RsData
@@ -21,7 +22,7 @@ import org.springframework.web.bind.annotation.*
 @RestController
 @RequestMapping("/api/v1/posts")
 class PostController(
-    private val postService: PostService,
+    private val postUseCase: PostUseCase,
     private val rq: Rq
 ) {
 
@@ -36,7 +37,7 @@ class PostController(
     @PostMapping(consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
     fun create(@Valid @ModelAttribute req: PostCreateRequest): RsData<PostIdResponse> {
         val actor = rq.actor ?: throw ServiceException("401-1", "로그인이 필요합니다.")
-        val id = postService.create(actor, req)
+        val id = postUseCase.create(actor, req)
         return RsData("201-1", "게시글 등록이 완료되었습니다", PostIdResponse(id, "등록 완료"))
     }
 
@@ -51,7 +52,7 @@ class PostController(
         @Valid @ModelAttribute req: PostUpdateRequest
     ): RsData<PostIdResponse> {
         val actor = rq.actor ?: throw ServiceException("401-1", "로그인이 필요합니다.")
-        postService.modify(actor, id, req)
+        postUseCase.modify(actor, id, req)
         return RsData("200-1", "수정 성공", PostIdResponse(id, "수정 완료"))
     }
 
@@ -64,7 +65,7 @@ class PostController(
         val actor = rq.actor ?: throw ServiceException("401-1", "로그인이 필요합니다.")
         val status = req.status ?: throw ServiceException("400", "상태값이 누락되었습니다.")
 
-        postService.updatePostStatus(actor, id, status)
+        postUseCase.updatePostStatus(actor, id, status)
         return RsData("200-1", "수정 성공", PostIdResponse(id, "수정 완료"))
     }
 
@@ -72,14 +73,14 @@ class PostController(
     @DeleteMapping("/{id}")
     fun delete(@PathVariable id: Int): RsData<PostIdResponse> {
         val actor = rq.actor ?: throw ServiceException("401-1", "로그인이 필요합니다.")
-        postService.delete(actor, id)
+        postUseCase.delete(actor, id)
         return RsData("200-2", "삭제 성공", PostIdResponse(id, "삭제 완료"))
     }
 
     @Operation(summary = "상세 조회", description = "게시글의 상세 정보를 조회합니다. 판매자의 **신용 점수(Score)**가 함께 반환됩니다.")
     @GetMapping("/{id}")
     fun getDetail(@PathVariable id: Int): RsData<PostDetailResponse> {
-        return RsData("200-3", "상세 조회 성공", postService.getDetail(id))
+        return RsData("200-3", "상세 조회 성공", postUseCase.getDetail(id))
     }
 
     @Operation(summary = "목록 조회", description = "상태별 필터링이 가능한 페이징 목록입니다. 판매자의 **뱃지(Badge)** 정보가 포함됩니다.")
@@ -89,7 +90,7 @@ class PostController(
         @Parameter(description = "필터링할 상태 (all, sale, reserved, sold)", example = "sale")
         @RequestParam(required = false) status: String?
     ): RsData<PostPageResponse> {
-        val response = postService.getList(pageable, status)
+        val response = postUseCase.getList(pageable, status)
         return RsData("200-4", "목록 조회 성공", response)
     }
 }
