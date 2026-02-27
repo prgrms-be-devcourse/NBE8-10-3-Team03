@@ -42,11 +42,9 @@ export const options = {
       executor: 'ramping-vus',
       startVUs: 0,
       stages: [
-         { duration: '2m', target: 50 },
-         { duration: '5m', target: 50 },
-         { duration: '2m', target: 100 },
-         { duration: '5m', target: 100 },
-         { duration: '2m', target: 0 },
+        { duration: '30s', target: 5 },   // 워밍업
+        { duration: '1m', target: 20 },   // 정상 트래픽
+        { duration: '30s', target: 5 },   // 쿨다운
       ],
     },
   },
