@@ -51,7 +51,9 @@ export default function () {
   // ── 📌 경매 도메인 (GET은 permitAll) ──
   group('Auction API', () => {
     const start = Date.now();
-    const list = http.get(`${BASE_URL}/api/v1/auctions`);
+    const list = http.get(`${BASE_URL}/api/v1/auctions`, {
+      tags: { name: 'GET /api/v1/auctions' },
+    });
     check(list, { '경매 목록 조회 성공': (r) => r.status === 200 });
 
     auctionDuration.add(Date.now() - start);

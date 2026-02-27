@@ -10,6 +10,8 @@ export const options = {
 
 export default function () {
   // 백엔드 로컬 8080일 시 필요함
-  http.get("http://host.docker.internal:8080/");
+  http.get("http://host.docker.internal:8080/", {
+    tags: { name: "GET /" },
+  });
   sleep(1);
 }
