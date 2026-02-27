@@ -15,12 +15,8 @@ services:
       - ../../perf/results:/results
     networks:
       - perf
-      - auction-network
 
 networks:
   perf:
     external: true
     name: perf-network   # prometheus가 속한 네트워크
-  auction-network:
-    external: true
-    name: auction-network

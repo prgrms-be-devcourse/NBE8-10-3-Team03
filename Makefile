@@ -1,4 +1,4 @@
-.PHONY: help local-up k6 local-probe-up local-prodlike-up local-up down limits ps logs clean perf-check-env perf
+.PHONY: help local-up k6 local-probe-up local-prodlike-up local-down limits ps logs clean perf-check-env perf
 
 help:
 	@echo ""
@@ -18,8 +18,7 @@ help:
 	@echo "  make perf PERF_SCENARIO=smoke-test ENV=local DOMAIN=auction    # prodlike 환경에서 k6 실행"
 	@echo ""
 	@echo "[Cloud 환경]"
-	@echo "  make local-up ENV=cloud  # cloud 환경 실행"
-	@echo "  make perf ENV=cloud PERF_SCENARIO=load"
+	@echo "  make perf ENV=cloud DOMAIN=auction PERF_SCENARIO=get-load-test"
 	@echo ""
 	@echo "[유틸]"
 	@echo "  make local-down         # 컨테이너 종료"
@@ -51,7 +50,7 @@ local-probe-up:
 	docker compose \
 		-f docker-compose.yml \
 		-f docker/compose/docker-compose.monitoring.yml \
-		-f docker/compose/docker-compose.probe.yml \
+		-f docker/compose/docker-compose.prob.yml \
 		-f docker/compose/docker-compose.local.yml \
 		up -d
 
@@ -66,16 +65,6 @@ local-prodlike-up:
 		-f docker/compose/docker-compose.local.yml \
 		up -d
 
-# ----------------------------
-# 클라우드 환경 (자원 제한 없음)
-# ----------------------------
-cloud-up:
-	docker compose \
-		-f docker/compose/docker-compose.monitoring.yml \
-		-f docker/compose/docker-compose.cloud.yml \
-		up -d
-
-# ----------------------------
 # 공통
 # ----------------------------
 local-down:
@@ -141,4 +130,4 @@ perf: perf-check-env
 	  k6 run \
 	  --summary-export="$(PERF_OUT_JSON)" \
 	  "$(PERF_SCRIPT)"
-	@echo "✅ Saved: perf/results/$(ENV)/$(PERF_SCENARIO)-$(PERF_TS).json"
+	@echo "✅ Saved: perf/results/$(ENV)/$(DOMAIN)/$(PERF_SCENARIO)/$(PERF_SCENARIO)-$(PERF_TS).json"

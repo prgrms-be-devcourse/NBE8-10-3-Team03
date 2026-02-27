@@ -39,7 +39,7 @@ Makefile에 등록된 타겟을 사용합니다.
 
 ```bash
 make local-up
-make perf ENV=local PERF_SCENARIO=smoke PERF_SCRIPT=/scripts/smoke-test.js
+make perf ENV=local DOMAIN=auction PERF_SCENARIO=smoke-test
 ```
 
 >ENV, PERF_SCENARIO, PERF_SCRIPT는 Makefile 기본값이 있으면 생략 가능합니다.
@@ -52,11 +52,17 @@ make perf ENV=local PERF_SCENARIO=smoke PERF_SCRIPT=/scripts/smoke-test.js
 
 - `make local-up` : 로컬 실행(자원 제한 없음)
 - `make k6` : 기본 k6 실행
-- `make local-probe-up` / `make local-probe-k6` : 문제 탐지용(probe) 환경/테스트
-- `make local-prodlike-up` / `make local-prodlike-k6` : 운영 유사(prodlike) 환경/테스트
-- `make down` : 컨테이너 종료
+- `make local-probe-up` : 문제 탐지용(probe) 환경 실행
+- `make local-prodlike-up` : 운영 유사(prodlike) 환경 실행
+- `make local-down` : 컨테이너 종료
 - `make limits` : 컨테이너 CPU/MEM 제한 확인
 - `make logs`, `make ps`, `make clean` 등
+
+클라우드 대상 실행 예시:
+- `make perf ENV=cloud DOMAIN=auction PERF_SCENARIO=get-load-test`
+- `make perf ENV=cloud DOMAIN=bid PERF_SCENARIO=load-test`
+- `make perf ENV=cloud DOMAIN=post PERF_SCENARIO=get-load-test`
+- `make perf ENV=cloud DOMAIN=search PERF_SCENARIO=load-test`
 
 ---
 
