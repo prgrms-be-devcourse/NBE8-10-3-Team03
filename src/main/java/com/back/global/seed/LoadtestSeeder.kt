@@ -47,6 +47,7 @@ class LoadtestSeeder(
     private val entityManager: EntityManager
 ) {
     companion object {
+        private const val LT_MEMBER_TARGET_COUNT = 1000
         private const val LT_AUCTION_PREFIX = "[LT-AUCTION]"
         private const val LT_POST_PREFIX = "[LT-POST]"
         private const val LT_IMAGE_PREFIX = "/uploads/loadtest/"
@@ -63,11 +64,14 @@ class LoadtestSeeder(
 
     @Transactional
     fun work1() {
-        if (memberService.count() > 0) return
-
-        repeat(1000) { i ->
+        repeat(LT_MEMBER_TARGET_COUNT) { i ->
             val index = i + 1
-            val member = Member("user$index", passwordEncoder.encode("1234"), "유저$index", Role.USER, null).apply {
+            val username = "user$index"
+            if (memberRepository.findByUsername(username).isPresent) {
+                return@repeat
+            }
+
+            val member = Member(username, passwordEncoder.encode("1234"), "유저$index", Role.USER, null).apply {
                 if (AppConfig.isNotProd()) modifyApiKey(username)
             }
             memberRepository.save(member)
@@ -93,9 +97,9 @@ class LoadtestSeeder(
     fun work3() {
         if (auctionRepository.countByNameStartingWith(LT_AUCTION_PREFIX) > 0) return
 
-        val members = memberService.findAll()
+        val members = getLoadtestMembers()
         val categories = categoryRepository.findAll()
-        if (members.size < 1000 || categories.isEmpty()) return
+        if (members.size < LT_MEMBER_TARGET_COUNT || categories.isEmpty()) return
 
         val productTypes = arrayOf(
             "아이폰", "갤럭시", "노트북", "태블릿", "에어팟", "청소기", "TV", "냉장고",
@@ -106,7 +110,7 @@ class LoadtestSeeder(
 
         repeat(100_000) { i ->
             val index = i + 1
-            val seller = members[i % 1000]
+            val seller = members[i % LT_MEMBER_TARGET_COUNT]
             val category = categories[i % categories.size]
             val productName = productTypes[i % productTypes.size]
 
@@ -138,9 +142,9 @@ class LoadtestSeeder(
         val targetPostCount = 10_000L
         if (postRepository.countByTitleStartingWith(LT_POST_PREFIX) >= targetPostCount) return
 
-        val sellers = memberService.findAll().filter { it.status == MemberStatus.ACTIVE }
+        val sellers = getLoadtestMembers()
         val categories = categoryRepository.findAll()
-        if (sellers.size < 1_000 || categories.isEmpty()) return
+        if (sellers.size < LT_MEMBER_TARGET_COUNT || categories.isEmpty()) return
 
         val saleCount = 7_000
         val reservedCount = 2_000
@@ -158,7 +162,7 @@ class LoadtestSeeder(
         val hotspotIds = mutableListOf<Int>()
 
         for (i in 1..10_000) {
-            val seller = sellers[(i - 1) % 1_000]
+            val seller = sellers[(i - 1) % LT_MEMBER_TARGET_COUNT]
             val category = categories[(i - 1) % categories.size]
 
             val status = when {
@@ -235,4 +239,9 @@ class LoadtestSeeder(
         postRepository.deleteByTitleStartingWith(LT_POST_PREFIX)
         imageRepository.deleteByUrlStartingWith(LT_IMAGE_PREFIX)
     }
+
+    private fun getLoadtestMembers(): List<Member> =
+        (1..LT_MEMBER_TARGET_COUNT)
+            .mapNotNull { idx -> memberRepository.findByUsername("user$idx").orElse(null) }
+            .filter { it.status == MemberStatus.ACTIVE }
 }
