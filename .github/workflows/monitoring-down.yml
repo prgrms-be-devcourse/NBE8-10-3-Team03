@@ -1,0 +1,45 @@
+name: Monitoring Down
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: monitoring-down
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  down:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check required secrets
+        run: |
+          [ -n "${{ secrets.OCI_HOST }}" ] || (echo "OCI_HOST empty" && exit 1)
+          [ -n "${{ secrets.OCI_USER }}" ] || (echo "OCI_USER empty" && exit 1)
+          [ -n "${{ secrets.OCI_SSH_KEY }}" ] || (echo "OCI_SSH_KEY empty" && exit 1)
+
+      - name: Stop monitoring stack via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          DEPLOY_PATH: ${{ vars.DEPLOY_PATH || '/home/ubuntu/app' }}
+        with:
+          host: ${{ secrets.OCI_HOST }}
+          port: ${{ secrets.OCI_PORT }}
+          username: ${{ secrets.OCI_USER }}
+          key: ${{ secrets.OCI_SSH_KEY }}
+          script_stop: true
+          envs: DEPLOY_PATH
+          script: |
+            set -euo pipefail
+
+            cd "${DEPLOY_PATH}"
+            if [ -f "docker/compose/docker-compose.monitoring.cloud.yml" ]; then
+              docker compose -p monitoring-cloud -f docker/compose/docker-compose.monitoring.cloud.yml down
+            else
+              echo "monitoring compose file not found, skip down"
+            fi
+
+            docker ps -a | grep -E 'prometheus-cloud|grafana-cloud' || true
