@@ -10,6 +10,7 @@ import java.time.LocalDateTime
 
 @Entity
 @Table(name = "images")
+/*
 class Image protected constructor() {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -28,4 +29,16 @@ class Image protected constructor() {
         this.url = url
         this.createdAt = LocalDateTime.now()
     }
+ */
+class Image(
+
+    @Column(nullable = false, length = 500)
+    var url: String,
+
+    @Column(name = "created_at", nullable = false)
+    var createdAt: LocalDateTime = LocalDateTime.now()
+){
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    var id: Int = 0
 }

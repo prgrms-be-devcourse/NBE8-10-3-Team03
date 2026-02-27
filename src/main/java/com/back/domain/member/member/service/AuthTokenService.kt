@@ -4,14 +4,15 @@ import com.back.domain.member.member.entity.Member
 import com.back.standard.util.Ut
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
-import java.util.Map
 
 @Service
 class AuthTokenService(
-    @Value("\${custom.jwt.secretKey}")
+    // constructor parameter target를 고정해 Kotlin 기본 타겟 변경 경고를 방지한다.
+    @param:Value("\${custom.jwt.secretKey}")
     private val jwtSecretKey: String,
 
-    @Value("\${custom.accessToken.expirationSeconds}")
+    // constructor parameter target를 고정해 Kotlin 기본 타겟 변경 경고를 방지한다.
+    @param:Value("\${custom.accessToken.expirationSeconds}")
     private val accessTokenExpirationSeconds: Int
 ) {
 
@@ -19,23 +20,24 @@ class AuthTokenService(
         val id = member.id
         val username = member.username
         val name = member.nickname
-        val role = member.role?.name
+        val role = member.role?.name ?: throw NullPointerException("Member role is required.")
 
         return Ut.jwt.toString(
             jwtSecretKey,
             accessTokenExpirationSeconds,
-            Map.of<String, Any>("id", id, "username", username, "name", name, "role", role)
+            // Ut.jwt.toString 시그니처가 MutableMap<String, Any>를 요구한다.
+            mutableMapOf<String, Any>("id" to id, "username" to username, "name" to name, "role" to role)
         )
     }
 
-    fun payload(accessToken: String?): MutableMap<String, Any>? {
+    fun payload(accessToken: String?): Map<String, Any>? {
         val parsedPayload = Ut.jwt.payload(jwtSecretKey, accessToken) ?: return null
 
-        return mapOf(
+        return mutableMapOf(
             "id" to parsedPayload["id"] as Int,
             "username" to parsedPayload["username"] as String,
             "name" to parsedPayload["name"] as String,
             "role" to parsedPayload["role"] as String
-        ) as MutableMap<String, Any>?
+        )
     }
 }

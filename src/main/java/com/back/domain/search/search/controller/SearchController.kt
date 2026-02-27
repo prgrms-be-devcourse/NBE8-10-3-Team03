@@ -28,18 +28,11 @@ class SearchController(
     ): RsData<SearchResponse> {
         val results = searchService.searchUnified(keyword, pageable)
 
-        val response = SearchResponse(
-            content = results.content,
-            page = results.number,
-            size = results.size,
-            totalElements = results.totalElements,
-            totalPages = results.totalPages
-        )
 
         return RsData(
             "200-1",
             "검색이 완료되었습니다.",
-            response
+            SearchResponse.of(results)
         )
     }
 }

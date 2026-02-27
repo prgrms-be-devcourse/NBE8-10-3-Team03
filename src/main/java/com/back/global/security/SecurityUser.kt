@@ -11,7 +11,7 @@ class SecurityUser(
     password: String?,
     val nickname: String,
     val role: Role?,
-    authorities: Collection<out GrantedAuthority>
+    authorities: Collection<GrantedAuthority>
 ) : User(username, password ?: "", authorities), OAuth2User {
 
     override fun getAttributes(): Map<String, Any> = emptyMap()

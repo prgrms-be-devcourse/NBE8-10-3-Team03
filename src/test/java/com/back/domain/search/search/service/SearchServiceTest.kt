@@ -1,6 +1,7 @@
 package com.back.domain.search.search.service
 
 import com.back.domain.search.search.dto.UnifiedSearchResponse
+import com.back.domain.search.search.service.port.SearchProvider
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test

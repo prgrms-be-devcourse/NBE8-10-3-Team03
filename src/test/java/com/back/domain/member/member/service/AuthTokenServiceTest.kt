@@ -34,9 +34,9 @@ class AuthTokenServiceTest {
     private val accessTokenExpirationSeconds = 0
 
     private fun ensureMember(username: String, nickname: String): com.back.domain.member.member.entity.Member =
-        memberService.findByUsername(username).orElseGet {
-            memberService.join(username, "Qw!9zK2m", nickname, null)
-        }
+        memberService.findByUsername(username)
+            ?: memberService.join(username, "Qw!9zK2m", nickname, null)
+
 
     private fun createJwt(payload: Map<String, Any?>): String {
         val keyBytes = jwtSecretKey.toByteArray(StandardCharsets.UTF_8)
@@ -135,12 +135,12 @@ class AuthTokenServiceTest {
 
         println("accessToken = " + accessToken)
 
-        val parsedPayload: MutableMap<String, Any>? = authTokenService.payload(accessToken)
+        val parsedPayload: Map<String, Any>? = authTokenService.payload(accessToken)
 
         Assertions.assertThat(parsedPayload)
             .containsAllEntriesOf(
                 mapOf(
-                    "id" to memberUser1.getId(),
+                    "id" to memberUser1.id,
                     "username" to memberUser1.username,
                     "name" to memberUser1.nickname,
                     "role" to memberUser1.role!!.name

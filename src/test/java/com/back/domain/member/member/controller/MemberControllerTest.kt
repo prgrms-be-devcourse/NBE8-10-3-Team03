@@ -37,9 +37,9 @@ class MemberControllerTest {
         username: String,
         password: String = "Qw!9zK2m",
         nickname: String = username,
-    ): Member = memberService.findByUsername(username).orElseGet {
-        memberService.join(username, password, nickname, null)
-    }
+    ): Member = memberService.findByUsername(username)
+        ?: memberService.join(username, password, nickname, null)
+
 
     @Test
     @DisplayName("회원가입")
@@ -58,7 +58,7 @@ class MemberControllerTest {
                 )
         ).andDo(MockMvcResultHandlers.print())
 
-        val member = memberService.findByUsername("usernew1").orElseThrow()
+        val member = memberService.findByUsername("usernew1")!!
 
         resultActions
             .andExpect(MockMvcResultMatchers.handler().handlerType(MemberController::class.java))

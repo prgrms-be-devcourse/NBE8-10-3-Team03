@@ -5,6 +5,10 @@ on:
   push:
     branches: [ "main" ]
 
+concurrency:
+  group: cd-main
+  cancel-in-progress: true
+
 permissions:
   contents: read
   packages: write
@@ -19,6 +23,21 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
+      - name: Build jar
+        run: |
+          chmod +x ./gradlew
+          ./gradlew bootJar -x test --no-daemon
+          JAR_PATH="$(ls -1 build/libs/*.jar | grep -v -- '-plain\\.jar$' | head -n 1)"
+          test -n "${JAR_PATH}" || (echo "bootJar output not found" && exit 1)
+          cp "${JAR_PATH}" build/libs/app.jar
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -45,10 +64,15 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
+          file: ./Dockerfile.cd
           platforms: ${{ vars.DOCKER_PLATFORMS || 'linux/arm64' }}
           push: true
-          cache-from: type=gha,scope=cd-main
-          cache-to: type=gha,mode=max,scope=cd-main
+          cache-from: type=gha,scope=cd-arm64-runtime
+          cache-to: type=gha,mode=max,scope=cd-arm64-runtime
+          provenance: false
+          sbom: false
+          build-args: |
+            JAR_FILE=build/libs/app.jar
           tags: |
             ${{ steps.meta.outputs.image_repo }}:${{ steps.meta.outputs.image_tag }}
             ${{ steps.meta.outputs.image_repo }}:latest

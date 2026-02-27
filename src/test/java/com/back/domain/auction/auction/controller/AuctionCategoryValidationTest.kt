@@ -6,12 +6,12 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
 import org.springframework.http.MediaType
-import org.springframework.mock.web.MockMultipartFile
 import org.springframework.security.test.context.support.WithUserDetails
 import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+import org.springframework.test.web.servlet.request.MockMultipartHttpServletRequestBuilder
 import org.springframework.test.web.servlet.result.MockMvcResultHandlers
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers
 import org.springframework.transaction.annotation.Transactional
@@ -24,30 +24,31 @@ class AuctionCategoryValidationTest {
     @Autowired
     private lateinit var mvc: MockMvc
 
-    private fun requestPart(json: String): MockMultipartFile =
-        MockMultipartFile("request", "", MediaType.APPLICATION_JSON_VALUE, json.trimIndent().toByteArray())
+    private fun applyParams(
+        builder: MockMultipartHttpServletRequestBuilder,
+        params: Map<String, String>
+    ): MockMultipartHttpServletRequestBuilder =
+        params.entries.fold(builder) { acc, (key, value) -> acc.param(key, value) }
 
     @Test
     @WithUserDetails("user1")
     @DisplayName("경매 등록 실패 - 존재하지 않는 카테고리")
     @Throws(Exception::class)
     fun t1() {
-        val request = requestPart(
-            """
-            {
-                "name": "카테고리 검증 경매",
-                "description": "카테고리 미존재 검증용 설명입니다.",
-                "startPrice": 10000,
-                "buyNowPrice": 15000,
-                "categoryId": 999999,
-                "durationHours": 24
-            }
-            """
+        val request = mapOf(
+            "name" to "카테고리 검증 경매",
+            "description" to "카테고리 미존재 검증용 설명입니다.",
+            "startPrice" to "10000",
+            "buyNowPrice" to "15000",
+            "categoryId" to "999999",
+            "durationHours" to "24"
         )
 
         mvc.perform(
-            MockMvcRequestBuilders.multipart("/api/v1/auctions")
-                .file(request)
+            applyParams(
+                MockMvcRequestBuilders.multipart("/api/v1/auctions"),
+                request
+            )
                 .with(SecurityMockMvcRequestPostProcessors.csrf())
                 .contentType(MediaType.MULTIPART_FORM_DATA)
         )

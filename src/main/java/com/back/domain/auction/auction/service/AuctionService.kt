@@ -43,10 +43,14 @@ class AuctionService(
 
         auctionMemberPort.validateCanCreateAuction(sellerId)
         validateAuctionRequest(request)
+        val categoryId = requireNotNull(request.categoryId) { "categoryId is required." }
+        val name = requireNotNull(request.name) { "name is required." }
+        val description = requireNotNull(request.description) { "description is required." }
+        val startPrice = requireNotNull(request.startPrice) { "startPrice is required." }
 
         val seller = auctionMemberPort.getSellerOrThrow(sellerId)
         // 카테고리 조회는 CategoryPort를 통해 수행해 Repository/JPA 구현 의존을 차단한다.
-        val category = categoryPort.getByIdOrThrow(request.categoryId!!)
+        val category = categoryPort.getByIdOrThrow(categoryId)
 
         val startAt = LocalDateTime.now()
         val endAt = startAt.plusHours(request.durationHours.toLong())
@@ -55,9 +59,9 @@ class AuctionService(
         val auction = Auction.builder()
             .seller(seller)
             .category(category)
-            .name(request.name!!)
-            .description(request.description!!)
-            .startPrice(request.startPrice!!)
+            .name(name)
+            .description(description)
+            .startPrice(startPrice)
             .buyNowPrice(request.buyNowPrice)
             .startAt(startAt)
             .endAt(endAt)
@@ -79,7 +83,9 @@ class AuctionService(
     }
 
     private fun validateAuctionRequest(request: AuctionCreateRequest) {
-        if (request.buyNowPrice != null && request.buyNowPrice!! < request.startPrice!!) {
+        val startPrice = requireNotNull(request.startPrice) { "startPrice is required." }
+        val buyNowPrice = request.buyNowPrice
+        if (buyNowPrice != null && buyNowPrice < startPrice) {
             throw ServiceException("400-2", "즉시구매가는 시작가보다 높아야 합니다.")
         }
     }

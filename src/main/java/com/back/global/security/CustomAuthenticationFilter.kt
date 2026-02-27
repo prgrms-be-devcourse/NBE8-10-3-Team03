@@ -8,18 +8,14 @@ import com.back.global.exception.ServiceException
 import com.back.global.rq.Rq
 import com.back.standard.util.Ut
 import jakarta.servlet.FilterChain
-import jakarta.servlet.ServletException
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
-import lombok.RequiredArgsConstructor
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
 import org.springframework.security.core.Authentication
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.security.core.userdetails.UserDetails
 import org.springframework.stereotype.Component
 import org.springframework.web.filter.OncePerRequestFilter
-import java.io.IOException
-import java.util.function.Supplier
 
 @Component
 class CustomAuthenticationFilter(
@@ -37,11 +33,10 @@ class CustomAuthenticationFilter(
         try {
             work(request, response, filterChain)
         } catch (e: ServiceException) {
-            e.rsData.let { rsData ->
-                response.contentType = "application/json;charset=UTF-8"
-                response.status = rsData.statusCode
-                response.writer.write(Ut.json.toString(rsData))
-            }
+            val rsData = e.rsData
+            response.contentType = "application/json;charset=UTF-8"
+            response.status = rsData.statusCode
+            response.writer.write(Ut.json.toString(rsData))
         }
     }
 
@@ -59,37 +54,12 @@ class CustomAuthenticationFilter(
             return
         }
 
-        var apiKey: String
-        var accessToken: String
-
         // 토큰 추출 로직 (헤더 -> 쿠키)
         val headerAuthorization = rq.getHeader("Authorization", "")
+        val (apiKey, accessToken) = parseTokens(headerAuthorization)
 
-        // Authorization 헤더가 있는 경우
-        if (!headerAuthorization.isBlank()) {
-            if (!headerAuthorization.startsWith("Bearer ")) throw ServiceException(
-                "401-2",
-                "Authorization 헤더가 Bearer 형식이 아닙니다."
-            )
-
-            val parts = headerAuthorization.split(" ", limit = 3)
-
-            // Bearer 뒤 값이 JWT(점 3개) 하나만 있는 경우 → accessToken으로 처리
-            if (parts.size == 2 && parts[1].split(".").size == 3) {
-                apiKey = ""
-                accessToken = parts[1]
-            } else {
-                apiKey = parts[1]
-                accessToken = if (parts.size == 3) parts[2] else ""
-            }
-        } else {
-            // 헤더가 없으면 쿠키에서 조회
-            apiKey = rq.getCookieValue("apiKey", "")
-            accessToken = rq.getCookieValue("accessToken", "")
-        }
-
-        logger.debug("apiKey : " + apiKey)
-        logger.debug("accessToken : " + accessToken)
+        logger.debug("apiKey: $apiKey")
+        logger.debug("accessToken: $accessToken")
 
         val isApiKeyExists = !apiKey.isBlank()
         val isAccessTokenExists = !accessToken.isBlank()
@@ -100,29 +70,11 @@ class CustomAuthenticationFilter(
             return
         }
 
-        var member: Member? = null
-        var isAccessTokenValid = false
-
-        // 액세스 토큰 검증
-        if (isAccessTokenExists) {
-            memberService.payload(accessToken)?.let { payload ->
-                member = Member(
-                    payload["id"] as Int,
-                    payload["username"] as String,
-                    payload["name"] as String,
-                    from(payload["role"] as? String)
-                )
-                isAccessTokenValid = true
-            }
-
-        }
-
-        // 액세스 토큰이 없거나 실패하면 apiKey로 사용자 인증
-        if (member == null) {
-            member = memberService
-                .findByApiKey(apiKey)
-                .orElseThrow { ServiceException("401-3", "API 키가 유효하지 않습니다.") }
-        }
+        val accessTokenMember = if (isAccessTokenExists) resolveMemberFromAccessToken(accessToken) else null
+        val member = accessTokenMember
+            ?: memberService.findByApiKey(apiKey)
+            ?: throw ServiceException("401-3", "API 키가 유효하지 않습니다.")
+        val isAccessTokenValid = accessTokenMember != null
 
         // 액세스 토큰은 있는데 기간이 만료되었다면(유효하지 않다면) 재발급
         if (isAccessTokenExists && !isAccessTokenValid) {
@@ -134,7 +86,7 @@ class CustomAuthenticationFilter(
             rq.setHeader("Authorization", actorAccessToken)
         }
 
-        when (member!!.status) {
+        when (member.status) {
             // 영구 정지 회원 JWT 차단
             MemberStatus.BANNED -> throw ServiceException("403-4", "계정이 영구 정지되었습니다. 관리자에게 문의해주세요.")
             // 탈퇴 회원 JWT 차단
@@ -144,7 +96,7 @@ class CustomAuthenticationFilter(
 
         // Spring Security 인증 객체 생성 ⭐
         val user: UserDetails = SecurityUser(
-            member.getId(),
+            member.id,
             member.username,
             "",
             member.nickname,
@@ -167,4 +119,35 @@ class CustomAuthenticationFilter(
         // 다음 필터로 넘김
         filterChain.doFilter(request, response)
     }
+
+    private fun parseTokens(headerAuthorization: String): Pair<String, String> {
+        if (headerAuthorization.isBlank()) {
+            return rq.getCookieValue("apiKey", "") to rq.getCookieValue("accessToken", "")
+        }
+
+        if (!headerAuthorization.startsWith("Bearer ")) {
+            throw ServiceException("401-2", "Authorization 헤더가 Bearer 형식이 아닙니다.")
+        }
+
+        val parts = headerAuthorization.split(" ", limit = 3)
+        val bearerValue = parts.getOrNull(1)
+            ?: throw ServiceException("401-2", "Authorization 헤더가 Bearer 형식이 아닙니다.")
+
+        // "Bearer <jwt>" 형태는 accessToken 전용, 그 외는 "Bearer <apiKey> <accessToken?>"로 해석한다.
+        return if (parts.size == 2 && bearerValue.split(".").size == 3) {
+            "" to bearerValue
+        } else {
+            bearerValue to parts.getOrElse(2) { "" }
+        }
+    }
+
+    private fun resolveMemberFromAccessToken(accessToken: String): Member? =
+        memberService.payload(accessToken)?.let { payload ->
+            Member(
+                payload["id"] as Int,
+                payload["username"] as String,
+                payload["name"] as String,
+                from(payload["role"] as? String),
+            )
+        }
 }
