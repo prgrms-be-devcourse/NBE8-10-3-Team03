@@ -117,12 +117,30 @@ jobs:
             echo "BASE_URL=${BASE_URL}" >> perf/env/cloud-ci.env
           fi
 
-          make perf ENV=cloud-ci DOMAIN="${DOMAIN}" PERF_SCENARIO="${SCENARIO}"
+          SCRIPT_FILE="perf/k6/scripts/${DOMAIN}/${SCENARIO}.js"
+          [ -f "${SCRIPT_FILE}" ] || (echo "k6 script not found: ${SCRIPT_FILE}" && exit 1)
 
-          RESULT_FILE="$(ls -1t perf/results/cloud-ci/${DOMAIN}/${SCENARIO}/${SCENARIO}-*.json | head -n 1)"
-          [ -n "${RESULT_FILE}" ] || (echo "result file not found" && exit 1)
+          PERF_TS="$(date +"%Y%m%d-%H%M%S")"
+          PERF_OUT_DIR="perf/results/cloud-ci/${DOMAIN}/${SCENARIO}"
+          PERF_OUT_FILE="${SCENARIO}-${PERF_TS}.json"
+          PERF_OUT_HOST_PATH="${PERF_OUT_DIR}/${PERF_OUT_FILE}"
+          PERF_OUT_CONTAINER_PATH="/results/cloud-ci/${DOMAIN}/${SCENARIO}/${PERF_OUT_FILE}"
 
-          cp "${RESULT_FILE}" "/tmp/loadtest-${RUN_ID}.json"
+          mkdir -p "${PERF_OUT_DIR}"
+
+          ENV_ARGS="$$(grep -vE '^\s*#|^\s*$$' perf/env/cloud-ci.env | sed 's/\r$$//' | awk -F= '{printf "-e %s=%s ", $$1, $$2}')"
+
+          docker compose \
+            -f docker/compose/docker-compose.k6.yml \
+            --profile k6 run --rm \
+            $${ENV_ARGS} \
+            k6 run \
+            --summary-export="${PERF_OUT_CONTAINER_PATH}" \
+            "/scripts/${DOMAIN}/${SCENARIO}.js"
+
+          [ -f "${PERF_OUT_HOST_PATH}" ] || (echo "result file not found: ${PERF_OUT_HOST_PATH}" && exit 1)
+
+          cp "${PERF_OUT_HOST_PATH}" "/tmp/loadtest-${RUN_ID}.json"
           echo "/tmp/loadtest-${RUN_ID}.json"
           EOS
           )"
