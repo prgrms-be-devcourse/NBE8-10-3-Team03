@@ -4,6 +4,7 @@ import com.back.domain.auction.auction.repository.AuctionRepository
 import com.back.domain.post.post.dto.PostListResponse
 import com.back.domain.post.post.repository.PostRepository
 import com.back.domain.search.search.dto.UnifiedSearchResponse
+import com.back.domain.search.search.service.port.SearchProvider
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.PageImpl
 import org.springframework.data.domain.Pageable
