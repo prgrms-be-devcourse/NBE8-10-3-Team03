@@ -128,12 +128,12 @@ jobs:
 
           mkdir -p "${PERF_OUT_DIR}"
 
-          ENV_ARGS="$$(grep -vE '^\s*#|^\s*$$' perf/env/cloud-ci.env | sed 's/\r$$//' | awk -F= '{printf "-e %s=%s ", $$1, $$2}')"
+          ENV_ARGS="$(grep -vE '^\s*#|^\s*$' perf/env/cloud-ci.env | sed 's/\r$//' | awk -F= '{printf "-e %s=%s ", $1, $2}')"
 
           docker compose \
             -f docker/compose/docker-compose.k6.yml \
             --profile k6 run --rm \
-            $${ENV_ARGS} \
+            ${ENV_ARGS} \
             k6 run \
             --summary-export="${PERF_OUT_CONTAINER_PATH}" \
             "/scripts/${DOMAIN}/${SCENARIO}.js"
