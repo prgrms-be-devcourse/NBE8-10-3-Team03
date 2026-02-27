@@ -215,7 +215,7 @@ class LoadtestSeeder(
     @Transactional
     fun resetByAdmin(actorId: Int) {
         val actor = memberService.findById(actorId)
-            .orElseThrow { ServiceException("404-1", "존재하지 않는 회원입니다.") }
+            ?: throw ServiceException("404-1", "존재하지 않는 회원입니다.")
 
         if (!actor.isAdmin) {
             throw ServiceException("403-1", "관리자만 부하테스트 데이터를 재생성할 수 있습니다.")
