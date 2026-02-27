@@ -94,7 +94,6 @@ jobs:
           DOMAIN: ${{ inputs.domain }}
           SCENARIO: ${{ inputs.scenario }}
           RUN_RESET: ${{ inputs.run_reset }}
-          LOADTEST_CLOUD_ENV: ${{ secrets.LOADTEST_CLOUD_ENV }}
           RUN_ID: ${{ github.run_id }}
         run: |
           set -euo pipefail
@@ -102,7 +101,7 @@ jobs:
 
           REMOTE_RESULT_PATH="$(
             ssh ${SSH_OPTS} "${OCI_USER}@${OCI_HOST}" \
-              "DEPLOY_PATH='${DEPLOY_PATH}' APP_PORT='${APP_PORT}' BASE_URL='${BASE_URL}' DOMAIN='${DOMAIN}' SCENARIO='${SCENARIO}' RUN_RESET='${RUN_RESET}' LOADTEST_CLOUD_ENV='${LOADTEST_CLOUD_ENV}' RUN_ID='${RUN_ID}' bash -se" <<'EOS'
+              "DEPLOY_PATH='${DEPLOY_PATH}' APP_PORT='${APP_PORT}' BASE_URL='${BASE_URL}' DOMAIN='${DOMAIN}' SCENARIO='${SCENARIO}' RUN_RESET='${RUN_RESET}' RUN_ID='${RUN_ID}' bash -se" <<'EOS'
           set -euo pipefail
           cd "${DEPLOY_PATH}"
 
@@ -110,18 +109,7 @@ jobs:
             curl -fsS -X POST "http://127.0.0.1:${APP_PORT}/api/v1/loadtest/reset" >/dev/null
           fi
 
-          mkdir -p perf/env
-          if [ -n "${LOADTEST_CLOUD_ENV}" ]; then
-            printf "%s\n" "${LOADTEST_CLOUD_ENV}" > perf/env/cloud-ci.env
-          elif [ -f perf/env/cloud.env ]; then
-            cp perf/env/cloud.env perf/env/cloud-ci.env
-          else
-            cat <<ENV_EOF > perf/env/cloud-ci.env
-BASE_URL=${BASE_URL}
-POST_CREATE_STEP=1
-POST_CATEGORY_ID=1
-ENV_EOF
-          fi
+          cp perf/env/cloud.env perf/env/cloud-ci.env
 
           if grep -q '^BASE_URL=' perf/env/cloud-ci.env; then
             sed -i "s|^BASE_URL=.*$|BASE_URL=${BASE_URL}|" perf/env/cloud-ci.env
