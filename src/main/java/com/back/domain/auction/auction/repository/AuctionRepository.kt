@@ -47,4 +47,11 @@ interface AuctionRepository : JpaRepository<Auction, Int> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT a FROM Auction a WHERE a.id = :id")
     fun findByIdWithLock(@Param("id") id: Int): Optional<Auction>
+
+    fun countByNameStartingWith(prefix: String): Long
+
+    fun deleteByNameStartingWith(prefix: String): Long
+
+    @Query("SELECT a.id FROM Auction a WHERE a.name LIKE CONCAT(:prefix, '%')")
+    fun findIdsByNameStartingWith(@Param("prefix") prefix: String): List<Int>
 }

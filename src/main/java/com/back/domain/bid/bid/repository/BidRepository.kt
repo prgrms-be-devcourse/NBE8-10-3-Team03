@@ -21,4 +21,6 @@ interface BidRepository : JpaRepository<Bid, Int> {
     fun findTopByAuctionIdOrderByPriceDesc(@Param("auctionId") auctionId: Int): Bid?
 
     fun existsByAuctionIdAndBidderId(auctionId: Int, bidderId: Int): Boolean
+
+    fun deleteByAuctionIdIn(auctionIds: List<Int>): Long
 }
