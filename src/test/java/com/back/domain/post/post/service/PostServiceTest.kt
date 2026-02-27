@@ -98,14 +98,16 @@ class PostServiceTest {
             title = "제목",
             content = "10자 이상 내용입니다.",
             price = 1000,
-            categoryId = 1
+            categoryId = 999
         )
         `when`(memberService.findById(1)).thenReturn(actor)
+        `when`(categoryPort.getByIdOrThrow(999))
+            .thenThrow(ServiceException("404-2", "존재하지 않는 카테고리입니다."))
 
         assertThatThrownBy { postService.create(actor, req) }
             .isInstanceOf(ServiceException::class.java)
             .extracting("resultCode")
-            .isEqualTo("400")
+            .isEqualTo("404-2")
     }
 
     @Test
