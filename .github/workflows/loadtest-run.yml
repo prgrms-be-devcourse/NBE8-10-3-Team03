@@ -21,6 +21,8 @@ on:
           - auction
           - bid
           - post
+          - search
+          - chat
       scenario:
         description: "시나리오 파일명(확장자 제외)"
         required: true
