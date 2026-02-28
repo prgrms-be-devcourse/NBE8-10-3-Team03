@@ -36,6 +36,7 @@ export function login(username, password) {
   }
 
   return {
+    username,
     apiKey: body.data.apiKey,
     accessToken: body.data.accessToken,
   };
@@ -49,6 +50,28 @@ export function authHeaders(credentials) {
       'Authorization': `Bearer ${credentials.apiKey} ${credentials.accessToken}`,
     },
   };
+}
+
+export function authHeader(credentials) {
+  return {
+    Authorization: `Bearer ${credentials.apiKey} ${credentials.accessToken}`,
+  };
+}
+
+export function buildAuthList(users = TEST_USERS, password = TEST_PASSWORD) {
+  const authList = [];
+  for (const username of users) {
+    const credentials = login(username, password);
+    if (credentials?.apiKey && credentials?.accessToken) {
+      authList.push(credentials);
+    }
+  }
+  return authList;
+}
+
+export function pickAuth(authList) {
+  if (!Array.isArray(authList) || authList.length === 0) return null;
+  return authList[(__VU - 1) % authList.length];
 }
 
 // RsData 응답 검증 헬퍼

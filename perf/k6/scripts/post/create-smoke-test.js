@@ -1,6 +1,6 @@
 import http from 'k6/http';
 import { check } from 'k6';
-import { BASE_URL, TEST_USERS, TEST_PASSWORD, login } from '../common.js';
+import { BASE_URL, TEST_USERS, buildAuthList, pickAuth, authHeader } from '../common.js';
 import { FormData } from 'https://jslib.k6.io/formdata/0.0.2/index.js';
 
 const CREATE_STEP = Math.max(1, Math.min(2, Number(__ENV.POST_CREATE_STEP || 1)));
@@ -25,6 +25,10 @@ export const options = {
   },
 };
 
+export function setup() {
+  return { authList: buildAuthList([TEST_USERS[0]]) };
+}
+
 function parseJson(res) {
   try {
     return res.json();
@@ -48,14 +52,12 @@ function buildCreatePayload() {
   return form;
 }
 
-export default function () {
-  const credentials = login(TEST_USERS[0], TEST_PASSWORD);
+export default function (data) {
+  const credentials = pickAuth(data?.authList);
   check(credentials, { 'login success': (v) => !!v });
   if (!credentials) return;
 
-  const authHeader = {
-    Authorization: `Bearer ${credentials.apiKey} ${credentials.accessToken}`,
-  };
+  const bearerHeader = authHeader(credentials);
 
   const createPayload = buildCreatePayload();
   const createRes = http.post(
@@ -63,7 +65,7 @@ export default function () {
     createPayload.body(),
     {
       headers: {
-        ...authHeader,
+        ...bearerHeader,
         'Content-Type': `multipart/form-data; boundary=${createPayload.boundary}`,
       },
       tags: {
@@ -92,7 +94,7 @@ export default function () {
     `${BASE_URL}/api/v1/posts/${postId}`,
     null,
     {
-      headers: authHeader,
+      headers: bearerHeader,
       tags: {
         scenario: 'post_create_smoke',
         endpoint: 'post_delete_cleanup',

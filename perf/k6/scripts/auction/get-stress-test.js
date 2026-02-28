@@ -2,7 +2,7 @@
 import http from 'k6/http';
 import { check, sleep, group } from 'k6';
 import { Rate, Trend } from 'k6/metrics';
-import { BASE_URL, TEST_USERS, TEST_PASSWORD, login, authHeaders } from '../common.js';
+import { BASE_URL } from '../common.js';
 
 // 커스텀 메트릭
 const errorRate = new Rate('errors');
@@ -33,23 +33,7 @@ export const options = {
   },
 };
 
-// ── 로그인 & 인증 헤더 (VU당 1회만 로그인, 이후 캐싱) ──
-let cachedHeaders = null;
-
-function getHeaders() {
-  if (!cachedHeaders) {
-    const username = TEST_USERS[(__VU - 1) % TEST_USERS.length];
-    const credentials = login(username, TEST_PASSWORD);
-    if (!credentials) return null;
-    cachedHeaders = authHeaders(credentials);
-  }
-  return cachedHeaders;
-}
-
 export default function () {
-  const headers = getHeaders();
-  if (!headers) return;
-
   // ── 📌 경매 도메인 (GET은 permitAll) ──
   group('Auction API', () => {
     const start = Date.now();
