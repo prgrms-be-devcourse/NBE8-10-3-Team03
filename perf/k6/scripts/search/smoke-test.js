@@ -2,7 +2,7 @@
 import http from 'k6/http';
 import { check, sleep, group } from 'k6';
 import { Rate, Trend } from 'k6/metrics';
-import { BASE_URL, TEST_USERS, TEST_PASSWORD, login, authHeaders } from '../common.js';
+import { BASE_URL } from '../common.js';
 
 // 커스텀 메트릭
 const errorRate = new Rate('errors');
@@ -54,26 +54,7 @@ export const options = {
   },
 };
 
-// ── 로그인 & 인증 헤더 (VU당 1회만 로그인, 이후 캐싱) ──
-let cachedHeaders = null;
-let cachedUsername = null;
-
-function getHeaders() {
-  if (!cachedHeaders) {
-    const username = TEST_USERS[(__VU - 1) % TEST_USERS.length];
-    const credentials = login(username, TEST_PASSWORD);
-    if (!credentials) return null;
-
-    cachedUsername = username;
-    cachedHeaders = authHeaders(credentials);
-  }
-  return { headers: cachedHeaders, username: cachedUsername };
-}
-
 export default function () {
-  const headers = getHeaders();
-  if (!headers) return;
-
   const keyword = pickKeyword(); // 키워드를 무작위로 선택
 
   // ── 📌 경매/게시물 검색 API 테스트 ──
@@ -81,7 +62,7 @@ export default function () {
     const start = Date.now();
     const url = `${BASE_URL}/api/v1/search?keyword=${encodeURIComponent(keyword)}&status=OPEN&size=20`;
 
-    const res = http.get(url, { headers, tags: { case: 'search' } });
+    const res = http.get(url, { tags: { case: 'search' } });
 
     check(res, {
       "검색 성공": (r) => r.status === 200,

@@ -1,7 +1,7 @@
 import http from 'k6/http';
 import { check, sleep, group } from 'k6';
 import { Rate, Trend } from 'k6/metrics';
-import { BASE_URL, TEST_USERS, TEST_PASSWORD, login, authHeaders } from '../common.js';
+import { BASE_URL } from '../common.js';
 
 const errorRate = new Rate('errors');
 const postListDuration = new Trend('post_list_duration');
@@ -14,7 +14,6 @@ const HOT_IDS = (__ENV.POST_HOT_IDS || '')
   .filter((v) => Number.isFinite(v) && v > 0);
 const CACHED_ID_SIZE = Math.max(1, Number(__ENV.POST_CACHED_ID_SIZE || 3));
 
-let cachedHeaders = null;
 let cachedPostIds = [];
 
 export const options = {
@@ -38,16 +37,6 @@ export const options = {
     errors: ['rate<0.005'],
   },
 };
-
-function getHeaders() {
-  if (!cachedHeaders) {
-    const username = TEST_USERS[(__VU - 1) % TEST_USERS.length];
-    const credentials = login(username, TEST_PASSWORD);
-    if (!credentials) return null;
-    cachedHeaders = authHeaders(credentials);
-  }
-  return cachedHeaders;
-}
 
 function parseJson(res) {
   try {
@@ -104,13 +93,10 @@ function pickDetailId(listIds) {
 }
 
 export default function () {
-  const headers = getHeaders();
-  if (!headers) return;
-
   group('Post API', () => {
     const listRes = http.get(
       `${BASE_URL}/api/v1/posts?page=0&size=10`,
-      { ...headers, tags: { scenario: 'post_get_stress', endpoint: 'post_list', method: 'GET', detail_mode: DETAIL_MODE } }
+      { tags: { scenario: 'post_get_stress', endpoint: 'post_list', method: 'GET', detail_mode: DETAIL_MODE } }
     );
     postListDuration.add(listRes.timings.duration);
     const listOk = listChecks(listRes);
@@ -122,7 +108,7 @@ export default function () {
     if (detailId) {
       const detailRes = http.get(
         `${BASE_URL}/api/v1/posts/${detailId}`,
-        { ...headers, tags: { scenario: 'post_get_stress', endpoint: 'post_detail', method: 'GET', detail_mode: DETAIL_MODE } }
+        { tags: { scenario: 'post_get_stress', endpoint: 'post_detail', method: 'GET', detail_mode: DETAIL_MODE } }
       );
       postDetailDuration.add(detailRes.timings.duration);
       const detailOk = detailChecks(detailRes);
