@@ -1,4 +1,4 @@
-.PHONY: help local-up k6 local-probe-up probe-k6 local-prodlike-up prodlike-k6 local-up down limits ps logs clean perf-check-env perf
+.PHONY: help local-up k6 local-probe-up probe-k6 local-prodlike-up prodlike-k6 local-up down limits ps logs clean perf-check-env perf cloud-monitor-up cloud-monitor-down
 
 help:
 	@echo ""
@@ -20,7 +20,7 @@ help:
 	@echo ""
 	@echo "[Cloud 환경]"
 	@echo "  make local-up ENV=cloud  # cloud 환경 실행"
-	@echo "  make perf ENV=cloud PERF_SCENARIO=load"
+	@echo "  make perf ENV=cloud DOMAIN=auction PERF_SCENARIO=smoke-test  # 로컬 k6로 원격 서버 대상 부하테스트"
 	@echo "  make cloud-monitor-up    # VM 전용 모니터링 스택(prometheus+grafana) 실행"
 	@echo "  make cloud-monitor-down  # VM 전용 모니터링 스택 종료"
 	@echo ""
@@ -92,11 +92,6 @@ cloud-up:
 		-f docker/compose/docker-compose.cloud.yml \
 		up -d
 
-k6:
-	docker compose \
-    	-f docker/compose/docker-compose.k6.yml \
-    	run --rm k6
-
 cloud-monitor-up:
 	docker compose \
 		-p monitoring-cloud \
@@ -162,17 +157,22 @@ PERF_TS := $(shell date +"%Y%m%d-%H%M%S")
 PERF_OUT_DIR := $(PERF_RESULTS_ROOT)/$(ENV)/$(DOMAIN)/$(PERF_SCENARIO)
 PERF_OUT_JSON := /results/$(ENV)/$(DOMAIN)/$(PERF_SCENARIO)/$(PERF_SCENARIO)-$(PERF_TS).json
 
+PERF_COMPOSE_FILE := docker/compose/docker-compose.k6.yml
+ifeq ($(ENV),cloud)
+PERF_COMPOSE_FILE := docker/compose/docker-compose.k6.cloud.yml
+endif
+
 perf-check-env:
 	@test -f "$(ENV_FILE)" || (echo "❌ env file not found: $(ENV_FILE)"; exit 1)
 	@mkdir -p "$(PERF_OUT_DIR)"
 
 perf: perf-check-env
-	@echo "▶ Running k6 scenario=$(PERF_SCENARIO) ENV=$(ENV)"
+	@echo "▶ Running k6 scenario=$(PERF_SCENARIO) ENV=$(ENV) compose=$(PERF_COMPOSE_FILE)"
 	MSYS_NO_PATHCONV=1 docker compose \
-	  -f docker/compose/docker-compose.k6.yml \
+	  -f $(PERF_COMPOSE_FILE) \
 	  --profile k6 run --rm \
 	  $$(grep -vE '^\s*#|^\s*$$' "$(ENV_FILE)" | sed 's/\r$$//' | awk -F= '{printf "-e %s=%s ", $$1, $$2}') \
 	  k6 run \
 	  --summary-export="$(PERF_OUT_JSON)" \
 	  "$(PERF_SCRIPT)"
-	@echo "✅ Saved: perf/results/$(ENV)/$(PERF_SCENARIO)-$(PERF_TS).json"
+	@echo "✅ Saved: $(PERF_OUT_DIR)/$(PERF_SCENARIO)-$(PERF_TS).json"
