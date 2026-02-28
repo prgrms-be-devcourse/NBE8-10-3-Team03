@@ -1,7 +1,21 @@
 // k6/scripts/common.js
 import http from 'k6/http';
 
-export const BASE_URL = __ENV.BASE_URL;
+const RAW_BASE_URL = __ENV.BASE_URL || 'http://host.docker.internal:8080';
+export const BASE_URL = RAW_BASE_URL.replace(/\/+$/, '');
+
+export function apiUrl(path) {
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  return `${BASE_URL}${normalizedPath}`;
+}
+
+export function safeJson(res) {
+  try {
+    return res.json();
+  } catch (_) {
+    return null;
+  }
+}
 
 // 시딩 계정: user1~user5 (정상), user6(SUSPENDED), user7(BANNED), admin, system
 // 비밀번호: 전부 '1234'
@@ -10,14 +24,14 @@ export const TEST_PASSWORD = '1234';
 
 // 로그인 후 apiKey + accessToken 획득
 export function login(username, password) {
-  const res = http.post(`${BASE_URL}/api/v1/members/login`,
+  const res = http.post(apiUrl('/api/v1/members/login'),
     JSON.stringify({ username, password }),
     { headers: { 'Content-Type': 'application/json' } }
   );
 
-  const body = res.json();
-  if (!body.resultCode?.startsWith('200')) {
-    console.error(`Login failed for ${username}: ${body.msg}`);
+  const body = safeJson(res);
+  if (res.status !== 200 || !body?.resultCode?.startsWith('2')) {
+    console.error(`Login failed for ${username}: status=${res.status}, body=${res.body}`);
     return null;
   }
 
