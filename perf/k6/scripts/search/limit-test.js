@@ -1,7 +1,7 @@
 import http from 'k6/http';
 import { check, sleep } from 'k6';
+import { BASE_URL } from '../common.js';
 
-const BASE_URL = __ENV.BASE_URL || 'http://host.docker.internal:8080';
 const SCENARIO_TAG = 'search_limit';
 
 const HIT_AUCTION_KEYWORDS = parseList(__ENV.SEARCH_KEYWORDS_HIT_AUCTION, ['아이폰', '갤럭시', '노트북']);
