@@ -1,7 +1,7 @@
 import http from 'k6/http';
 import { check, sleep, group } from 'k6';
 import { Rate, Trend } from 'k6/metrics';
-import { BASE_URL, TEST_USERS, TEST_PASSWORD, login } from '../common.js';
+import { BASE_URL, buildAuthList, pickAuth, authHeader } from '../common.js';
 import { FormData } from 'https://jslib.k6.io/formdata/0.0.2/index.js';
 
 const errorRate = new Rate('errors');
@@ -13,8 +13,6 @@ const CATEGORY_ID = Number(__ENV.POST_CATEGORY_ID || 1);
 const IMAGE_200KB_PATH = __ENV.POST_IMAGE_200KB_PATH || './assets/image-200kb.jpg';
 
 const IMAGE_200KB_BIN = open(IMAGE_200KB_PATH, 'b');
-
-let cachedAuthHeader = null;
 
 export const options = {
   scenarios: {
@@ -38,16 +36,8 @@ export const options = {
   },
 };
 
-function getAuthHeader() {
-  if (!cachedAuthHeader) {
-    const username = TEST_USERS[(__VU - 1) % TEST_USERS.length];
-    const credentials = login(username, TEST_PASSWORD);
-    if (!credentials) return null;
-    cachedAuthHeader = {
-      Authorization: `Bearer ${credentials.apiKey} ${credentials.accessToken}`,
-    };
-  }
-  return cachedAuthHeader;
+export function setup() {
+  return { authList: buildAuthList() };
 }
 
 function parseJson(res) {
@@ -73,9 +63,10 @@ function buildCreatePayload() {
   return form;
 }
 
-export default function () {
-  const authHeader = getAuthHeader();
-  if (!authHeader) return;
+export default function (data) {
+  const credentials = pickAuth(data?.authList);
+  if (!credentials) return;
+  const bearerHeader = authHeader(credentials);
 
   group('Post Create API', () => {
     const createPayload = buildCreatePayload();
@@ -84,7 +75,7 @@ export default function () {
       createPayload.body(),
       {
         headers: {
-          ...authHeader,
+          ...bearerHeader,
           'Content-Type': `multipart/form-data; boundary=${createPayload.boundary}`,
         },
         tags: {
@@ -111,7 +102,7 @@ export default function () {
         `${BASE_URL}/api/v1/posts/${postId}`,
         null,
         {
-          headers: authHeader,
+          headers: bearerHeader,
           tags: {
             scenario: 'post_create_stress',
             endpoint: 'post_delete_cleanup',

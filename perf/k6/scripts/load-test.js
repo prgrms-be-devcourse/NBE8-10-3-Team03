@@ -2,7 +2,7 @@
 import http from 'k6/http';
 import { check, sleep, group } from 'k6';
 import { Rate, Trend } from 'k6/metrics';
-import { BASE_URL, TEST_USERS, TEST_PASSWORD, login, authHeaders } from '../common.js';
+import { BASE_URL, buildAuthList, pickAuth, authHeaders } from '../common.js';
 
 // 커스텀 메트릭
 const errorRate = new Rate('errors');
@@ -31,23 +31,16 @@ export const options = {
   },
 };
 
-// ── 로그인 & 인증 헤더 (VU당 1회만 로그인, 이후 캐싱) ──
-let cachedHeaders = null;
-
-function getHeaders() {
-  if (!cachedHeaders) {
-    const username = TEST_USERS[(__VU - 1) % TEST_USERS.length];
-    const credentials = login(username, TEST_PASSWORD);
-    if (!credentials) return null;
-    cachedHeaders = authHeaders(credentials);
-  }
-  return cachedHeaders;
+export function setup() {
+  return { authList: buildAuthList() };
 }
 
 // ── 테스트 진행 ──
-export default function () {
-  const headers = getHeaders();
-  if (!headers) return;
+export default function (data) {
+  const credentials = pickAuth(data?.authList);
+  if (!credentials) return;
+  const headers = authHeaders(credentials);
+  const myUsername = credentials.username;
 
   // ── 📌 멤버 도메인 ──
   group('Member API', () => {
@@ -87,8 +80,6 @@ export default function () {
   // ── 📌 입찰 도메인 ──
 	group('Bid API', () => {
 	  const start = Date.now();
-	  const myUsername = TEST_USERS[(__VU - 1) % TEST_USERS.length];
-
 	  // OPEN 상태 경매 여러 개 조회 (분산 입찰용)
 	  const auctions = http.get(`${BASE_URL}/api/v1/auctions?page=0&size=10&status=OPEN`);
 	  const auctionsBody = auctions.json();
