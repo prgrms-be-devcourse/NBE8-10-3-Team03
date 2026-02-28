@@ -1,5 +1,6 @@
 import http from 'k6/http';
 import { check, sleep } from 'k6';
+import { apiUrl, login } from '../common.js';
 
 /**
  * 테스트 옵션 (점진적 부하)
@@ -30,38 +31,18 @@ export function setup() {
   const authList = [];
 
   for (const user of users) {
-    const loginRes = http.post(
-      'http://host.docker.internal:8080/api/v1/members/login',
-      JSON.stringify({
-        username: user.username,
-        password: user.password,
-      }),
-      {
-        headers: { 'Content-Type': 'application/json' },
-      }
-    );
-
-    const success = check(loginRes, {
-      'login status is 200': (r) => r.status === 200,
-      'apiKey exists': (r) => r.json('apiKey') !== null,
-      'accessToken exists': (r) => r.json('accessToken') !== null,
+    const credentials = login(user.username, user.password);
+    const success = check(credentials, {
+      'login success': (v) => !!v,
+      'apiKey exists': (v) => !!v?.apiKey,
+      'accessToken exists': (v) => !!v?.accessToken,
     });
 
     if (!success) {
-      console.error(loginRes.body);
       throw new Error(`Login failed for user: ${user.username}`);
     }
 
-    const apiKey = loginRes.json('data.apiKey');
-    const accessToken = loginRes.json('data.accessToken');
-
-    if (!apiKey || !accessToken) {
-    console.error(loginRes.body);
-    throw new Error('apiKey or accessToken is null');
-    }
-
-    authList.push({ apiKey, accessToken });
-
+    authList.push(credentials);
   }
 
   return { authList };
@@ -83,7 +64,7 @@ export default function (data) {
 
   // 1️⃣ 내 정보 조회
   const listRes = http.get(
-    'http://host.docker.internal:8080/api/v1/members/me/auctions',
+    apiUrl('/api/v1/members/me/auctions'),
     { headers }
   );
 
