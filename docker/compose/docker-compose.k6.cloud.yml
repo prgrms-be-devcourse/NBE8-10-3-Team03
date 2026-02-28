@@ -1,0 +1,9 @@
+services:
+  k6:
+    image: grafana/k6:latest
+    container_name: k6-cloud
+    profiles: ["k6"]
+    working_dir: /scripts
+    volumes:
+      - ../../perf/k6/scripts:/scripts:ro
+      - ../../perf/results:/results
