@@ -2,6 +2,7 @@ package com.back.domain.auction.auction.service.adapter
 
 import com.back.domain.auction.auction.entity.Auction
 import com.back.domain.auction.auction.entity.AuctionStatus
+import com.back.domain.auction.auction.repository.AuctionImageRepository
 import com.back.domain.auction.auction.repository.AuctionRepository
 import com.back.domain.auction.auction.service.port.AuctionPersistencePort
 import org.springframework.data.domain.Page
@@ -12,7 +13,8 @@ import java.time.LocalDateTime
 // JPA 저장소를 AuctionPersistencePort로 감싸 인프라 의존을 어댑터 계층으로 한정한다.
 @Component
 class AuctionPersistenceAdapter(
-    private val auctionRepository: AuctionRepository
+    private val auctionRepository: AuctionRepository,
+    private val auctionImageRepository: AuctionImageRepository
 ) : AuctionPersistencePort {
     override fun save(auction: Auction): Auction = auctionRepository.save(auction)
 
@@ -45,4 +47,10 @@ class AuctionPersistenceAdapter(
 
     override fun findExpiredOpenAuctions(now: LocalDateTime): List<Auction> =
         auctionRepository.findByStatusAndEndAtBefore(AuctionStatus.OPEN, now)
+
+    override fun findThumbnailUrlsByAuctionIds(auctionIds: Collection<Int>): Map<Int, String> {
+        if (auctionIds.isEmpty()) return emptyMap()
+        return auctionImageRepository.findThumbnailUrlsByAuctionIds(auctionIds)
+            .associate { it.auctionId to it.thumbnailUrl }
+    }
 }

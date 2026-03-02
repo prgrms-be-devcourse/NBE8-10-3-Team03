@@ -19,4 +19,5 @@ interface AuctionPersistencePort {
     fun findByStatus(status: AuctionStatus, pageable: Pageable): Page<Auction>
     fun findByCategoryNameAndStatus(categoryName: String, status: AuctionStatus, pageable: Pageable): Page<Auction>
     fun findExpiredOpenAuctions(now: LocalDateTime): List<Auction>
+    fun findThumbnailUrlsByAuctionIds(auctionIds: Collection<Int>): Map<Int, String>
 }
