@@ -41,6 +41,19 @@ class ChatPersistenceAdapter(
                 if (chatIds.isEmpty()) emptyList() else chatRepository.findChatsWithRoomByIds(chatIds)
             }
 
+    override fun findLatestChatSummariesByMember(apiKey: String, memberId: Int): List<ChatPersistencePort.ChatRoomLatestSummary> =
+        chatRepository.findLatestChatSummariesByMember(apiKey, memberId)
+            .map { summary ->
+                ChatPersistencePort.ChatRoomLatestSummary(
+                    roomId = summary.getRoomId(),
+                    latestChatId = summary.getLatestChatId(),
+                    unreadCount = (summary.getUnreadCount() ?: 0L).toInt(),
+                )
+            }
+
+    override fun findChatsWithRoomsByIds(chatIds: List<Int>): List<Chat> =
+        if (chatIds.isEmpty()) emptyList() else chatRepository.findChatsWithRoomByIds(chatIds)
+
     override fun countUnreadMessagesByRoomIds(roomIds: List<String>, memberId: Int): List<UnreadCountResponse> =
         chatRepository.countUnreadMessagesByRoomIds(roomIds, memberId)
 
