@@ -5,7 +5,7 @@ import com.back.domain.chat.chat.dto.response.ChatIdResponse
 import com.back.domain.chat.chat.dto.response.ChatResponse
 import com.back.domain.chat.chat.dto.response.ChatRoomIdResponse
 import com.back.domain.chat.chat.dto.response.ChatRoomListResponse
-import com.back.domain.chat.chat.service.ChatService
+import com.back.domain.chat.chat.service.port.ChatUseCase
 import com.back.global.rsData.RsData
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.Parameter
@@ -27,7 +27,7 @@ import org.springframework.web.bind.annotation.RestController
 @RestController
 @RequestMapping("/api/v1/chat")
 class ChatController(
-    private val chatService: ChatService,
+    private val chatService: ChatUseCase,
 ) {
     @Operation(summary = "채팅방 생성 또는 입장", description = "거래 타입(POST/AUCTION)과 아이템 ID를 기준으로 채팅방을 생성하거나 기존 채팅방에 입장합니다.")
     @ApiResponses(

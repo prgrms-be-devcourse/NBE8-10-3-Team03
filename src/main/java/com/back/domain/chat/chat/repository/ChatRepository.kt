@@ -9,6 +9,12 @@ import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
 
 interface ChatRepository : JpaRepository<Chat, Int> {
+    interface ChatRoomLatestSummaryProjection {
+        fun getRoomId(): String
+        fun getLatestChatId(): Int
+        fun getUnreadCount(): Long?
+    }
+
     // 읽음 처리 (JPQL) - 업데이트된 행 수 반환
     @Modifying(clearAutomatically = true)
     @Query("UPDATE Chat c SET c.read = true WHERE c.chatRoom.roomId = :roomId AND c.senderId != :readerId AND c.read = false")
@@ -32,6 +38,29 @@ interface ChatRepository : JpaRepository<Chat, Int> {
                 "ORDER BY c.createDate DESC",
     )
     fun findLatestChatIdsByMember(@Param("apiKey") apiKey: String): List<Int>
+
+    @Query(
+        value = """
+            SELECT
+                cr.room_id AS roomId,
+                MAX(c.id) AS latestChatId,
+                SUM(CASE WHEN c.is_read = false AND c.sender_id <> :memberId THEN 1 ELSE 0 END) AS unreadCount
+            FROM chat_room cr
+            JOIN chat c ON c.room_id = cr.room_id
+            WHERE cr.deleted = false
+              AND (
+                    (cr.seller_api_key = :apiKey AND cr.seller_exited = false)
+                 OR (cr.buyer_api_key = :apiKey AND cr.buyer_exited = false)
+              )
+            GROUP BY cr.room_id
+            ORDER BY latestChatId DESC
+        """,
+        nativeQuery = true,
+    )
+    fun findLatestChatSummariesByMember(
+        @Param("apiKey") apiKey: String,
+        @Param("memberId") memberId: Int,
+    ): List<ChatRoomLatestSummaryProjection>
 
     // 테스트/기존 호출 호환용 (서비스 핵심 경로에서는 ID 조회 + 재조회 방식 사용)
     @Query(
