@@ -26,13 +26,13 @@ interface AuctionRepository : JpaRepository<Auction, Int> {
     fun findBySellerIdAndStatus(sellerId: Int, status: AuctionStatus, pageable: Pageable): Page<Auction>
 
     @EntityGraph(attributePaths = ["seller", "seller.reputation", "category"])
-    fun findByCategoryName(categoryName: String, pageable: Pageable): Page<Auction>
+    fun findByCategoryId(categoryId: Int, pageable: Pageable): Page<Auction>
 
     @EntityGraph(attributePaths = ["seller", "seller.reputation", "category"])
     fun findByStatus(status: AuctionStatus, pageable: Pageable): Page<Auction>
 
     @EntityGraph(attributePaths = ["seller", "seller.reputation", "category"])
-    fun findByCategoryNameAndStatus(categoryName: String, status: AuctionStatus, pageable: Pageable): Page<Auction>
+    fun findByCategoryIdAndStatus(categoryId: Int, status: AuctionStatus, pageable: Pageable): Page<Auction>
 
     @EntityGraph(attributePaths = ["seller", "seller.reputation", "category", "auctionImages", "auctionImages.image"])
     fun findWithDetailsById(id: Int): Optional<Auction>

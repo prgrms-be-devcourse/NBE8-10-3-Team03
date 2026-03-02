@@ -31,17 +31,17 @@ class AuctionPersistenceAdapter(
     override fun findBySellerIdAndStatus(sellerId: Int, status: AuctionStatus, pageable: Pageable): Page<Auction> =
         auctionRepository.findBySellerIdAndStatus(sellerId, status, pageable)
 
-    override fun findByCategoryName(categoryName: String, pageable: Pageable): Page<Auction> =
-        auctionRepository.findByCategoryName(categoryName, pageable)
+    override fun findByCategoryId(categoryId: Int, pageable: Pageable): Page<Auction> =
+        auctionRepository.findByCategoryId(categoryId, pageable)
 
     override fun findByStatus(status: AuctionStatus, pageable: Pageable): Page<Auction> =
         auctionRepository.findByStatus(status, pageable)
 
-    override fun findByCategoryNameAndStatus(
-        categoryName: String,
+    override fun findByCategoryIdAndStatus(
+        categoryId: Int,
         status: AuctionStatus,
         pageable: Pageable
-    ): Page<Auction> = auctionRepository.findByCategoryNameAndStatus(categoryName, status, pageable)
+    ): Page<Auction> = auctionRepository.findByCategoryIdAndStatus(categoryId, status, pageable)
 
     override fun findExpiredOpenAuctions(now: LocalDateTime): List<Auction> =
         auctionRepository.findByStatusAndEndAtBefore(AuctionStatus.OPEN, now)

@@ -17,6 +17,8 @@ class CategoryAdapter(
         categoryRepository.findByIdOrNull(categoryId)
             ?: throw ServiceException("404-2", "존재하지 않는 카테고리입니다.")
 
+    override fun findByNameOrNull(name: String): Category? = categoryRepository.findByName(name)
+
     override fun count(): Long = categoryRepository.count()
 
     override fun save(category: Category): Category = categoryRepository.save(category)

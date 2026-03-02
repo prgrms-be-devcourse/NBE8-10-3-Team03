@@ -26,6 +26,7 @@ import org.springframework.data.domain.Sort
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.LocalDateTime
+import org.springframework.data.domain.Page
 
 @Service
 @Transactional(readOnly = true)
@@ -103,12 +104,17 @@ class AuctionService(
     ): RsData<AuctionPageResponse> {
         val pageable = PageUtils.createPageable(page, size, createSort(sortBy))
         val auctionStatus = parseAuctionStatus(status)
+        val categoryId = categoryName?.takeIf { it.isNotBlank() }?.trim()
+            ?.let { normalizedName ->
+                categoryPort.findByNameOrNull(normalizedName)?.id
+                    ?: return RsData("200-1", "경매 목록 조회 성공", AuctionPageResponse.from(Page.empty(pageable)))
+            }
 
         val auctionPage = when {
-            !categoryName.isNullOrBlank() && auctionStatus != null ->
-                auctionPersistencePort.findByCategoryNameAndStatus(categoryName, auctionStatus, pageable)
-            !categoryName.isNullOrBlank() ->
-                auctionPersistencePort.findByCategoryName(categoryName, pageable)
+            categoryId != null && auctionStatus != null ->
+                auctionPersistencePort.findByCategoryIdAndStatus(categoryId, auctionStatus, pageable)
+            categoryId != null ->
+                auctionPersistencePort.findByCategoryId(categoryId, pageable)
             auctionStatus != null ->
                 auctionPersistencePort.findByStatus(auctionStatus, pageable)
             else ->
