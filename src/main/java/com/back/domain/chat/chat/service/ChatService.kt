@@ -22,6 +22,7 @@ import com.back.global.exception.ServiceException
 import com.back.global.rq.Rq
 import com.back.global.rsData.RsData
 import org.slf4j.LoggerFactory
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -39,6 +40,8 @@ class ChatService(
     private val chatPublishPort: ChatPublishPort,
     private val rq: Rq,
     private val eventPublisher: ApplicationEventPublisher,
+    @Value("\${chat.events.async-enabled:true}")
+    private val asyncEventsEnabled: Boolean,
 ) {
     private val memberCache = ConcurrentHashMap<Int, CachedCurrentMember>()
 
@@ -130,25 +133,46 @@ class ChatService(
         val persistedMessage = chatPersistencePort.saveChat(chatMessage)
 
         val chatResponse = ChatResponse.from(persistedMessage, sender.profileImageUrl)
-        eventPublisher.publishEvent(
-            ChatMessageCommittedEvent(
-                roomId = roomId,
-                senderId = sender.id,
-                senderApiKey = sender.apiKey,
-                senderNickname = sender.nickname,
-                senderProfileImageUrl = sender.profileImageUrl,
-                txType = room.txType,
-                itemId = room.itemId,
-                itemName = room.itemName,
-                itemImageUrl = room.itemImageUrl,
-                itemPrice = room.itemPrice,
-                sellerApiKey = room.sellerApiKey,
-                buyerApiKey = room.buyerApiKey,
-                message = req.message,
-                messageDate = persistedMessage.createDate,
-                roomMessagePayload = chatResponse,
-            ),
-        )
+        if (asyncEventsEnabled) {
+            eventPublisher.publishEvent(
+                ChatMessageCommittedEvent(
+                    roomId = roomId,
+                    senderId = sender.id,
+                    senderApiKey = sender.apiKey,
+                    senderNickname = sender.nickname,
+                    senderProfileImageUrl = sender.profileImageUrl,
+                    txType = room.txType,
+                    itemId = room.itemId,
+                    itemName = room.itemName,
+                    itemImageUrl = room.itemImageUrl,
+                    itemPrice = room.itemPrice,
+                    sellerApiKey = room.sellerApiKey,
+                    buyerApiKey = room.buyerApiKey,
+                    message = req.message,
+                    messageDate = persistedMessage.createDate,
+                    roomMessagePayload = chatResponse,
+                ),
+            )
+        } else {
+            val opponentApiKey = if (room.sellerApiKey == sender.apiKey) room.buyerApiKey else room.sellerApiKey
+            runMessagingSafely(
+                onSuccess = { log.info("메시지 브로드캐스팅 성공 - RoomID: {}, MessageID: {}", roomId, persistedMessage.id) },
+                onFailure = { e -> log.error("WebSocket 전송 실패 - RoomID: {}, Error: {}", roomId, e.message) },
+            ) {
+                chatPublishPort.publishRoomMessage(roomId, chatResponse)
+            }
+
+            chatMemberPort.findMemberByApiKey(opponentApiKey)?.let { opponent ->
+                sendUserNotification(
+                    type = "NEW_MESSAGE",
+                    room = room,
+                    recipient = opponent,
+                    opponent = sender,
+                    message = req.message,
+                    messageDate = persistedMessage.createDate,
+                )
+            }
+        }
 
         return RsData("200-1", "메시지가 전송되었습니다.", ChatIdResponse(persistedMessage.id))
     }
@@ -169,13 +193,22 @@ class ChatService(
 
         val updatedCount = if (unreadMessageIds.isEmpty()) 0 else chatPersistencePort.markMessagesAsReadByIds(unreadMessageIds)
         if (updatedCount > 0) {
-            eventPublisher.publishEvent(
-                ChatRoomReadEvent(
-                    roomId = roomId,
-                    readerId = me.id,
-                    updatedCount = updatedCount,
-                ),
-            )
+            if (asyncEventsEnabled) {
+                eventPublisher.publishEvent(
+                    ChatRoomReadEvent(
+                        roomId = roomId,
+                        readerId = me.id,
+                        updatedCount = updatedCount,
+                    ),
+                )
+            } else {
+                val readNotification: Any = mapOf(
+                    "readerId" to me.id,
+                    "roomId" to roomId,
+                )
+                chatPublishPort.publishRoomRead(roomId, readNotification)
+                log.debug("읽음 알림 전송 - RoomId: {}, ReaderId: {}, UpdatedCount: {}", roomId, me.id, updatedCount)
+            }
         }
 
         val membersByApiKey = chatMemberPort.findMembersByApiKeys(setOf(room.sellerApiKey, room.buyerApiKey))

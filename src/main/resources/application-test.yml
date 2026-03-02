@@ -1,6 +1,10 @@
 initdata:
   enabled: true
 
+chat:
+  events:
+    async-enabled: false
+
 spring:
   datasource:
     url: jdbc:h2:mem:db_test;MODE=MySQL

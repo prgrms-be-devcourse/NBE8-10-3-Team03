@@ -43,6 +43,7 @@ class ChatServiceTest {
         chatPublishPort,
         rq,
         eventPublisher,
+        false,
     )
 
     @Test
