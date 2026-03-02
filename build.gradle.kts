@@ -78,6 +78,12 @@ dependencies {
     // OCI Object Storage
     implementation("com.oracle.oci.sdk:oci-java-sdk-objectstorage:3.58.0")
     implementation("com.oracle.oci.sdk:oci-java-sdk-common-httpclient-jersey3:3.58.0")
+
+    // jackson 직렬화
+    implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
+
+    // flywsay
+    implementation("org.flywaydb:flyway-core")
 }
 
 tasks.withType<Test> {
