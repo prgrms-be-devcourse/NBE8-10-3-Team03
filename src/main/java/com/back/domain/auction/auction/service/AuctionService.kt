@@ -122,16 +122,16 @@ class AuctionService(
 
         val auctionSlice = when {
             categoryId != null && auctionStatus != null ->
-                auctionPersistencePort.findSliceByCategoryIdAndStatus(categoryId, auctionStatus, pageable)
+                auctionPersistencePort.findSliceProjectionByCategoryIdAndStatus(categoryId, auctionStatus, pageable)
             categoryId != null ->
-                auctionPersistencePort.findSliceByCategoryId(categoryId, pageable)
+                auctionPersistencePort.findSliceProjectionByCategoryId(categoryId, pageable)
             auctionStatus != null ->
-                auctionPersistencePort.findSliceByStatus(auctionStatus, pageable)
+                auctionPersistencePort.findSliceProjectionByStatus(auctionStatus, pageable)
             else ->
-                auctionPersistencePort.findSliceAll(pageable)
+                auctionPersistencePort.findSliceProjectionAll(pageable)
         }
 
-        val content = auctionSlice.content.map { auction -> AuctionListItemDto(auction) }
+        val content = auctionSlice.content.map { row -> row.toDto() }
         val countCacheKey = buildCountCacheKey(categoryId, auctionStatus)
         val totalElements = auctionCountService.getTotalCount(countCacheKey, categoryId, auctionStatus)
 

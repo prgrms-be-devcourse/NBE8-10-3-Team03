@@ -2,6 +2,7 @@ package com.back.domain.auction.auction.service
 
 import com.back.domain.auction.auction.dto.request.AuctionCreateRequest
 import com.back.domain.auction.auction.dto.request.AuctionUpdateRequest
+import com.back.domain.auction.auction.dto.response.AuctionListProjection
 import com.back.domain.auction.auction.entity.Auction
 import com.back.domain.auction.auction.entity.AuctionStatus
 import com.back.domain.auction.auction.service.port.AuctionImagePort
@@ -23,6 +24,7 @@ import org.mockito.Mockito.never
 import org.mockito.Mockito.verify
 import org.springframework.data.domain.PageImpl
 import org.springframework.data.domain.PageRequest
+import org.springframework.data.domain.SliceImpl
 import org.springframework.data.domain.Sort
 import org.springframework.mock.web.MockMultipartFile
 import org.springframework.test.util.ReflectionTestUtils
@@ -112,6 +114,39 @@ class AuctionServiceTest {
         assertThat(result.data!!.content).isEmpty()
         assertThat(result.data!!.totalElements).isZero()
         assertThat(result.data!!.totalPages).isZero()
+    }
+
+    @Test
+    @DisplayName("경매 목록은 DTO 프로젝션 경로로 조회해도 응답 스펙을 유지한다.")
+    fun t3_2() {
+        val pageable = PageRequest.of(0, 20, Sort.by(Sort.Order.desc("createDate"), Sort.Order.desc("id")))
+        val row = AuctionListProjection(
+            auctionId = 1,
+            name = "테스트 경매",
+            startPrice = 10000,
+            currentHighestBid = 15000,
+            buyNowPrice = 30000,
+            status = AuctionStatus.OPEN,
+            endAt = LocalDateTime.now().plusHours(1),
+            bidCount = 3,
+            sellerId = 10,
+            sellerNickname = "seller",
+            sellerReputationScore = 4.7,
+            categoryName = "전자기기",
+            thumbnailUrl = "https://image.test/thumb.jpg"
+        )
+
+        `when`(auctionPersistencePort.findSliceProjectionAll(pageable))
+            .thenReturn(SliceImpl(listOf(row), pageable, false))
+        `when`(auctionCountService.getTotalCount("category:ALL:status:ALL", null, null)).thenReturn(1L)
+
+        val result = auctionService.getAuctions(0, 20, null, null, null)
+
+        assertThat(result.resultCode).isEqualTo("200-1")
+        assertThat(result.data!!.content).hasSize(1)
+        assertThat(result.data!!.content[0].auctionId).isEqualTo(1)
+        assertThat(result.data!!.content[0].seller.nickname).isEqualTo("seller")
+        assertThat(result.data!!.totalElements).isEqualTo(1L)
     }
 
     @Test

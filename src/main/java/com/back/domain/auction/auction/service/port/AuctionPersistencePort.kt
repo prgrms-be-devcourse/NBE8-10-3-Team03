@@ -1,5 +1,6 @@
 package com.back.domain.auction.auction.service.port
 
+import com.back.domain.auction.auction.dto.response.AuctionListProjection
 import com.back.domain.auction.auction.entity.Auction
 import com.back.domain.auction.auction.entity.AuctionStatus
 import org.springframework.data.domain.Page
@@ -23,6 +24,14 @@ interface AuctionPersistencePort {
     fun findSliceByCategoryId(categoryId: Int, pageable: Pageable): Slice<Auction>
     fun findSliceByStatus(status: AuctionStatus, pageable: Pageable): Slice<Auction>
     fun findSliceByCategoryIdAndStatus(categoryId: Int, status: AuctionStatus, pageable: Pageable): Slice<Auction>
+    fun findSliceProjectionAll(pageable: Pageable): Slice<AuctionListProjection>
+    fun findSliceProjectionByCategoryId(categoryId: Int, pageable: Pageable): Slice<AuctionListProjection>
+    fun findSliceProjectionByStatus(status: AuctionStatus, pageable: Pageable): Slice<AuctionListProjection>
+    fun findSliceProjectionByCategoryIdAndStatus(
+        categoryId: Int,
+        status: AuctionStatus,
+        pageable: Pageable
+    ): Slice<AuctionListProjection>
     fun countAll(): Long
     fun countByStatus(status: AuctionStatus): Long
     fun countByCategoryId(categoryId: Int): Long
