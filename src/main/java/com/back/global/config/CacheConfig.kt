@@ -32,6 +32,14 @@ class CacheConfig {
                         .expireAfterWrite(10, TimeUnit.SECONDS)
                         .recordStats()
                         .build()
+                ),
+                CaffeineCache(
+                    "auctionList",
+                    Caffeine.newBuilder()
+                        .maximumSize(1_000)
+                        .expireAfterWrite(3, TimeUnit.SECONDS)
+                        .recordStats()
+                        .build()
                 )
             ),
         )

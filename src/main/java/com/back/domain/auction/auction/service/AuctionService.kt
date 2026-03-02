@@ -21,6 +21,7 @@ import com.back.global.util.PageUtils
 import com.back.domain.category.category.service.port.CategoryPort
 import org.slf4j.LoggerFactory
 import org.springframework.cache.annotation.CacheEvict
+import org.springframework.cache.annotation.Caching
 import org.springframework.cache.annotation.Cacheable
 import org.springframework.data.domain.Sort
 import org.springframework.stereotype.Service
@@ -40,6 +41,7 @@ class AuctionService(
     private val log = LoggerFactory.getLogger(javaClass)
 
     @Transactional
+    @CacheEvict(value = ["auctionList"], allEntries = true)
     override fun createAuction(request: AuctionCreateRequest, sellerId: Int): RsData<AuctionIdResponse> {
         log.debug("경매 생성 시작 - 판매자 ID: {}, 물품명: {}, 시작가: {}원", sellerId, request.name, request.startPrice)
 
@@ -97,6 +99,7 @@ class AuctionService(
         }
     }
 
+    @Cacheable(value = ["auctionList"])
     override fun getAuctions(
         page: Int,
         size: Int,
@@ -186,7 +189,12 @@ class AuctionService(
     }
 
     @Transactional
-    @CacheEvict(value = ["auction"], key = "#auctionId")
+    @Caching(
+        evict = [
+            CacheEvict(value = ["auction"], key = "#auctionId"),
+            CacheEvict(value = ["auctionList"], allEntries = true),
+        ]
+    )
     override fun updateAuction(auctionId: Int, request: AuctionUpdateRequest, memberId: Int): RsData<AuctionUpdateResponse> {
         log.debug("경매 수정 시작 - 캐시 삭제: auctionId: {}", auctionId)
 
@@ -241,7 +249,12 @@ class AuctionService(
     }
 
     @Transactional
-    @CacheEvict(value = ["auction"], key = "#auctionId")
+    @Caching(
+        evict = [
+            CacheEvict(value = ["auction"], key = "#auctionId"),
+            CacheEvict(value = ["auctionList"], allEntries = true),
+        ]
+    )
     override fun deleteAuction(auctionId: Int, memberId: Int): RsData<AuctionDeleteResponse> {
         log.debug("경매 삭제 시작 - 캐시 삭제: auctionId: {}, 요청자 ID: {}", auctionId, memberId)
 
@@ -263,6 +276,12 @@ class AuctionService(
     }
 
     @Transactional
+    @Caching(
+        evict = [
+            CacheEvict(value = ["auction"], key = "#auctionId"),
+            CacheEvict(value = ["auctionList"], allEntries = true),
+        ]
+    )
     override fun cancelTrade(auctionId: Int, memberId: Int): RsData<Void> {
         log.debug("거래 취소 시작 - 경매 ID: {}, 요청자 ID: {}", auctionId, memberId)
 
