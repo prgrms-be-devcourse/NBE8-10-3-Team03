@@ -161,8 +161,19 @@ jobs:
               exit 1
             fi
 
+            # Prometheus scrape 대상(back-app-canary)와의 통신을 위해 공용 네트워크를 보장한다.
+            docker network create auction-network || true
+
             docker compose -p "${CANARY_PROJECT_NAME}" -f docker-compose.canary.deploy.yml --env-file .deploy.canary.env pull
             docker compose -p "${CANARY_PROJECT_NAME}" -f docker-compose.canary.deploy.yml --env-file .deploy.canary.env up -d --remove-orphans
+
+            # compose 네트워크 붙임이 누락된 경우를 대비해 연결을 보강한다.
+            if ! docker inspect "${CANARY_CONTAINER_NAME}" --format '{{json .NetworkSettings.Networks}}' | grep -q 'auction-network'; then
+              docker network connect auction-network "${CANARY_CONTAINER_NAME}" || true
+            fi
+
+            echo "Canary container network status:"
+            docker inspect "${CANARY_CONTAINER_NAME}" --format '{{json .NetworkSettings.Networks}}' || true
 
             docker image prune -f || true
 
