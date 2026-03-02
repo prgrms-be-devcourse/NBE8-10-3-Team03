@@ -15,8 +15,8 @@ interface AuctionPersistencePort {
     fun findAll(pageable: Pageable): Page<Auction>
     fun findBySellerId(sellerId: Int, pageable: Pageable): Page<Auction>
     fun findBySellerIdAndStatus(sellerId: Int, status: AuctionStatus, pageable: Pageable): Page<Auction>
-    fun findByCategoryName(categoryName: String, pageable: Pageable): Page<Auction>
+    fun findByCategoryId(categoryId: Int, pageable: Pageable): Page<Auction>
     fun findByStatus(status: AuctionStatus, pageable: Pageable): Page<Auction>
-    fun findByCategoryNameAndStatus(categoryName: String, status: AuctionStatus, pageable: Pageable): Page<Auction>
+    fun findByCategoryIdAndStatus(categoryId: Int, status: AuctionStatus, pageable: Pageable): Page<Auction>
     fun findExpiredOpenAuctions(now: LocalDateTime): List<Auction>
 }

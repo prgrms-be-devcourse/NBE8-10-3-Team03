@@ -100,6 +100,19 @@ class AuctionServiceTest {
     }
 
     @Test
+    @DisplayName("존재하지 않는 카테고리 이름으로 목록 조회하면 빈 페이지를 반환한다.")
+    fun t3_1() {
+        `when`(categoryPort.findByNameOrNull("없는카테고리")).thenReturn(null)
+
+        val result = auctionService.getAuctions(0, 20, null, "없는카테고리", null)
+
+        assertThat(result.resultCode).isEqualTo("200-1")
+        assertThat(result.data!!.content).isEmpty()
+        assertThat(result.data!!.totalElements).isZero()
+        assertThat(result.data!!.totalPages).isZero()
+    }
+
+    @Test
     @DisplayName("유저별 경매 목록은 상태 필터 없이 조회 가능하다.")
     fun t4() {
         val seller = member(1, "seller")
