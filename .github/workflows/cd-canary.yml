@@ -1,1 +1,190 @@
 name: CD Canary
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "배포할 브랜치/태그/커밋"
+        required: true
+        default: "develop"
+        type: string
+
+concurrency:
+  group: cd-canary-${{ inputs.ref || github.ref_name }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    outputs:
+      image_repo: ${{ steps.meta.outputs.image_repo }}
+      image_tag: ${{ steps.meta.outputs.image_tag }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
+      - name: Build jar
+        run: |
+          chmod +x ./gradlew
+          ./gradlew bootJar -x test --no-daemon
+          JAR_PATH="$(ls -1 build/libs/*.jar | grep -v -- '-plain\\.jar$' | head -n 1)"
+          test -n "${JAR_PATH}" || (echo "bootJar output not found" && exit 1)
+          cp "${JAR_PATH}" build/libs/app.jar
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Prepare image metadata
+        id: meta
+        run: |
+          IMAGE_REPO="${{ vars.IMAGE_NAME }}"
+          if [ -z "${IMAGE_REPO}" ]; then
+            IMAGE_REPO="ghcr.io/${GITHUB_REPOSITORY,,}"
+          fi
+          IMAGE_TAG="canary-${GITHUB_SHA::7}"
+          echo "image_repo=${IMAGE_REPO}" >> "$GITHUB_OUTPUT"
+          echo "image_tag=${IMAGE_TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile.cd
+          platforms: ${{ vars.DOCKER_PLATFORMS || 'linux/arm64' }}
+          push: true
+          cache-from: type=gha,scope=cd-arm64-runtime
+          cache-to: type=gha,mode=max,scope=cd-arm64-runtime
+          provenance: false
+          sbom: false
+          build-args: |
+            JAR_FILE=build/libs/app.jar
+          tags: |
+            ${{ steps.meta.outputs.image_repo }}:${{ steps.meta.outputs.image_tag }}
+            ${{ steps.meta.outputs.image_repo }}:canary-latest
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build-and-push
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check required secrets
+        run: |
+          [ -n "${{ secrets.OCI_HOST }}" ] || (echo "OCI_HOST empty" && exit 1)
+          [ -n "${{ secrets.OCI_USER }}" ] || (echo "OCI_USER empty" && exit 1)
+          [ -n "${{ secrets.OCI_SSH_KEY }}" ] || (echo "OCI_SSH_KEY empty" && exit 1)
+
+      - name: Upload canary compose file
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.OCI_HOST }}
+          port: ${{ secrets.OCI_PORT }}
+          username: ${{ secrets.OCI_USER }}
+          key: ${{ secrets.OCI_SSH_KEY }}
+          source: docker-compose.canary.deploy.yml
+          target: ${{ vars.DEPLOY_PATH || '/home/ubuntu/app' }}
+
+      - name: Deploy canary via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          IMAGE_REPO: ${{ needs.build-and-push.outputs.image_repo }}
+          IMAGE_TAG: ${{ needs.build-and-push.outputs.image_tag }}
+          DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
+          APP_ENV_FILE: ${{ secrets.APP_ENV_FILE }}
+          APP_ENV_FILE_CANARY: ${{ secrets.APP_ENV_FILE_CANARY }}
+          GHCR_USER: ${{ github.actor }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CANARY_CONTAINER_NAME: ${{ vars.CANARY_CONTAINER_NAME || 'back-app-canary' }}
+          CANARY_APP_PORT: ${{ vars.CANARY_APP_PORT || '8081' }}
+          CANARY_PROJECT_NAME: ${{ vars.CANARY_PROJECT_NAME || 'devcourse-canary' }}
+        with:
+          host: ${{ secrets.OCI_HOST }}
+          port: ${{ secrets.OCI_PORT }}
+          username: ${{ secrets.OCI_USER }}
+          key: ${{ secrets.OCI_SSH_KEY }}
+          script_stop: true
+          envs: IMAGE_REPO,IMAGE_TAG,DEPLOY_PATH,APP_ENV_FILE,APP_ENV_FILE_CANARY,GHCR_USER,GHCR_TOKEN,CANARY_CONTAINER_NAME,CANARY_APP_PORT,CANARY_PROJECT_NAME
+          script: |
+            set -euo pipefail
+
+            if [ -z "${DEPLOY_PATH}" ]; then
+              DEPLOY_PATH="/home/${USER}/app"
+            fi
+            mkdir -p "${DEPLOY_PATH}"
+            cd "${DEPLOY_PATH}"
+
+            if [ -n "${APP_ENV_FILE_CANARY}" ]; then
+              printf "%s\n" "${APP_ENV_FILE_CANARY}" > .env.canary
+            elif [ -n "${APP_ENV_FILE}" ]; then
+              printf "%s\n" "${APP_ENV_FILE}" > .env.canary
+            fi
+
+            if [ ! -f ".env.canary" ]; then
+              echo ".env.canary file not found in ${DEPLOY_PATH}"
+              exit 1
+            fi
+
+            cat <<EOF > .deploy.canary.env
+            IMAGE_REPO=${IMAGE_REPO}
+            IMAGE_TAG=${IMAGE_TAG}
+            CANARY_CONTAINER_NAME=${CANARY_CONTAINER_NAME}
+            CANARY_APP_PORT=${CANARY_APP_PORT}
+            EOF
+
+            echo "${GHCR_TOKEN}" | docker login ghcr.io -u "${GHCR_USER}" --password-stdin
+
+            if [ ! -f "docker-compose.canary.deploy.yml" ]; then
+              echo "docker-compose.canary.deploy.yml not found in ${DEPLOY_PATH}"
+              exit 1
+            fi
+
+            # Prometheus scrape 대상(back-app-canary)와의 통신을 위해 공용 네트워크를 보장한다.
+            docker network create auction-network || true
+
+            docker compose -p "${CANARY_PROJECT_NAME}" -f docker-compose.canary.deploy.yml --env-file .deploy.canary.env pull
+            docker compose -p "${CANARY_PROJECT_NAME}" -f docker-compose.canary.deploy.yml --env-file .deploy.canary.env up -d --remove-orphans
+
+            # compose 네트워크 붙임이 누락된 경우를 대비해 연결을 보강한다.
+            if ! docker inspect "${CANARY_CONTAINER_NAME}" --format '{{json .NetworkSettings.Networks}}' | grep -q 'auction-network'; then
+              docker network connect auction-network "${CANARY_CONTAINER_NAME}" || true
+            fi
+
+            echo "Canary container network status:"
+            docker inspect "${CANARY_CONTAINER_NAME}" --format '{{json .NetworkSettings.Networks}}' || true
+
+            docker image prune -f || true
+
+            for i in {1..20}; do
+              status="$(curl -fsS -o /dev/null -w '%{http_code}' http://localhost:${CANARY_APP_PORT}/actuator/health || true)"
+              if [ "${status}" = "200" ]; then
+                echo "Canary health check passed"
+                exit 0
+              fi
+              sleep 5
+            done
+
+            echo "Canary health check failed"
+            exit 1
