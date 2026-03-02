@@ -115,8 +115,7 @@ class AuctionService(
                 auctionPersistencePort.findAll(pageable)
         }
 
-        val thumbnailMap = auctionPersistencePort.findThumbnailUrlsByAuctionIds(auctionPage.content.map { it.id })
-        val dtoPage = auctionPage.map { auction -> AuctionListItemDto(auction, thumbnailMap[auction.id]) }
+        val dtoPage = auctionPage.map { auction -> AuctionListItemDto(auction) }
 
         return RsData("200-1", "경매 목록 조회 성공", AuctionPageResponse.from(dtoPage))
     }
@@ -137,8 +136,7 @@ class AuctionService(
             auctionPersistencePort.findBySellerId(userId, pageable)
         }
 
-        val thumbnailMap = auctionPersistencePort.findThumbnailUrlsByAuctionIds(auctionSlice.content.map { it.id })
-        val dtoSlice = auctionSlice.map { auction -> AuctionListItemDto(auction, thumbnailMap[auction.id]) }
+        val dtoSlice = auctionSlice.map { auction -> AuctionListItemDto(auction) }
 
         return RsData("200-1", "경매 목록 조회 성공", AuctionSliceResponse.from(dtoSlice))
     }

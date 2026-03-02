@@ -17,7 +17,7 @@ data class AuctionListItemDto(
     val categoryName: String,
     val thumbnailUrl: String?
 ) {
-    constructor(auction: Auction, thumbnailUrl: String?) : this(
+    constructor(auction: Auction) : this(
         auctionId = auction.id,
         name = auction.name,
         startPrice = auction.startPrice,
@@ -32,6 +32,6 @@ data class AuctionListItemDto(
             auction.seller.reputation?.score
         ),
         categoryName = auction.category.name,
-        thumbnailUrl = thumbnailUrl
+        thumbnailUrl = auction.thumbnailUrl
     )
 }
