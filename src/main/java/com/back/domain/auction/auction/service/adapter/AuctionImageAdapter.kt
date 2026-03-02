@@ -15,11 +15,12 @@ class AuctionImageAdapter(
     private val fileStoragePort: FileStoragePort,
     private val imageRepository: ImageRepository
 ) : AuctionImagePort {
-    override fun saveImages(auction: Auction, imageFiles: List<MultipartFile>) {
-        imageFiles.forEach { file ->
-            if (file.isEmpty) return@forEach
-            persistAuctionImage(auction, file)
-        }
+    override fun saveImages(auction: Auction, imageFiles: List<MultipartFile>) : List<AuctionImage> {
+        return imageFiles
+            .filter { !it.isEmpty }
+            .map { file ->
+                persistAuctionImage(auction, file)
+            }
     }
 
     override fun replaceImages(auction: Auction, keepImageUrls: List<String>?, newImageFiles: List<MultipartFile>?) {
@@ -40,11 +41,15 @@ class AuctionImageAdapter(
         }
     }
 
-    private fun persistAuctionImage(auction: Auction, file: MultipartFile) {
+    private fun persistAuctionImage(auction: Auction, file: MultipartFile) : AuctionImage{
         try {
             val imageUrl = fileStoragePort.storeFile(file, "auction")
             val savedImage = imageRepository.save(Image(imageUrl))
-            auction.addAuctionImage(AuctionImage(auction, savedImage))
+            val auctionImage = AuctionImage(auction, savedImage)
+
+            auction.addAuctionImage(auctionImage)
+
+            return auctionImage
         } catch (e: Exception) {
             throw ServiceException("500-1", "이미지 저장에 실패했습니다: ${e.message}")
         }

@@ -38,6 +38,8 @@ class Post(
     var viewCount: Long = 0L
         protected set
 
+    var thumbnailUrl: String? = null
+
     fun addPostImage(postImage: PostImage) {
         this.postImages.add(postImage)
     }
