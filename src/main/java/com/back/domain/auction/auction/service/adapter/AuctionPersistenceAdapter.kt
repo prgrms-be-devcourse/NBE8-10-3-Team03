@@ -1,5 +1,6 @@
 package com.back.domain.auction.auction.service.adapter
 
+import com.back.domain.auction.auction.dto.response.AuctionListProjection
 import com.back.domain.auction.auction.entity.Auction
 import com.back.domain.auction.auction.entity.AuctionStatus
 import com.back.domain.auction.auction.repository.AuctionRepository
@@ -55,6 +56,27 @@ class AuctionPersistenceAdapter(
 
     override fun findSliceByCategoryIdAndStatus(categoryId: Int, status: AuctionStatus, pageable: Pageable): Slice<Auction> =
         auctionRepository.findSliceByCategoryIdAndStatus(categoryId, status, pageable)
+
+    override fun findSliceProjectionAll(pageable: Pageable): Slice<AuctionListProjection> =
+        auctionRepository.findSliceProjectionBy(pageable)
+
+    override fun findSliceProjectionByCategoryId(
+        categoryId: Int,
+        categoryName: String,
+        pageable: Pageable
+    ): Slice<AuctionListProjection> =
+        auctionRepository.findSliceProjectionByCategoryId(categoryId, categoryName, pageable)
+
+    override fun findSliceProjectionByStatus(status: AuctionStatus, pageable: Pageable): Slice<AuctionListProjection> =
+        auctionRepository.findSliceProjectionByStatus(status, pageable)
+
+    override fun findSliceProjectionByCategoryIdAndStatus(
+        categoryId: Int,
+        status: AuctionStatus,
+        categoryName: String,
+        pageable: Pageable
+    ): Slice<AuctionListProjection> =
+        auctionRepository.findSliceProjectionByCategoryIdAndStatus(categoryId, status, categoryName, pageable)
 
     override fun countAll(): Long = auctionRepository.count()
 

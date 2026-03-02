@@ -1,5 +1,6 @@
 package com.back.domain.auction.auction.repository
 
+import com.back.domain.auction.auction.dto.response.AuctionListProjection
 import com.back.domain.auction.auction.entity.Auction
 import com.back.domain.auction.auction.entity.AuctionStatus
 import jakarta.persistence.LockModeType
@@ -46,6 +47,75 @@ interface AuctionRepository : JpaRepository<Auction, Int> {
 
     @EntityGraph(attributePaths = ["seller", "seller.reputation", "category"])
     fun findSliceByCategoryIdAndStatus(categoryId: Int, status: AuctionStatus, pageable: Pageable): Slice<Auction>
+
+    @Query(
+        """
+        SELECT new com.back.domain.auction.auction.dto.response.AuctionListProjection(
+            a.id, a.name, a.startPrice, a.currentHighestBid, a.buyNowPrice, a.status, a.endAt, a.bidCount,
+            s.id, s.nickname, r.score, c.name, a.thumbnailUrl
+        )
+        FROM Auction a
+        JOIN a.seller s
+        LEFT JOIN s.reputation r
+        JOIN a.category c
+        """
+    )
+    fun findSliceProjectionBy(pageable: Pageable): Slice<AuctionListProjection>
+
+    @Query(
+        """
+        SELECT new com.back.domain.auction.auction.dto.response.AuctionListProjection(
+            a.id, a.name, a.startPrice, a.currentHighestBid, a.buyNowPrice, a.status, a.endAt, a.bidCount,
+            s.id, s.nickname, r.score, :categoryName, a.thumbnailUrl
+        )
+        FROM Auction a
+        JOIN a.seller s
+        LEFT JOIN s.reputation r
+        WHERE a.category.id = :categoryId
+        """
+    )
+    fun findSliceProjectionByCategoryId(
+        @Param("categoryId") categoryId: Int,
+        @Param("categoryName") categoryName: String,
+        pageable: Pageable
+    ): Slice<AuctionListProjection>
+
+    @Query(
+        """
+        SELECT new com.back.domain.auction.auction.dto.response.AuctionListProjection(
+            a.id, a.name, a.startPrice, a.currentHighestBid, a.buyNowPrice, a.status, a.endAt, a.bidCount,
+            s.id, s.nickname, r.score, c.name, a.thumbnailUrl
+        )
+        FROM Auction a
+        JOIN a.seller s
+        LEFT JOIN s.reputation r
+        JOIN a.category c
+        WHERE a.status = :status
+        """
+    )
+    fun findSliceProjectionByStatus(
+        @Param("status") status: AuctionStatus,
+        pageable: Pageable
+    ): Slice<AuctionListProjection>
+
+    @Query(
+        """
+        SELECT new com.back.domain.auction.auction.dto.response.AuctionListProjection(
+            a.id, a.name, a.startPrice, a.currentHighestBid, a.buyNowPrice, a.status, a.endAt, a.bidCount,
+            s.id, s.nickname, r.score, :categoryName, a.thumbnailUrl
+        )
+        FROM Auction a
+        JOIN a.seller s
+        LEFT JOIN s.reputation r
+        WHERE a.category.id = :categoryId AND a.status = :status
+        """
+    )
+    fun findSliceProjectionByCategoryIdAndStatus(
+        @Param("categoryId") categoryId: Int,
+        @Param("status") status: AuctionStatus,
+        @Param("categoryName") categoryName: String,
+        pageable: Pageable
+    ): Slice<AuctionListProjection>
 
     @EntityGraph(attributePaths = ["seller", "seller.reputation", "category", "auctionImages", "auctionImages.image"])
     fun findWithDetailsById(id: Int): Optional<Auction>
