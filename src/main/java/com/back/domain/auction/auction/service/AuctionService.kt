@@ -32,6 +32,7 @@ import org.springframework.data.domain.Page
 @Transactional(readOnly = true)
 class AuctionService(
     private val auctionPersistencePort: AuctionPersistencePort,
+    private val auctionCountService: AuctionCountService,
     private val categoryPort: CategoryPort,
     private val auctionMemberPort: AuctionMemberPort,
     private val auctionImagePort: AuctionImagePort
@@ -84,6 +85,7 @@ class AuctionService(
         )
 
         val responseData = AuctionIdResponse(savedAuction.id, "경매 물품이 등록되었습니다.")
+        auctionCountService.evictAll()
         return RsData("201-1", "경매 물품이 등록되었습니다.", responseData)
     }
 
@@ -107,23 +109,25 @@ class AuctionService(
         val categoryId = categoryName?.takeIf { it.isNotBlank() }?.trim()
             ?.let { normalizedName ->
                 categoryPort.findByNameOrNull(normalizedName)?.id
-                    ?: return RsData("200-1", "경매 목록 조회 성공", AuctionPageResponse.from(Page.empty(pageable)))
+                    ?: return RsData("200-1", "경매 목록 조회 성공", AuctionPageResponse.of(emptyList(), page, size, 0))
             }
 
-        val auctionPage = when {
+        val auctionSlice = when {
             categoryId != null && auctionStatus != null ->
-                auctionPersistencePort.findByCategoryIdAndStatus(categoryId, auctionStatus, pageable)
+                auctionPersistencePort.findSliceByCategoryIdAndStatus(categoryId, auctionStatus, pageable)
             categoryId != null ->
-                auctionPersistencePort.findByCategoryId(categoryId, pageable)
+                auctionPersistencePort.findSliceByCategoryId(categoryId, pageable)
             auctionStatus != null ->
-                auctionPersistencePort.findByStatus(auctionStatus, pageable)
+                auctionPersistencePort.findSliceByStatus(auctionStatus, pageable)
             else ->
-                auctionPersistencePort.findAll(pageable)
+                auctionPersistencePort.findSliceAll(pageable)
         }
 
-        val dtoPage = auctionPage.map { auction -> AuctionListItemDto(auction) }
+        val content = auctionSlice.content.map { auction -> AuctionListItemDto(auction) }
+        val countCacheKey = buildCountCacheKey(categoryId, auctionStatus)
+        val totalElements = auctionCountService.getTotalCount(countCacheKey, categoryId, auctionStatus)
 
-        return RsData("200-1", "경매 목록 조회 성공", AuctionPageResponse.from(dtoPage))
+        return RsData("200-1", "경매 목록 조회 성공", AuctionPageResponse.of(content, page, size, totalElements))
     }
 
     override fun getAuctionsByUserId(
@@ -170,6 +174,9 @@ class AuctionService(
         return Sort.by(direction, property)
     }
 
+    private fun buildCountCacheKey(categoryId: Int?, status: AuctionStatus?): String =
+        "category:${categoryId ?: "ALL"}:status:${status?.name ?: "ALL"}"
+
     @Cacheable(value = ["auction"], key = "#auctionId")
     override fun getAuctionDetailData(auctionId: Int): AuctionDetailResponse {
         log.debug("[Cache Miss] DB에서 경매 조회 - auctionId: {}", auctionId)
@@ -209,6 +216,7 @@ class AuctionService(
         }
 
         auctionPersistencePort.save(auction)
+        auctionCountService.evictAll()
         val response = AuctionUpdateResponse(auction.id, "경매 물품이 수정되었습니다.")
         return RsData("200-1", "경매 물품이 수정되었습니다.", response)
     }
@@ -247,6 +255,7 @@ class AuctionService(
 
         auctionMemberPort.applyCancelPenalty(auctionId, memberId)
         auctionPersistencePort.delete(auction)
+        auctionCountService.evictAll()
 
         log.info("경매 삭제 완료 - 경매 ID: {}, 판매자 ID: {}, 입찰 수: {}", auctionId, memberId, auction.bidCount)
         val response = AuctionDeleteResponse("경매가 정상적으로 취소되었습니다.")
@@ -273,6 +282,7 @@ class AuctionService(
 
         auction.cancelTrade(memberId, role)
         auctionPersistencePort.save(auction)
+        auctionCountService.evictAll()
 
         log.info("거래 취소 완료 - 경매 ID: {}, 취소자 역할: {}, 취소자 ID: {}", auctionId, role, memberId)
         return RsData("200-1", "거래가 취소되었습니다.", null)

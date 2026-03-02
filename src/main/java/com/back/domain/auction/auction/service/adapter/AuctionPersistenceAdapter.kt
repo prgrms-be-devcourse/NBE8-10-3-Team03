@@ -6,6 +6,7 @@ import com.back.domain.auction.auction.repository.AuctionRepository
 import com.back.domain.auction.auction.service.port.AuctionPersistencePort
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
+import org.springframework.data.domain.Slice
 import org.springframework.stereotype.Component
 import java.time.LocalDateTime
 
@@ -42,6 +43,27 @@ class AuctionPersistenceAdapter(
         status: AuctionStatus,
         pageable: Pageable
     ): Page<Auction> = auctionRepository.findByCategoryIdAndStatus(categoryId, status, pageable)
+
+    override fun findSliceAll(pageable: Pageable): Slice<Auction> =
+        auctionRepository.findSliceBy(pageable)
+
+    override fun findSliceByCategoryId(categoryId: Int, pageable: Pageable): Slice<Auction> =
+        auctionRepository.findSliceByCategoryId(categoryId, pageable)
+
+    override fun findSliceByStatus(status: AuctionStatus, pageable: Pageable): Slice<Auction> =
+        auctionRepository.findSliceByStatus(status, pageable)
+
+    override fun findSliceByCategoryIdAndStatus(categoryId: Int, status: AuctionStatus, pageable: Pageable): Slice<Auction> =
+        auctionRepository.findSliceByCategoryIdAndStatus(categoryId, status, pageable)
+
+    override fun countAll(): Long = auctionRepository.count()
+
+    override fun countByStatus(status: AuctionStatus): Long = auctionRepository.countByStatus(status)
+
+    override fun countByCategoryId(categoryId: Int): Long = auctionRepository.countByCategoryId(categoryId)
+
+    override fun countByCategoryIdAndStatus(categoryId: Int, status: AuctionStatus): Long =
+        auctionRepository.countByCategoryIdAndStatus(categoryId, status)
 
     override fun findExpiredOpenAuctions(now: LocalDateTime): List<Auction> =
         auctionRepository.findByStatusAndEndAtBefore(AuctionStatus.OPEN, now)

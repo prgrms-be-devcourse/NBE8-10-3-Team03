@@ -19,5 +19,22 @@ data class AuctionPageResponse(
                 totalElements = page.totalElements,
                 totalPages = page.totalPages
             )
+
+        @JvmStatic
+        fun of(
+            content: List<AuctionListItemDto>,
+            page: Int,
+            size: Int,
+            totalElements: Long
+        ): AuctionPageResponse {
+            val totalPages = if (totalElements == 0L) 0 else ((totalElements + size - 1) / size).toInt()
+            return AuctionPageResponse(
+                content = content,
+                page = page,
+                size = size,
+                totalElements = totalElements,
+                totalPages = totalPages
+            )
+        }
     }
 }
