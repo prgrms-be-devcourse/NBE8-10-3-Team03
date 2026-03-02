@@ -10,6 +10,12 @@ import com.back.domain.chat.chat.entity.ChatRoomType
  * 서비스는 저장소 구현(JPA 등) 대신 이 포트에 의존한다.
  */
 interface ChatPersistencePort {
+    data class ChatRoomLatestSummary(
+        val roomId: String,
+        val latestChatId: Int,
+        val unreadCount: Int,
+    )
+
     fun findActiveRoom(roomId: String): ChatRoom?
 
     fun findExistingRoom(txType: ChatRoomType, itemId: Int, buyerApiKey: String): ChatRoom?
@@ -23,6 +29,10 @@ interface ChatPersistencePort {
     fun markMessagesAsReadByIds(chatIds: List<Int>): Int
 
     fun findLatestChatsByMember(apiKey: String): List<Chat>
+
+    fun findLatestChatSummariesByMember(apiKey: String, memberId: Int): List<ChatRoomLatestSummary>
+
+    fun findChatsWithRoomsByIds(chatIds: List<Int>): List<Chat>
 
     fun countUnreadMessagesByRoomIds(roomIds: List<String>, memberId: Int): List<UnreadCountResponse>
 

@@ -18,6 +18,7 @@ import com.back.domain.chat.chat.service.port.ChatMediaPort
 import com.back.domain.chat.chat.service.port.ChatPersistencePort
 import com.back.domain.chat.chat.service.port.ChatPublishPort
 import com.back.domain.chat.chat.service.port.ChatUploadFile
+import com.back.domain.chat.chat.service.port.ChatUseCase
 import com.back.global.exception.ServiceException
 import com.back.global.rq.Rq
 import com.back.global.rsData.RsData
@@ -42,11 +43,11 @@ class ChatService(
     private val eventPublisher: ApplicationEventPublisher,
     @Value("\${chat.events.async-enabled:true}")
     private val asyncEventsEnabled: Boolean,
-) {
+) : ChatUseCase {
     private val memberCache = ConcurrentHashMap<Int, CachedCurrentMember>()
 
     @Transactional
-    fun createChatRoom(itemId: Int, txType: String): RsData<ChatRoomIdResponse> {
+    override fun createChatRoom(itemId: Int, txType: String): RsData<ChatRoomIdResponse> {
         val type = parseTxType(txType)
         val buyer = currentMemberFromDb()
 
@@ -108,7 +109,7 @@ class ChatService(
     }
 
     @Transactional
-    fun saveMessage(req: ChatMessageRequest): RsData<ChatIdResponse> {
+    override fun saveMessage(req: ChatMessageRequest): RsData<ChatIdResponse> {
         val roomId = req.roomId ?: throw ServiceException("400-1", "채팅방 ID는 필수입니다.")
         val room = findActiveRoom(roomId)
 
@@ -178,7 +179,7 @@ class ChatService(
     }
 
     @Transactional
-    fun getMessages(roomId: String, lastChatId: Int?): RsData<List<ChatResponse>> {
+    override fun getMessages(roomId: String, lastChatId: Int?): RsData<List<ChatResponse>> {
         val room = findActiveRoom(roomId)
 
         val me = currentMemberFromDb()
@@ -228,27 +229,26 @@ class ChatService(
         return RsData("200-1", "메시지 조회 성공", responses)
     }
 
-    fun getChatList(): RsData<List<ChatRoomListResponse>> {
+    override fun getChatList(): RsData<List<ChatRoomListResponse>> {
         val me = currentMemberFromDb()
         val myApiKey = me.apiKey
 
-        val latestChats = chatPersistencePort.findLatestChatsByMember(myApiKey)
+        val latestSummaries = chatPersistencePort.findLatestChatSummariesByMember(myApiKey, me.id)
+        if (latestSummaries.isEmpty()) {
+            return RsData("200-1", "채팅 목록 조회 성공", emptyList())
+        }
+
+        val latestChats = chatPersistencePort.findChatsWithRoomsByIds(latestSummaries.map { it.latestChatId })
         if (latestChats.isEmpty()) {
             return RsData("200-1", "채팅 목록 조회 성공", emptyList())
         }
 
-        val roomIds = latestChats.mapNotNull { it.chatRoom?.roomId }.distinct()
+        val unreadCountMap = latestSummaries.associate { it.roomId to it.unreadCount }
         val opponentApiKeys = latestChats.mapNotNull { chat ->
             val room = chat.chatRoom ?: return@mapNotNull null
             if (room.sellerApiKey == myApiKey) room.buyerApiKey else room.sellerApiKey
         }.toSet()
 
-        val unreadCountMap = if (roomIds.isEmpty()) {
-            emptyMap()
-        } else {
-            chatPersistencePort.countUnreadMessagesByRoomIds(roomIds, me.id)
-                .associate { it.roomId to (it.count?.toInt() ?: 0) }
-        }
         val opponentMap = chatMemberPort.findMembersByApiKeys(opponentApiKeys)
 
         val responseList = latestChats.mapNotNull { chat ->
@@ -278,7 +278,7 @@ class ChatService(
     }
 
     @Transactional
-    fun exitChatRoom(roomId: String): RsData<Void?> {
+    override fun exitChatRoom(roomId: String): RsData<Void?> {
         val room = findActiveRoom(roomId)
         val me = currentMemberFromDb()
 
