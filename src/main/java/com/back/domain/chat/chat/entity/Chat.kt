@@ -5,12 +5,19 @@ import jakarta.persistence.CascadeType
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.FetchType
+import jakarta.persistence.Index
 import jakarta.persistence.JoinColumn
 import jakarta.persistence.ManyToOne
 import jakarta.persistence.OneToMany
 import jakarta.persistence.Table
 
-@Table(name = "chat")
+@Table(
+    name = "chat",
+    indexes = [
+        Index(name = "idx_chat_room_id_id", columnList = "room_id, id"),
+        Index(name = "idx_chat_room_read_sender", columnList = "room_id, is_read, sender_id"),
+    ],
+)
 @Entity
 class Chat() : BaseEntity() {
     @ManyToOne(fetch = FetchType.LAZY)

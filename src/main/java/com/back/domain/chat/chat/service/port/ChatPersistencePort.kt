@@ -20,10 +20,13 @@ interface ChatPersistencePort {
 
     fun markMessagesAsRead(roomId: String, readerId: Int): Int
 
+    fun markMessagesAsReadByIds(chatIds: List<Int>): Int
+
     fun findLatestChatsByMember(apiKey: String): List<Chat>
 
     fun countUnreadMessagesByRoomIds(roomIds: List<String>, memberId: Int): List<UnreadCountResponse>
 
+    fun countUnreadMessagesByRoomId(roomId: String, memberId: Int): Int
+
     fun findRecentChats(roomId: String, lastChatId: Int?): List<Chat>
 }
-

@@ -10,6 +10,7 @@ import com.back.domain.chat.chat.service.port.ChatPublishPort
 import com.back.domain.member.member.entity.Member
 import com.back.global.exception.ServiceException
 import com.back.global.rq.Rq
+import org.springframework.context.ApplicationEventPublisher
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.DisplayName
@@ -32,6 +33,7 @@ class ChatServiceTest {
     private val chatMediaPort: ChatMediaPort = mock(ChatMediaPort::class.java)
     private val chatPublishPort: ChatPublishPort = mock(ChatPublishPort::class.java)
     private val rq: Rq = mock(Rq::class.java)
+    private val eventPublisher: ApplicationEventPublisher = mock(ApplicationEventPublisher::class.java)
 
     private val chatService = ChatService(
         chatPersistencePort,
@@ -39,7 +41,9 @@ class ChatServiceTest {
         chatMemberPort,
         chatMediaPort,
         chatPublishPort,
-        rq
+        rq,
+        eventPublisher,
+        false,
     )
 
     @Test

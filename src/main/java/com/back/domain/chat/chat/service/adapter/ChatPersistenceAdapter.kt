@@ -7,6 +7,7 @@ import com.back.domain.chat.chat.entity.ChatRoomType
 import com.back.domain.chat.chat.repository.ChatRepository
 import com.back.domain.chat.chat.repository.ChatRoomRepository
 import com.back.domain.chat.chat.service.port.ChatPersistencePort
+import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Component
 
 /**
@@ -31,17 +32,31 @@ class ChatPersistenceAdapter(
     override fun markMessagesAsRead(roomId: String, readerId: Int): Int =
         chatRepository.markMessagesAsRead(roomId, readerId)
 
+    override fun markMessagesAsReadByIds(chatIds: List<Int>): Int =
+        chatRepository.markMessagesAsReadByIds(chatIds)
+
     override fun findLatestChatsByMember(apiKey: String): List<Chat> =
-        chatRepository.findAllLatestChatsByMember(apiKey)
+        chatRepository.findLatestChatIdsByMember(apiKey)
+            .let { chatIds ->
+                if (chatIds.isEmpty()) emptyList() else chatRepository.findChatsWithRoomByIds(chatIds)
+            }
 
     override fun countUnreadMessagesByRoomIds(roomIds: List<String>, memberId: Int): List<UnreadCountResponse> =
         chatRepository.countUnreadMessagesByRoomIds(roomIds, memberId)
 
+    override fun countUnreadMessagesByRoomId(roomId: String, memberId: Int): Int =
+        chatRepository.countUnreadMessagesByRoomId(roomId, memberId).toInt()
+
     override fun findRecentChats(roomId: String, lastChatId: Int?): List<Chat> =
         if (lastChatId == null || lastChatId <= 0) {
-            chatRepository.findTop20ByChatRoom_RoomIdOrderByIdDesc(roomId)
+            val chatIds = chatRepository.findTopIdsByRoomId(roomId, TOP20)
+            if (chatIds.isEmpty()) emptyList() else chatRepository.findChatsByIds(chatIds)
         } else {
-            chatRepository.findTop20ByChatRoom_RoomIdAndIdLessThanOrderByIdDesc(roomId, lastChatId)
+            val chatIds = chatRepository.findTopIdsByRoomIdAndIdLessThan(roomId, lastChatId, TOP20)
+            if (chatIds.isEmpty()) emptyList() else chatRepository.findChatsByIds(chatIds)
         }
-}
 
+    companion object {
+        private val TOP20 = PageRequest.of(0, 20)
+    }
+}

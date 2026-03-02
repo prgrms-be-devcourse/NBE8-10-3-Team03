@@ -5,6 +5,7 @@ import com.back.domain.chat.chat.service.port.ChatRoomAccessInfo
 import com.back.domain.chat.chat.service.port.ChatRoomAccessPort
 import com.back.global.exception.ServiceException
 import org.springframework.stereotype.Component
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * ChatRoomAccessPort 구현체.
@@ -14,7 +15,14 @@ import org.springframework.stereotype.Component
 class ChatRoomAccessAdapter(
     private val chatRoomRepository: ChatRoomRepository,
 ) : ChatRoomAccessPort {
+    private val roomCache = ConcurrentHashMap<String, CachedRoom>()
+
     override fun getActiveRoomOrThrow(roomId: String): ChatRoomAccessInfo {
+        val now = System.currentTimeMillis()
+        roomCache[roomId]
+            ?.takeIf { it.expiresAtMillis > now }
+            ?.let { return it.info }
+
         val room = chatRoomRepository.findByRoomIdAndDeletedFalse(roomId)
             ?: throw ServiceException("404-1", "존재하지 않는 채팅방입니다.")
 
@@ -22,7 +30,20 @@ class ChatRoomAccessAdapter(
             roomId = room.roomId,
             sellerApiKey = room.sellerApiKey,
             buyerApiKey = room.buyerApiKey,
-        )
+        ).also { info ->
+            roomCache[roomId] = CachedRoom(
+                info = info,
+                expiresAtMillis = now + ROOM_CACHE_TTL_MILLIS,
+            )
+        }
+    }
+
+    private data class CachedRoom(
+        val info: ChatRoomAccessInfo,
+        val expiresAtMillis: Long,
+    )
+
+    companion object {
+        private const val ROOM_CACHE_TTL_MILLIS = 60_000L
     }
 }
-

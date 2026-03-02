@@ -6,6 +6,14 @@ import java.time.LocalDateTime
 import java.util.*
 
 @Entity
+@Table(
+    name = "chat_room",
+    indexes = [
+        Index(name = "idx_chat_room_tx_item_buyer_deleted", columnList = "tx_type, item_id, buyer_api_key, deleted"),
+        Index(name = "idx_chat_room_seller_active", columnList = "seller_api_key, seller_exited, deleted"),
+        Index(name = "idx_chat_room_buyer_active", columnList = "buyer_api_key, buyer_exited, deleted"),
+    ],
+)
 class ChatRoom (
     @Column(unique = true, nullable = false)
     var roomId: String = "",
