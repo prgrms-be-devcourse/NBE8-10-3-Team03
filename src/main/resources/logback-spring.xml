@@ -12,13 +12,18 @@
         <appender-ref ref="CONSOLE" />
     </root>
 
-    <!-- 개발 환경 로그 레벨 -->
-    <logger name="com.back.domain.auction" level="DEBUG" />
-    <logger name="com.back.domain.bid" level="DEBUG" />
-    <logger name="com.back.global.initData" level="INFO" />
+    <!-- 개발 환경에서만 상세 SQL 로그를 허용한다. -->
+    <springProfile name="dev">
+        <logger name="com.back.domain.auction" level="DEBUG" />
+        <logger name="com.back.domain.bid" level="DEBUG" />
+        <logger name="com.back.global.initData" level="INFO" />
+        <logger name="org.hibernate.SQL" level="DEBUG" />
+        <logger name="org.hibernate.type.descriptor.sql.BasicBinder" level="TRACE" />
+    </springProfile>
 
-    <!-- Hibernate SQL 로그 -->
-    <logger name="org.hibernate.SQL" level="DEBUG" />
-    <logger name="org.hibernate.type.descriptor.sql.BasicBinder" level="TRACE" />
+    <!-- loadtest/prod 등 비개발 환경에서는 SQL 바인딩 로그를 차단한다. -->
+    <springProfile name="!dev">
+        <logger name="org.hibernate.SQL" level="WARN" />
+        <logger name="org.hibernate.type.descriptor.sql.BasicBinder" level="WARN" />
+    </springProfile>
 </configuration>
-
