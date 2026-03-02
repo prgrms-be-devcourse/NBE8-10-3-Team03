@@ -58,6 +58,10 @@ spring:
   #   redis:
   #     time-to-live: 600000
   #     cache-null-values: false
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
 
 file:
   upload-dir: ./uploads
@@ -96,7 +100,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health, metrics , prometheus, info
+        include: health, metrics , prometheus, info, flyway
     metrics:
       tags:
         application: DevCourseApp
