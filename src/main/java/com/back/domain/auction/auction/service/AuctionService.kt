@@ -68,9 +68,13 @@ class AuctionService(
             .build()
 
         val savedAuction = auctionPersistencePort.save(auction)
+
         request.images?.takeIf { it.isNotEmpty() }?.let { images ->
             log.debug("경매 이미지 저장 시작 - 경매 ID: {}, 이미지 수: {}", savedAuction.id, images.size)
-            auctionImagePort.saveImages(savedAuction, images)
+            val savedImages = auctionImagePort.saveImages(savedAuction, images)
+
+            savedAuction.thumbnailUrl =
+                savedImages.firstOrNull()?.image?.url
         }
 
         log.info(
