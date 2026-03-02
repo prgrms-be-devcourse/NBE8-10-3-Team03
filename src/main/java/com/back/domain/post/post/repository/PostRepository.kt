@@ -2,6 +2,7 @@ package com.back.domain.post.post.repository
 
 import com.back.domain.post.post.entity.Post
 import com.back.domain.post.post.entity.PostStatus
+import com.back.domain.search.search.service.projection.PostListRow
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.repository.JpaRepository
@@ -46,4 +47,19 @@ interface PostRepository : JpaRepository<Post, Int> {
     fun countByTitleStartingWith(prefix: String): Long
 
     fun deleteByTitleStartingWith(prefix: String): Long
+
+    @Query(
+        value = """
+          SELECT
+            p.id     AS id,
+            p.title  AS title,
+            p.price  AS price,
+            p.status AS status
+          FROM post p
+          WHERE p.deleted = 0
+            AND p.id IN (:ids)
+        """,
+        nativeQuery = true
+    )
+    fun findListRowsByIds(@Param("ids") ids: List<Int>): List<PostListRow>
 }
