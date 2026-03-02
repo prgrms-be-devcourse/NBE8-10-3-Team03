@@ -37,11 +37,13 @@ class AuctionServiceTest {
         }
     }
     private val categoryPort: CategoryPort = mock(CategoryPort::class.java)
+    private val auctionCountService: AuctionCountService = mock(AuctionCountService::class.java)
     private val auctionMemberPort: AuctionMemberPort = mock(AuctionMemberPort::class.java)
     private val auctionImagePort: AuctionImagePort = mock(AuctionImagePort::class.java)
 
     private val auctionService = AuctionService(
         auctionPersistencePort,
+        auctionCountService,
         categoryPort,
         auctionMemberPort,
         auctionImagePort

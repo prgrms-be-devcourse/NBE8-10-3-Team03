@@ -4,6 +4,7 @@ import com.back.domain.auction.auction.entity.Auction
 import com.back.domain.auction.auction.entity.AuctionStatus
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
+import org.springframework.data.domain.Slice
 import java.time.LocalDateTime
 
 // Outbound port: 경매 영속화 접근을 애플리케이션 계층에서 추상화한다.
@@ -18,5 +19,13 @@ interface AuctionPersistencePort {
     fun findByCategoryId(categoryId: Int, pageable: Pageable): Page<Auction>
     fun findByStatus(status: AuctionStatus, pageable: Pageable): Page<Auction>
     fun findByCategoryIdAndStatus(categoryId: Int, status: AuctionStatus, pageable: Pageable): Page<Auction>
+    fun findSliceAll(pageable: Pageable): Slice<Auction>
+    fun findSliceByCategoryId(categoryId: Int, pageable: Pageable): Slice<Auction>
+    fun findSliceByStatus(status: AuctionStatus, pageable: Pageable): Slice<Auction>
+    fun findSliceByCategoryIdAndStatus(categoryId: Int, status: AuctionStatus, pageable: Pageable): Slice<Auction>
+    fun countAll(): Long
+    fun countByStatus(status: AuctionStatus): Long
+    fun countByCategoryId(categoryId: Int): Long
+    fun countByCategoryIdAndStatus(categoryId: Int, status: AuctionStatus): Long
     fun findExpiredOpenAuctions(now: LocalDateTime): List<Auction>
 }

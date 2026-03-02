@@ -5,6 +5,7 @@ import com.back.domain.auction.auction.entity.AuctionStatus
 import jakarta.persistence.LockModeType
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
+import org.springframework.data.domain.Slice
 import org.springframework.data.jpa.repository.EntityGraph
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Lock
@@ -34,6 +35,18 @@ interface AuctionRepository : JpaRepository<Auction, Int> {
     @EntityGraph(attributePaths = ["seller", "seller.reputation", "category"])
     fun findByCategoryIdAndStatus(categoryId: Int, status: AuctionStatus, pageable: Pageable): Page<Auction>
 
+    @EntityGraph(attributePaths = ["seller", "seller.reputation", "category"])
+    fun findSliceBy(pageable: Pageable): Slice<Auction>
+
+    @EntityGraph(attributePaths = ["seller", "seller.reputation", "category"])
+    fun findSliceByCategoryId(categoryId: Int, pageable: Pageable): Slice<Auction>
+
+    @EntityGraph(attributePaths = ["seller", "seller.reputation", "category"])
+    fun findSliceByStatus(status: AuctionStatus, pageable: Pageable): Slice<Auction>
+
+    @EntityGraph(attributePaths = ["seller", "seller.reputation", "category"])
+    fun findSliceByCategoryIdAndStatus(categoryId: Int, status: AuctionStatus, pageable: Pageable): Slice<Auction>
+
     @EntityGraph(attributePaths = ["seller", "seller.reputation", "category", "auctionImages", "auctionImages.image"])
     fun findWithDetailsById(id: Int): Optional<Auction>
 
@@ -49,6 +62,9 @@ interface AuctionRepository : JpaRepository<Auction, Int> {
     fun findByIdWithLock(@Param("id") id: Int): Optional<Auction>
 
     fun countByNameStartingWith(prefix: String): Long
+    fun countByStatus(status: AuctionStatus): Long
+    fun countByCategoryId(categoryId: Int): Long
+    fun countByCategoryIdAndStatus(categoryId: Int, status: AuctionStatus): Long
 
     fun deleteByNameStartingWith(prefix: String): Long
 
