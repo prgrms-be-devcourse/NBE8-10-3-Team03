@@ -3,6 +3,7 @@ package com.back.domain.search.search.controller
 import com.back.domain.search.search.dto.SearchResponse
 import com.back.domain.search.search.service.SearchService
 import com.back.global.rsData.RsData
+import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Pageable
 import org.springframework.data.domain.Sort
 import org.springframework.data.web.PageableDefault
@@ -20,19 +21,29 @@ class SearchController(
     @GetMapping
     fun search(
         @RequestParam keyword: String,
-        @PageableDefault(
-            size = 10,
-            sort = ["createDate"],
-            direction = Sort.Direction.DESC
-        ) pageable: Pageable
+        @RequestParam(defaultValue = "relevance") sort: String,   // relevance|newest|oldest
+        @RequestParam(defaultValue = "20") size: Int,
+        @RequestParam(required = false) cursor: String?           // 커서(없으면 첫 페이지)
     ): RsData<SearchResponse> {
-        val results = searchService.searchUnified(keyword, pageable)
 
+        val safeSize = size.coerceIn(1, 50)
+        val safeSort = when (sort.lowercase()) {
+            "relevance", "newest", "oldest" -> sort.lowercase()
+            else -> "relevance"
+        }
+
+        // 커서 기반 검색 서비스 (Pageable/offset 없이 진행)
+        val result: SearchResponse = searchService.searchUnifiedCursor(
+            keyword = keyword,
+            sort = safeSort,
+            size = safeSize,
+            cursor = cursor
+        )
 
         return RsData(
             "200-1",
             "검색이 완료되었습니다.",
-            SearchResponse.of(results)
+            result
         )
     }
 }
