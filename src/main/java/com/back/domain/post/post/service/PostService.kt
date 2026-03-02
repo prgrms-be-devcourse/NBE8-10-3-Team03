@@ -56,6 +56,8 @@ class PostService(
 
         postPort.save(post)
 
+        var thumbnailSet = false
+
         // null-safe 연산자(?.)와 forEach를 결합한 간결한 반복문
         req.images?.forEach { file ->
             if (!file.isEmpty) {
@@ -63,6 +65,12 @@ class PostService(
                     val imageUrl = fileStoragePort.storeFile(file, "post")
                     val image = imageRepository.save(Image(imageUrl))
                     post.addPostImage(PostImage(post, image))
+
+                    // 첫 번째 업로드 이미지일 경우만 썸네일 지정
+                    if (!thumbnailSet) {
+                        post.thumbnailUrl = imageUrl
+                        thumbnailSet = true
+                    }
                 } catch (e: Exception) {
                     throw ServiceException("500-1", "이미지 저장에 실패했습니다: ${e.message}")
                 }
