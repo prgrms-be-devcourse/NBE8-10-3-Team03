@@ -12,7 +12,7 @@ import org.springframework.transaction.annotation.Transactional
 class AuctionCountService(
     private val auctionPersistencePort: AuctionPersistencePort
 ) {
-    @Cacheable(value = ["auctionCount"], key = "#cacheKey")
+    @Cacheable(value = ["auctionCount"], key = "#cacheKey", sync = true)
     fun getTotalCount(cacheKey: String, categoryId: Int?, status: AuctionStatus?): Long =
         when {
             categoryId != null && status != null -> auctionPersistencePort.countByCategoryIdAndStatus(categoryId, status)

@@ -99,7 +99,12 @@ class AuctionService(
         }
     }
 
-    @Cacheable(value = ["auctionList"])
+    @Cacheable(
+        value = ["auctionList"],
+        key = "#root.target.buildAuctionListCacheKey(#page, #size, #sortBy, #categoryName, #status)",
+        condition = "#page >= 0 && #page <= 9",
+        sync = true
+    )
     override fun getAuctions(
         page: Int,
         size: Int,
@@ -165,7 +170,12 @@ class AuctionService(
             }
 
     private fun createSort(sortBy: String?): Sort {
-        if (sortBy.isNullOrBlank()) return Sort.by(Sort.Direction.DESC, "createDate")
+        if (sortBy.isNullOrBlank()) {
+            return Sort.by(
+                Sort.Order.desc("createDate"),
+                Sort.Order.desc("id")
+            )
+        }
 
         val sortParams = sortBy.split(",")
         val property = sortParams[0]
@@ -174,11 +184,28 @@ class AuctionService(
         } else {
             Sort.Direction.DESC
         }
-        return Sort.by(direction, property)
+        return if (property == "createDate") {
+            Sort.by(Sort.Order(direction, "createDate"), Sort.Order(direction, "id"))
+        } else {
+            Sort.by(direction, property)
+        }
     }
 
     private fun buildCountCacheKey(categoryId: Int?, status: AuctionStatus?): String =
         "category:${categoryId ?: "ALL"}:status:${status?.name ?: "ALL"}"
+
+    fun buildAuctionListCacheKey(
+        page: Int,
+        size: Int,
+        sortBy: String?,
+        categoryName: String?,
+        status: String?
+    ): String {
+        val normalizedSort = sortBy?.trim()?.takeIf { it.isNotEmpty() }?.lowercase() ?: "createDate,desc"
+        val normalizedCategory = categoryName?.trim()?.takeIf { it.isNotEmpty() }?.lowercase() ?: "ALL"
+        val normalizedStatus = status?.trim()?.takeIf { it.isNotEmpty() }?.uppercase() ?: "ALL"
+        return "page:$page:size:$size:sort:$normalizedSort:category:$normalizedCategory:status:$normalizedStatus"
+    }
 
     @Cacheable(value = ["auction"], key = "#auctionId")
     override fun getAuctionDetailData(auctionId: Int): AuctionDetailResponse {
