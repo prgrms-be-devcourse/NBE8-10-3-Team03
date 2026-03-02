@@ -84,6 +84,8 @@ class Auction protected constructor() : BaseEntity() {
     var auctionImages: MutableList<AuctionImage> = mutableListOf()
         private set
 
+    var thumbnailUrl: String? = null
+
     fun addAuctionImage(auctionImage: AuctionImage) {
         auctionImages.add(auctionImage)
         auctionImage.auction = this
