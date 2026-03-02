@@ -23,6 +23,7 @@ import org.slf4j.LoggerFactory
 import org.springframework.cache.annotation.CacheEvict
 import org.springframework.cache.annotation.Caching
 import org.springframework.cache.annotation.Cacheable
+import org.springframework.data.domain.Slice
 import org.springframework.data.domain.Sort
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -114,26 +115,37 @@ class AuctionService(
     ): RsData<AuctionPageResponse> {
         val pageable = PageUtils.createPageable(page, size, createSort(sortBy))
         val auctionStatus = parseAuctionStatus(status)
-        val categoryId = categoryName?.takeIf { it.isNotBlank() }?.trim()
+        val category = categoryName?.takeIf { it.isNotBlank() }?.trim()
             ?.let { normalizedName ->
-                categoryPort.findByNameOrNull(normalizedName)?.id
+                categoryPort.findByNameOrNull(normalizedName)
                     ?: return RsData("200-1", "경매 목록 조회 성공", AuctionPageResponse.of(emptyList(), page, size, 0))
             }
+        val categoryId = category?.id
+        val resolvedCategoryName = category?.name
 
         val auctionSlice = when {
             categoryId != null && auctionStatus != null ->
-                auctionPersistencePort.findSliceProjectionByCategoryIdAndStatus(categoryId, auctionStatus, pageable)
+                auctionPersistencePort.findSliceProjectionByCategoryIdAndStatus(
+                    categoryId,
+                    auctionStatus,
+                    requireNotNull(resolvedCategoryName),
+                    pageable
+                )
             categoryId != null ->
-                auctionPersistencePort.findSliceProjectionByCategoryId(categoryId, pageable)
+                auctionPersistencePort.findSliceProjectionByCategoryId(
+                    categoryId,
+                    requireNotNull(resolvedCategoryName),
+                    pageable
+                )
             auctionStatus != null ->
                 auctionPersistencePort.findSliceProjectionByStatus(auctionStatus, pageable)
             else ->
                 auctionPersistencePort.findSliceProjectionAll(pageable)
         }
 
-        val content = auctionSlice.content.map { row -> row.toDto() }
         val countCacheKey = buildCountCacheKey(categoryId, auctionStatus)
-        val totalElements = auctionCountService.getTotalCount(countCacheKey, categoryId, auctionStatus)
+        val totalElements = resolveTotalElements(page, size, auctionSlice, countCacheKey, categoryId, auctionStatus)
+        val content = auctionSlice.content.map { row -> row.toDto() }
 
         return RsData("200-1", "경매 목록 조회 성공", AuctionPageResponse.of(content, page, size, totalElements))
     }
@@ -193,6 +205,25 @@ class AuctionService(
 
     private fun buildCountCacheKey(categoryId: Int?, status: AuctionStatus?): String =
         "category:${categoryId ?: "ALL"}:status:${status?.name ?: "ALL"}"
+
+    private fun resolveTotalElements(
+        page: Int,
+        size: Int,
+        auctionSlice: Slice<*>,
+        countCacheKey: String,
+        categoryId: Int?,
+        auctionStatus: AuctionStatus?
+    ): Long {
+        val currentElements = auctionSlice.numberOfElements.toLong()
+
+        // 첫 페이지에서 size 미만이면 남은 페이지가 없으므로 count 쿼리를 생략할 수 있다.
+        if (page == 0 && currentElements < size.toLong()) return currentElements
+
+        // 마지막 페이지면 현재 페이지 오프셋으로 전체 건수를 정확히 계산할 수 있다.
+        if (!auctionSlice.hasNext()) return page.toLong() * size + currentElements
+
+        return auctionCountService.getTotalCount(countCacheKey, categoryId, auctionStatus)
+    }
 
     fun buildAuctionListCacheKey(
         page: Int,

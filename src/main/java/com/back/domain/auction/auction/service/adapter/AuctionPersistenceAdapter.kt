@@ -60,8 +60,12 @@ class AuctionPersistenceAdapter(
     override fun findSliceProjectionAll(pageable: Pageable): Slice<AuctionListProjection> =
         auctionRepository.findSliceProjectionBy(pageable)
 
-    override fun findSliceProjectionByCategoryId(categoryId: Int, pageable: Pageable): Slice<AuctionListProjection> =
-        auctionRepository.findSliceProjectionByCategoryId(categoryId, pageable)
+    override fun findSliceProjectionByCategoryId(
+        categoryId: Int,
+        categoryName: String,
+        pageable: Pageable
+    ): Slice<AuctionListProjection> =
+        auctionRepository.findSliceProjectionByCategoryId(categoryId, categoryName, pageable)
 
     override fun findSliceProjectionByStatus(status: AuctionStatus, pageable: Pageable): Slice<AuctionListProjection> =
         auctionRepository.findSliceProjectionByStatus(status, pageable)
@@ -69,9 +73,10 @@ class AuctionPersistenceAdapter(
     override fun findSliceProjectionByCategoryIdAndStatus(
         categoryId: Int,
         status: AuctionStatus,
+        categoryName: String,
         pageable: Pageable
     ): Slice<AuctionListProjection> =
-        auctionRepository.findSliceProjectionByCategoryIdAndStatus(categoryId, status, pageable)
+        auctionRepository.findSliceProjectionByCategoryIdAndStatus(categoryId, status, categoryName, pageable)
 
     override fun countAll(): Long = auctionRepository.count()
 

@@ -120,21 +120,7 @@ class AuctionServiceTest {
     @DisplayName("경매 목록은 DTO 프로젝션 경로로 조회해도 응답 스펙을 유지한다.")
     fun t3_2() {
         val pageable = PageRequest.of(0, 20, Sort.by(Sort.Order.desc("createDate"), Sort.Order.desc("id")))
-        val row = AuctionListProjection(
-            auctionId = 1,
-            name = "테스트 경매",
-            startPrice = 10000,
-            currentHighestBid = 15000,
-            buyNowPrice = 30000,
-            status = AuctionStatus.OPEN,
-            endAt = LocalDateTime.now().plusHours(1),
-            bidCount = 3,
-            sellerId = 10,
-            sellerNickname = "seller",
-            sellerReputationScore = 4.7,
-            categoryName = "전자기기",
-            thumbnailUrl = "https://image.test/thumb.jpg"
-        )
+        val row = listProjection(auctionId = 1)
 
         `when`(auctionPersistencePort.findSliceProjectionAll(pageable))
             .thenReturn(SliceImpl(listOf(row), pageable, false))
@@ -147,6 +133,33 @@ class AuctionServiceTest {
         assertThat(result.data!!.content[0].auctionId).isEqualTo(1)
         assertThat(result.data!!.content[0].seller.nickname).isEqualTo("seller")
         assertThat(result.data!!.totalElements).isEqualTo(1L)
+    }
+
+    @Test
+    @DisplayName("첫 페이지에서 size보다 적게 조회되면 count 쿼리를 생략한다.")
+    fun t3_3() {
+        val pageable = PageRequest.of(0, 20, Sort.by(Sort.Order.desc("createDate"), Sort.Order.desc("id")))
+        `when`(auctionPersistencePort.findSliceProjectionAll(pageable))
+            .thenReturn(SliceImpl(listOf(listProjection(auctionId = 1)), pageable, false))
+
+        val result = auctionService.getAuctions(0, 20, null, null, null)
+
+        assertThat(result.data!!.totalElements).isEqualTo(1L)
+        verify(auctionCountService, never()).getTotalCount("category:ALL:status:ALL", null, null)
+    }
+
+    @Test
+    @DisplayName("마지막 페이지에서는 count 쿼리 없이 전체 건수를 계산한다.")
+    fun t3_4() {
+        val pageable = PageRequest.of(2, 20, Sort.by(Sort.Order.desc("createDate"), Sort.Order.desc("id")))
+        val rows = listOf(listProjection(auctionId = 41), listProjection(auctionId = 42))
+        `when`(auctionPersistencePort.findSliceProjectionAll(pageable))
+            .thenReturn(SliceImpl(rows, pageable, false))
+
+        val result = auctionService.getAuctions(2, 20, null, null, null)
+
+        assertThat(result.data!!.totalElements).isEqualTo(42L)
+        verify(auctionCountService, never()).getTotalCount("category:ALL:status:ALL", null, null)
     }
 
     @Test
@@ -294,4 +307,20 @@ class AuctionServiceTest {
             .build()
             .also { ReflectionTestUtils.setField(it, "id", id) }
     }
+
+    private fun listProjection(auctionId: Int): AuctionListProjection = AuctionListProjection(
+        auctionId = auctionId,
+        name = "테스트 경매",
+        startPrice = 10000,
+        currentHighestBid = 15000,
+        buyNowPrice = 30000,
+        status = AuctionStatus.OPEN,
+        endAt = LocalDateTime.now().plusHours(1),
+        bidCount = 3,
+        sellerId = 10,
+        sellerNickname = "seller",
+        sellerReputationScore = 4.7,
+        categoryName = "전자기기",
+        thumbnailUrl = "https://image.test/thumb.jpg"
+    )
 }

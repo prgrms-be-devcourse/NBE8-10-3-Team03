@@ -66,17 +66,17 @@ interface AuctionRepository : JpaRepository<Auction, Int> {
         """
         SELECT new com.back.domain.auction.auction.dto.response.AuctionListProjection(
             a.id, a.name, a.startPrice, a.currentHighestBid, a.buyNowPrice, a.status, a.endAt, a.bidCount,
-            s.id, s.nickname, r.score, c.name, a.thumbnailUrl
+            s.id, s.nickname, r.score, :categoryName, a.thumbnailUrl
         )
         FROM Auction a
         JOIN a.seller s
         LEFT JOIN s.reputation r
-        JOIN a.category c
-        WHERE c.id = :categoryId
+        WHERE a.category.id = :categoryId
         """
     )
     fun findSliceProjectionByCategoryId(
         @Param("categoryId") categoryId: Int,
+        @Param("categoryName") categoryName: String,
         pageable: Pageable
     ): Slice<AuctionListProjection>
 
@@ -102,18 +102,18 @@ interface AuctionRepository : JpaRepository<Auction, Int> {
         """
         SELECT new com.back.domain.auction.auction.dto.response.AuctionListProjection(
             a.id, a.name, a.startPrice, a.currentHighestBid, a.buyNowPrice, a.status, a.endAt, a.bidCount,
-            s.id, s.nickname, r.score, c.name, a.thumbnailUrl
+            s.id, s.nickname, r.score, :categoryName, a.thumbnailUrl
         )
         FROM Auction a
         JOIN a.seller s
         LEFT JOIN s.reputation r
-        JOIN a.category c
-        WHERE c.id = :categoryId AND a.status = :status
+        WHERE a.category.id = :categoryId AND a.status = :status
         """
     )
     fun findSliceProjectionByCategoryIdAndStatus(
         @Param("categoryId") categoryId: Int,
         @Param("status") status: AuctionStatus,
+        @Param("categoryName") categoryName: String,
         pageable: Pageable
     ): Slice<AuctionListProjection>
 

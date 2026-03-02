@@ -25,11 +25,16 @@ interface AuctionPersistencePort {
     fun findSliceByStatus(status: AuctionStatus, pageable: Pageable): Slice<Auction>
     fun findSliceByCategoryIdAndStatus(categoryId: Int, status: AuctionStatus, pageable: Pageable): Slice<Auction>
     fun findSliceProjectionAll(pageable: Pageable): Slice<AuctionListProjection>
-    fun findSliceProjectionByCategoryId(categoryId: Int, pageable: Pageable): Slice<AuctionListProjection>
+    fun findSliceProjectionByCategoryId(
+        categoryId: Int,
+        categoryName: String,
+        pageable: Pageable
+    ): Slice<AuctionListProjection>
     fun findSliceProjectionByStatus(status: AuctionStatus, pageable: Pageable): Slice<AuctionListProjection>
     fun findSliceProjectionByCategoryIdAndStatus(
         categoryId: Int,
         status: AuctionStatus,
+        categoryName: String,
         pageable: Pageable
     ): Slice<AuctionListProjection>
     fun countAll(): Long
