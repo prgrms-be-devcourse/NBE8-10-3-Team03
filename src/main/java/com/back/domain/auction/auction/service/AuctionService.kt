@@ -115,7 +115,8 @@ class AuctionService(
                 auctionPersistencePort.findAll(pageable)
         }
 
-        val dtoPage = auctionPage.map { auction -> AuctionListItemDto(auction, getThumbnailUrl(auction)) }
+        val thumbnailMap = auctionPersistencePort.findThumbnailUrlsByAuctionIds(auctionPage.content.map { it.id })
+        val dtoPage = auctionPage.map { auction -> AuctionListItemDto(auction, thumbnailMap[auction.id]) }
 
         return RsData("200-1", "경매 목록 조회 성공", AuctionPageResponse.from(dtoPage))
     }
@@ -136,7 +137,8 @@ class AuctionService(
             auctionPersistencePort.findBySellerId(userId, pageable)
         }
 
-        val dtoSlice = auctionSlice.map { auction -> AuctionListItemDto(auction, getThumbnailUrl(auction)) }
+        val thumbnailMap = auctionPersistencePort.findThumbnailUrlsByAuctionIds(auctionSlice.content.map { it.id })
+        val dtoSlice = auctionSlice.map { auction -> AuctionListItemDto(auction, thumbnailMap[auction.id]) }
 
         return RsData("200-1", "경매 목록 조회 성공", AuctionSliceResponse.from(dtoSlice))
     }
@@ -163,9 +165,6 @@ class AuctionService(
         }
         return Sort.by(direction, property)
     }
-
-    private fun getThumbnailUrl(auction: Auction): String? =
-        auction.auctionImages.firstOrNull()?.image?.url
 
     @Cacheable(value = ["auction"], key = "#auctionId")
     override fun getAuctionDetailData(auctionId: Int): AuctionDetailResponse {
