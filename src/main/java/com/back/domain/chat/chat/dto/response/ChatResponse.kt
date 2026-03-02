@@ -15,7 +15,30 @@ data class ChatResponse(
     val read: Boolean,
 ) {
     companion object {
-        fun from(chat: Chat, senderProfileImageUrl: String? = null): ChatResponse {
+        fun from(
+            chat: Chat,
+            roomId: String,
+            itemId: Int?,
+            senderProfileImageUrl: String? = null,
+            readOverride: Boolean? = null,
+        ): ChatResponse =
+            ChatResponse(
+                id = chat.id,
+                itemId = itemId,
+                roomId = roomId,
+                senderId = chat.senderId,
+                senderProfileImageUrl = senderProfileImageUrl,
+                message = chat.message,
+                createDate = chat.createDate,
+                imageUrls = chat.chatImages.map { it.image.url },
+                read = readOverride ?: chat.read,
+            )
+
+        fun from(
+            chat: Chat,
+            senderProfileImageUrl: String? = null,
+            readOverride: Boolean? = null,
+        ): ChatResponse {
             val room = chat.chatRoom
 
             return ChatResponse(
@@ -27,7 +50,7 @@ data class ChatResponse(
                 message = chat.message,
                 createDate = chat.createDate,
                 imageUrls = chat.chatImages.map { it.image.url },
-                read = chat.read,
+                read = readOverride ?: chat.read,
             )
         }
     }
