@@ -110,10 +110,6 @@ class SearchService(
         statusDisplayName = statusDisplayName,
         categoryName = categoryName,
         thumbnailUrl = thumbnailUrl,
-        createDate = createDate,
-        viewCount = viewCount,
-        sellerId = sellerId,
-        sellerNickname = sellerNickname,
-        sellerBadge = sellerBadge
+        createDate = createDate
     )
 }
