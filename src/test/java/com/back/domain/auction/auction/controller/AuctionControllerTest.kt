@@ -642,7 +642,7 @@ class AuctionControllerTest {
         val cancelledAuction = auctionRepository.findById(auctionId).orElseThrow()
         Assertions.assertThat(cancelledAuction.status).isEqualTo(AuctionStatus.CANCELLED)
         Assertions.assertThat(cancelledAuction.cancelledBy).isEqualTo(winner.id)
-        Assertions.assertThat(cancelledAuction.cancellerRole?.name).isEqualTo("BUYER")
+        Assertions.assertThat(cancelledAuction.cancellerRole?.name).isEqualTo("WINNER")
     }
 
     @Test

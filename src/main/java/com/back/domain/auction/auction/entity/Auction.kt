@@ -153,7 +153,7 @@ class Auction protected constructor() : BaseEntity() {
         }
 
         if (seller.id == memberId) return CancellerRole.SELLER
-        if (winnerId != null && winnerId == memberId) return CancellerRole.BUYER
+        if (winnerId != null && winnerId == memberId) return CancellerRole.WINNER
 
         throw IllegalArgumentException("거래를 취소할 권한이 없습니다.")
     }
