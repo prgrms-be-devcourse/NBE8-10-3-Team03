@@ -1,6 +1,5 @@
 package com.back.domain.search.search.controller
 
-import com.back.domain.search.search.dto.SearchListResponse
 import com.back.domain.search.search.dto.SearchResponse
 import com.back.domain.search.search.service.SearchService
 import com.back.global.rsData.RsData
@@ -22,23 +21,29 @@ class SearchController(
     @GetMapping
     fun search(
         @RequestParam keyword: String,
-        @RequestParam(defaultValue = "relevance") sort: String,
+        @RequestParam(defaultValue = "relevance") sort: String,   // relevance|newest|oldest
         @RequestParam(defaultValue = "20") size: Int,
-        @RequestParam(required = false) cursor: String?
-    ): RsData<SearchListResponse> {
+        @RequestParam(required = false) cursor: String?           // 커서(없으면 첫 페이지)
+    ): RsData<SearchResponse> {
 
+        val safeSize = size.coerceIn(1, 50)
         val safeSort = when (sort.lowercase()) {
             "relevance", "newest", "oldest" -> sort.lowercase()
             else -> "relevance"
         }
 
-        val result = searchService.searchUnifiedListCursor(
+        // 커서 기반 검색 서비스 (Pageable/offset 없이 진행)
+        val result: SearchResponse = searchService.searchUnifiedCursor(
             keyword = keyword,
             sort = safeSort,
-            size = size,
+            size = safeSize,
             cursor = cursor
         )
 
-        return RsData("200-1", "검색이 완료되었습니다.", result)
+        return RsData(
+            "200-1",
+            "검색이 완료되었습니다.",
+            result
+        )
     }
 }
