@@ -2,7 +2,6 @@ package com.back.domain.auction.auction.repository
 
 import com.back.domain.auction.auction.entity.Auction
 import com.back.domain.auction.auction.entity.AuctionStatus
-import com.back.domain.search.search.service.projection.AuctionListRow
 import jakarta.persistence.LockModeType
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
@@ -56,17 +55,4 @@ interface AuctionRepository : JpaRepository<Auction, Int> {
     @Query("SELECT a.id FROM Auction a WHERE a.name LIKE CONCAT(:prefix, '%')")
     fun findIdsByNameStartingWith(@Param("prefix") prefix: String): List<Int>
 
-    @Query(
-        value = """
-          SELECT
-            a.id          AS id,
-            a.name        AS title,
-            a.start_price AS price,
-            a.status      AS status
-          FROM auction a
-          WHERE a.id IN (:ids)
-        """,
-        nativeQuery = true
-    )
-    fun findListRowsByIds(@Param("ids") ids: List<Int>): List<AuctionListRow>
 }

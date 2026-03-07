@@ -1,7 +1,6 @@
 package com.back.domain.search.search.service.port
 
 import com.back.domain.auction.auction.entity.Auction
-import com.back.domain.search.search.service.projection.SearchHitScoreRow
 import com.back.domain.search.search.service.projection.UnifiedSearchRow
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
@@ -315,7 +314,7 @@ interface UnifiedSearchRepository : JpaRepository<Auction, Int> {
         JOIN categories c1 ON c1.id = a.category_id
         WHERE MATCH(a.name, a.description) AGAINST (:kw IN BOOLEAN MODE)
         ORDER BY a.create_date DESC, a.id DESC
-        LIMIT 300
+        LIMIT 200
       )
       UNION ALL
       (
@@ -329,7 +328,7 @@ interface UnifiedSearchRepository : JpaRepository<Auction, Int> {
         WHERE p.deleted = 0
           AND MATCH(p.title, p.content) AGAINST (:kw IN BOOLEAN MODE)
         ORDER BY p.create_date DESC, p.id DESC
-        LIMIT 300
+        LIMIT 200
       )
     ) t
     WHERE (
@@ -375,7 +374,7 @@ interface UnifiedSearchRepository : JpaRepository<Auction, Int> {
         JOIN categories c1 ON c1.id = a.category_id
         WHERE MATCH(a.name, a.description) AGAINST (:kw IN BOOLEAN MODE)
         ORDER BY a.create_date DESC, a.id DESC
-        LIMIT 300
+        LIMIT 200
       )
       UNION ALL
       (
@@ -395,7 +394,7 @@ interface UnifiedSearchRepository : JpaRepository<Auction, Int> {
         WHERE p.deleted = 0
           AND MATCH(p.title, p.content) AGAINST (:kw IN BOOLEAN MODE)
         ORDER BY p.create_date DESC, p.id DESC
-        LIMIT 300
+        LIMIT 200
       )
     ) t
     WHERE (
@@ -415,146 +414,5 @@ interface UnifiedSearchRepository : JpaRepository<Auction, Int> {
         @Param("cursorId") cursorId: Int?,
         pageable: Pageable
     ): Slice<UnifiedSearchRow>
-
-    @Query(
-        value = """
-          SELECT t.id, t.type, t.createDate, t.typeRank
-          FROM (
-            (
-              SELECT
-                a.id          AS id,
-                'AUCTION'     AS type,
-                a.create_date AS createDate,
-                1             AS typeRank
-              FROM auction a
-              WHERE MATCH(a.name, a.description) AGAINST (:kw IN BOOLEAN MODE)
-              ORDER BY a.create_date DESC, a.id DESC
-              LIMIT 300
-            )
-            UNION ALL
-            (
-              SELECT
-                p.id          AS id,
-                'POST'        AS type,
-                p.create_date AS createDate,
-                0             AS typeRank
-              FROM post p
-              WHERE p.deleted = 0
-                AND MATCH(p.title, p.content) AGAINST (:kw IN BOOLEAN MODE)
-              ORDER BY p.create_date DESC, p.id DESC
-              LIMIT 300
-            )
-          ) t
-          WHERE (
-            :cursorCreateDate IS NULL OR
-            t.createDate < :cursorCreateDate OR
-            (t.createDate = :cursorCreateDate AND t.typeRank < :cursorTypeRank) OR
-            (t.createDate = :cursorCreateDate AND t.typeRank = :cursorTypeRank AND t.id < :cursorId)
-          )
-          ORDER BY t.createDate DESC, t.typeRank DESC, t.id DESC
-        """,
-        nativeQuery = true
-    )
-    fun searchNewestHits(
-        @Param("kw") kw: String,
-        @Param("cursorCreateDate") cursorCreateDate: LocalDateTime?,
-        @Param("cursorTypeRank") cursorTypeRank: Int?,
-        @Param("cursorId") cursorId: Int?,
-        pageable: Pageable
-    ): Slice<SearchHitRow>
-
-    // --- OLDEST (ASC) ---
-    @Query(
-        value = """
-          SELECT t.id, t.type, t.createDate, t.typeRank
-          FROM (
-            (
-              SELECT a.id AS id, 'AUCTION' AS type, a.create_date AS createDate, 1 AS typeRank
-              FROM auction a
-              WHERE MATCH(a.name, a.description) AGAINST (:kw IN BOOLEAN MODE)
-              ORDER BY a.create_date ASC, a.id ASC
-              LIMIT 300
-            )
-            UNION ALL
-            (
-              SELECT p.id AS id, 'POST' AS type, p.create_date AS createDate, 0 AS typeRank
-              FROM post p
-              WHERE p.deleted = 0
-                AND MATCH(p.title, p.content) AGAINST (:kw IN BOOLEAN MODE)
-              ORDER BY p.create_date ASC, p.id ASC
-              LIMIT 300
-            )
-          ) t
-          WHERE (
-            :cursorCreateDate IS NULL OR
-            t.createDate > :cursorCreateDate OR
-            (t.createDate = :cursorCreateDate AND t.typeRank > :cursorTypeRank) OR
-            (t.createDate = :cursorCreateDate AND t.typeRank = :cursorTypeRank AND t.id > :cursorId)
-          )
-          ORDER BY t.createDate ASC, t.typeRank ASC, t.id ASC
-        """,
-        nativeQuery = true
-    )
-    fun searchOldestHits(
-        @Param("kw") kw: String,
-        @Param("cursorCreateDate") cursorCreateDate: LocalDateTime?,
-        @Param("cursorTypeRank") cursorTypeRank: Int?,
-        @Param("cursorId") cursorId: Int?,
-        pageable: Pageable
-    ): Slice<SearchHitRow>
-
-
-    // --- RELEVANCE (DESC by score) ---
-    // 주의: score는 커서에 포함해야 해서 Step1 결과에 반드시 포함
-    @Query(
-        value = """
-          SELECT t.id, t.type, t.createDate, t.typeRank, t.score
-          FROM (
-            (
-              SELECT
-                a.id AS id,
-                'AUCTION' AS type,
-                a.create_date AS createDate,
-                1 AS typeRank,
-                MATCH(a.name, a.description) AGAINST (:kw IN BOOLEAN MODE) AS score
-              FROM auction a
-              WHERE MATCH(a.name, a.description) AGAINST (:kw IN BOOLEAN MODE)
-              ORDER BY score DESC, a.create_date DESC, a.id DESC
-              LIMIT 300
-            )
-            UNION ALL
-            (
-              SELECT
-                p.id AS id,
-                'POST' AS type,
-                p.create_date AS createDate,
-                0 AS typeRank,
-                MATCH(p.title, p.content) AGAINST (:kw IN BOOLEAN MODE) AS score
-              FROM post p
-              WHERE p.deleted = 0
-                AND MATCH(p.title, p.content) AGAINST (:kw IN BOOLEAN MODE)
-              ORDER BY score DESC, p.create_date DESC, p.id DESC
-              LIMIT 300
-            )
-          ) t
-          WHERE (
-            :cursorScore IS NULL OR
-            t.score < :cursorScore OR
-            (t.score = :cursorScore AND t.createDate < :cursorCreateDate) OR
-            (t.score = :cursorScore AND t.createDate = :cursorCreateDate AND t.typeRank < :cursorTypeRank) OR
-            (t.score = :cursorScore AND t.createDate = :cursorCreateDate AND t.typeRank = :cursorTypeRank AND t.id < :cursorId)
-          )
-          ORDER BY t.score DESC, t.createDate DESC, t.typeRank DESC, t.id DESC
-        """,
-        nativeQuery = true
-    )
-    fun searchRelevanceHits(
-        @Param("kw") kw: String,
-        @Param("cursorScore") cursorScore: Double?,
-        @Param("cursorCreateDate") cursorCreateDate: LocalDateTime?,
-        @Param("cursorTypeRank") cursorTypeRank: Int?,
-        @Param("cursorId") cursorId: Int?,
-        pageable: Pageable
-    ): Slice<SearchHitScoreRow>
 
 }
