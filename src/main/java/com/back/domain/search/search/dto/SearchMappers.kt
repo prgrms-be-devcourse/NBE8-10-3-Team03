@@ -14,12 +14,14 @@ fun Post.toUnifiedResponse() = UnifiedSearchResponse(
     status = this.status.name,
     statusDisplayName = this.status.displayName,
     categoryId = this.category.id,
-    thumbnailUrl = this.postImages.firstOrNull()?.image?.url,
+    thumbnailUrl = this.thumbnailUrl,
     createDate = this.createDate,
-    viewCount = this.viewCount,
-    sellerId = this.seller.id as? Int ?: 0,
-    sellerNickname = this.seller.nickname ?: "알 수 없는 사용자",
-    sellerBadge = PostListResponse.calculateBadge(this.seller.reputation?.score)
+    score = null
+
+//    viewCount = this.viewCount,
+//    sellerId = this.seller.id as? Int ?: 0,
+//    sellerNickname = this.seller.nickname ?: "알 수 없는 사용자",
+//    sellerBadge = PostListResponse.calculateBadge(this.seller.reputation?.score)
 )
 
 // Auction -> UnifiedSearchResponse 변환 확장 함수
@@ -29,7 +31,9 @@ fun Auction.toUnifiedResponse() = UnifiedSearchResponse(
     title = this.name,
     price = requireNotNull(this.startPrice) { "Auction(${this.id}) startPrice is null" },
     status = this.status.name,
+    statusDisplayName = this.status.name,
     categoryId = this.category.id,
     thumbnailUrl = this.auctionImages.firstOrNull()?.image?.url,
-    createDate = this.createDate
+    createDate = this.createDate,
+    score = null
 )
