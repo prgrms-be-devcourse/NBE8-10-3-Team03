@@ -12,5 +12,5 @@ data class UnifiedSearchResponse(
     val categoryId: Int?,
     val thumbnailUrl: String?,
     val createDate: LocalDateTime,
-    val score: Double?
+    //val score: Double?
 )

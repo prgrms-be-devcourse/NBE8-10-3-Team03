@@ -16,7 +16,7 @@ fun Post.toUnifiedResponse() = UnifiedSearchResponse(
     categoryId = this.category.id,
     thumbnailUrl = this.thumbnailUrl,
     createDate = this.createDate,
-    score = null
+    //score = null
 
 //    viewCount = this.viewCount,
 //    sellerId = this.seller.id as? Int ?: 0,
@@ -35,5 +35,5 @@ fun Auction.toUnifiedResponse() = UnifiedSearchResponse(
     categoryId = this.category.id,
     thumbnailUrl = this.auctionImages.firstOrNull()?.image?.url,
     createDate = this.createDate,
-    score = null
+    //score = null
 )
