@@ -1,10 +1,12 @@
 package com.back.domain.search.searchdocument.scheduler
 
 import com.back.domain.search.searchdocument.service.SearchDocumentMvBatchService
+import org.springframework.context.annotation.Profile
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
 
 @Component
+@Profile("!test")
 class SearchDocumentMvScheduler(
     private val batchService: SearchDocumentMvBatchService
 ) {

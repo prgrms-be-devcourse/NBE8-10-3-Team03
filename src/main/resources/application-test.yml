@@ -12,6 +12,10 @@ spring:
     password:
     driver-class-name: org.h2.Driver
 
+  task:
+    scheduling:
+      enabled: false
+
   flyway:
     enabled: false
 
