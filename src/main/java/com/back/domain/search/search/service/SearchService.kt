@@ -102,7 +102,7 @@ class SearchService(
         price = price,
         status = status,
         statusDisplayName = statusDisplayName,
-        categoryName = categoryName,
+        categoryId = categoryId,
         thumbnailUrl = thumbnailUrl,
         createDate = createDate
     )

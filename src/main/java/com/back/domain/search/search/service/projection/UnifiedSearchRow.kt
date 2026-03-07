@@ -9,7 +9,7 @@ interface UnifiedSearchRow {
     val price: Int
     val status: String
     val statusDisplayName: String?
-    val categoryName: String
+    val categoryId: Int
     val thumbnailUrl: String?
     val createDate: LocalDateTime
 
