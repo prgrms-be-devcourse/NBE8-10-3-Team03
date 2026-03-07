@@ -266,7 +266,7 @@ interface UnifiedSearchRepository : JpaRepository<Auction, Int> {
         WHERE p.deleted = 0
           AND MATCH(p.title, p.content) AGAINST (:kw IN BOOLEAN MODE)
         ORDER BY score DESC, p.create_date DESC, p.id DESC
-        LIMIT 300
+        LIMIT 120
       )
     ) t
     WHERE (
@@ -311,7 +311,7 @@ interface UnifiedSearchRepository : JpaRepository<Auction, Int> {
         FROM auction a
         WHERE MATCH(a.name, a.description) AGAINST (:kw IN BOOLEAN MODE)
         ORDER BY a.create_date DESC, a.id DESC
-        LIMIT 200
+        LIMIT 50
       )
       UNION ALL
       (
@@ -324,7 +324,7 @@ interface UnifiedSearchRepository : JpaRepository<Auction, Int> {
         WHERE p.deleted = 0
           AND MATCH(p.title, p.content) AGAINST (:kw IN BOOLEAN MODE)
         ORDER BY p.create_date DESC, p.id DESC
-        LIMIT 200
+        LIMIT 50
       )
     ) t
     WHERE (
@@ -369,7 +369,7 @@ interface UnifiedSearchRepository : JpaRepository<Auction, Int> {
         FROM auction a
         WHERE MATCH(a.name, a.description) AGAINST (:kw IN BOOLEAN MODE)
         ORDER BY a.create_date DESC, a.id DESC
-        LIMIT 200
+        LIMIT 50
       )
       UNION ALL
       (
@@ -388,7 +388,7 @@ interface UnifiedSearchRepository : JpaRepository<Auction, Int> {
         WHERE p.deleted = 0
           AND MATCH(p.title, p.content) AGAINST (:kw IN BOOLEAN MODE)
         ORDER BY p.create_date DESC, p.id DESC
-        LIMIT 200
+        LIMIT 50
       )
     ) t
     WHERE (
