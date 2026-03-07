@@ -9,7 +9,7 @@ data class UnifiedSearchResponse(
     val price: Int,           // 공통 가격
     val status: String,       // 공통 상태
     val statusDisplayName: String? = null,
-    val categoryName: String, // 공통 카테고리명
+    val categoryId: Int, // 공통 카테고리명
     val thumbnailUrl: String?,// 공통 대표 이미지
     val createDate: LocalDateTime,
     val viewCount: Long? = null,

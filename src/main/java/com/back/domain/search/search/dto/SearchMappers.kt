@@ -13,7 +13,7 @@ fun Post.toUnifiedResponse() = UnifiedSearchResponse(
     price = this.price,
     status = this.status.name,
     statusDisplayName = this.status.displayName,
-    categoryName = this.category?.name ?: "미지정",
+    categoryId = this.category.id,
     thumbnailUrl = this.postImages.firstOrNull()?.image?.url,
     createDate = this.createDate,
     viewCount = this.viewCount,
@@ -29,7 +29,7 @@ fun Auction.toUnifiedResponse() = UnifiedSearchResponse(
     title = this.name,
     price = requireNotNull(this.startPrice) { "Auction(${this.id}) startPrice is null" },
     status = this.status.name,
-    categoryName = this.category.name,
+    categoryId = this.category.id,
     thumbnailUrl = this.auctionImages.firstOrNull()?.image?.url,
     createDate = this.createDate
 )

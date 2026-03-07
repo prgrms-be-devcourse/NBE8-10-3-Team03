@@ -227,7 +227,7 @@ interface UnifiedSearchRepository : JpaRepository<Auction, Int> {
         value = """
     SELECT
       t.id, t.type, t.title, t.price, t.status, t.statusDisplayName,
-      t.categoryName, t.thumbnailUrl, t.createDate,
+      t.categoryId, t.thumbnailUrl, t.createDate,
       t.score, t.typeRank
     FROM (
       (
@@ -239,12 +239,11 @@ interface UnifiedSearchRepository : JpaRepository<Auction, Int> {
           a.start_price   AS price,
           a.status        AS status,
           NULL            AS statusDisplayName,
-          c1.name         AS categoryName,
+          a.category_id         AS categoryId,
           a.thumbnail_url AS thumbnailUrl,
           a.create_date   AS createDate,
           MATCH(a.name, a.description) AGAINST (:kw IN BOOLEAN MODE) AS score
         FROM auction a
-        JOIN categories c1 ON c1.id = a.category_id
         WHERE MATCH(a.name, a.description) AGAINST (:kw IN BOOLEAN MODE)
         ORDER BY score DESC, a.create_date DESC, a.id DESC
         LIMIT 300
@@ -259,12 +258,11 @@ interface UnifiedSearchRepository : JpaRepository<Auction, Int> {
           p.price         AS price,
           p.status        AS status,
           NULL            AS statusDisplayName,
-          c2.name         AS categoryName,
+          p.category_id         AS categoryId,
           p.thumbnail_url AS thumbnailUrl,
           p.create_date   AS createDate,
           MATCH(p.title, p.content) AGAINST (:kw IN BOOLEAN MODE) AS score
         FROM post p
-        JOIN categories c2 ON c2.id = p.category_id
         WHERE p.deleted = 0
           AND MATCH(p.title, p.content) AGAINST (:kw IN BOOLEAN MODE)
         ORDER BY score DESC, p.create_date DESC, p.id DESC
@@ -295,7 +293,7 @@ interface UnifiedSearchRepository : JpaRepository<Auction, Int> {
         value = """
     SELECT
       t.id, t.type, t.title, t.price, t.status, t.statusDisplayName,
-      t.categoryName, t.thumbnailUrl, t.createDate,
+      t.categoryId, t.thumbnailUrl, t.createDate,
       NULL AS score, t.typeRank
     FROM (
       (
@@ -307,11 +305,10 @@ interface UnifiedSearchRepository : JpaRepository<Auction, Int> {
           a.start_price AS price, 
           a.status AS status,
           NULL AS statusDisplayName, 
-          c1.name AS categoryName,
+          a.category_id AS categoryId,
           a.thumbnail_url AS thumbnailUrl, 
           a.create_date AS createDate
         FROM auction a
-        JOIN categories c1 ON c1.id = a.category_id
         WHERE MATCH(a.name, a.description) AGAINST (:kw IN BOOLEAN MODE)
         ORDER BY a.create_date DESC, a.id DESC
         LIMIT 200
@@ -321,10 +318,9 @@ interface UnifiedSearchRepository : JpaRepository<Auction, Int> {
         SELECT
           p.id AS id, 'POST' AS type, 0 AS typeRank,
           p.title AS title, p.price AS price, p.status AS status,
-          NULL AS statusDisplayName, c2.name AS categoryName,
+          NULL AS statusDisplayName, p.category_id AS categoryId,
           p.thumbnail_url AS thumbnailUrl, p.create_date AS createDate
         FROM post p
-        JOIN categories c2 ON c2.id = p.category_id
         WHERE p.deleted = 0
           AND MATCH(p.title, p.content) AGAINST (:kw IN BOOLEAN MODE)
         ORDER BY p.create_date DESC, p.id DESC
@@ -358,7 +354,7 @@ interface UnifiedSearchRepository : JpaRepository<Auction, Int> {
       t.price, 
       t.status, 
       t.statusDisplayName,
-      t.categoryName, 
+      t.categoryId, 
       t.thumbnailUrl, 
       t.createDate,
       NULL AS score, 
@@ -368,10 +364,9 @@ interface UnifiedSearchRepository : JpaRepository<Auction, Int> {
         SELECT
           a.id AS id, 'AUCTION' AS type, 1 AS typeRank,
           a.name AS title, a.start_price AS price, a.status AS status,
-          NULL AS statusDisplayName, c1.name AS categoryName,
+          NULL AS statusDisplayName, a.category_id AS categoryId,
           a.thumbnail_url AS thumbnailUrl, a.create_date AS createDate
         FROM auction a
-        JOIN categories c1 ON c1.id = a.category_id
         WHERE MATCH(a.name, a.description) AGAINST (:kw IN BOOLEAN MODE)
         ORDER BY a.create_date DESC, a.id DESC
         LIMIT 200
@@ -386,11 +381,10 @@ interface UnifiedSearchRepository : JpaRepository<Auction, Int> {
           p.price AS price, 
           p.status AS status,
           NULL AS statusDisplayName, 
-          c2.name AS categoryName,
+          p.category_id AS categoryId,
           p.thumbnail_url AS thumbnailUrl, 
           p.create_date AS createDate
         FROM post p
-        JOIN categories c2 ON c2.id = p.category_id
         WHERE p.deleted = 0
           AND MATCH(p.title, p.content) AGAINST (:kw IN BOOLEAN MODE)
         ORDER BY p.create_date DESC, p.id DESC
