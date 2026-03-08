@@ -40,6 +40,14 @@ class CacheConfig {
                         .expireAfterWrite(30, TimeUnit.SECONDS)
                         .recordStats()
                         .build()
+                ),
+                CaffeineCache(
+                    "postCount",
+                    Caffeine.newBuilder()
+                        .maximumSize(1_000)
+                        .expireAfterWrite(10, TimeUnit.SECONDS)
+                        .recordStats()
+                        .build()
                 )
             ),
         )
