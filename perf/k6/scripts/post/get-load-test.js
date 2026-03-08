@@ -33,7 +33,7 @@ export const options = {
 
 export default function () {
   // ── 📌 거래 도메인 (GET은 permitAll) ──
-  group('Auction API', () => {
+  group('Post API', () => {
     const start = Date.now();
     const list = http.get(`${BASE_URL}/api/v1/posts`);
     check(list, { '거래 목록 조회 성공': (r) => r.status === 200 });
