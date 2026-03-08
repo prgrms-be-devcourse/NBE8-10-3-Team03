@@ -26,7 +26,7 @@ data class PostListResponse(
         price = post.price,
         categoryName = post.category?.name ?: "미지정",
         // 코틀린의 안전한 호출(?.)과 firstOrNull()을 사용하면 널 체크가 매우 우아해집니다.
-        thumbnailUrl = post.postImages.firstOrNull()?.image?.url,
+        thumbnailUrl = post.thumbnailUrl,
         createDate = post.createDate,
         status = post.status.name,
         statusDisplayName = post.status.displayName
