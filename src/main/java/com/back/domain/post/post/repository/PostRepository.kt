@@ -1,9 +1,11 @@
 package com.back.domain.post.post.repository
 
+import com.back.domain.post.post.dto.PostListResponse
 import com.back.domain.post.post.entity.Post
 import com.back.domain.post.post.entity.PostStatus
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
+import org.springframework.data.domain.Slice
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
@@ -46,5 +48,23 @@ interface PostRepository : JpaRepository<Post, Int> {
     fun countByTitleStartingWith(prefix: String): Long
 
     fun deleteByTitleStartingWith(prefix: String): Long
+
+    // ==========
+
+    fun findByCategoryIdAndStatus(
+        categoryId: Int,
+        status: PostStatus,
+        pageable: Pageable
+    ): Slice<Post>
+
+    fun findByCategoryId(categoryId: Int, pageable: Pageable): Slice<Post>
+
+    fun findByStatus(status: PostStatus, pageable: Pageable): Slice<Post>
+
+
+
+    fun countByCategoryIdAndStatus(categoryId: Int, status: PostStatus): Long
+    fun countByCategoryId(categoryId: Int): Long
+    fun countByStatus(status: PostStatus): Long
 
 }

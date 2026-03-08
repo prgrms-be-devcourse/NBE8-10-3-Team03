@@ -13,7 +13,7 @@ interface PostUseCase {
     fun modify(actor: Member, id: Int, req: PostUpdateRequest): Int
     fun delete(actor: Member, id: Int)
     fun getDetail(id: Int): PostDetailResponse
-    fun getList(pageable: Pageable, statusStr: String?): PostPageResponse
+    fun getList(page: Int, size: Int, sortBy: String?, categoryName: String?, statusStr: String?): PostPageResponse
     fun getListByUserId(pageable: Pageable, userId: Int, statusStr: String?): PostPageResponse
     fun updatePostStatus(actor: Member, id: Int, status: PostStatus)
 }

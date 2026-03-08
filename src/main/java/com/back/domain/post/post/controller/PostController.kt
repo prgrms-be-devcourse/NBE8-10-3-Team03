@@ -86,11 +86,22 @@ class PostController(
     @Operation(summary = "목록 조회", description = "상태별 필터링이 가능한 페이징 목록입니다. 판매자의 **뱃지(Badge)** 정보가 포함됩니다.")
     @GetMapping
     fun getList(
-        @PageableDefault(size = 10, sort = ["createDate"], direction = Sort.Direction.DESC) pageable: Pageable,
+        @Parameter(description = "페이지 번호", example = "0")
+        @RequestParam(defaultValue = "0")
+        page: Int,
+        @Parameter(description = "페이지 크기", example = "20")
+        @RequestParam(defaultValue = "20")
+        size: Int,
+        @Parameter(description = "정렬", example = "createdAt,desc")
+        @RequestParam(required = false)
+        sort: String?,
+        @Parameter(description = "카테고리", example = "디지털기기")
+        @RequestParam(required = false)
+        category: String?,
         @Parameter(description = "필터링할 상태 (all, sale, reserved, sold)", example = "sale")
         @RequestParam(required = false) status: String?
     ): RsData<PostPageResponse> {
-        val response = postUseCase.getList(pageable, status)
+        val response = postUseCase.getList(page, size, sort, category, status)
         return RsData("200-4", "목록 조회 성공", response)
     }
 }
