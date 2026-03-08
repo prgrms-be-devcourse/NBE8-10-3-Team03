@@ -6,7 +6,7 @@ import org.springframework.context.annotation.Profile
 import org.springframework.stereotype.Component
 
 @Profile("!test")
-@Component
+//@Component
 class SearchDocumentMvInitializer(
     private val batchService: SearchDocumentMvBatchService
 ) {
