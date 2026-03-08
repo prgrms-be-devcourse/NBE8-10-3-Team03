@@ -42,13 +42,15 @@ class PostServiceTest {
     private val imageRepository: ImageRepository = mock(ImageRepository::class.java)
     private val fileStoragePort: FileStoragePort = mock(FileStoragePort::class.java)
     private val memberService: MemberService = mock(MemberService::class.java)
+    private val postCountService: PostCountService = mock(PostCountService::class.java)
 
     private val postService = PostService(
         postPort,
         categoryPort,
         imageRepository,
         fileStoragePort,
-        memberService
+        memberService,
+        postCountService
     )
 
     @Test
