@@ -1,6 +1,7 @@
 package com.back.domain.post.post.service.adapter
 
 
+import com.back.domain.post.post.dto.PostListProjection
 import com.back.domain.post.post.dto.PostListResponse
 import com.back.domain.post.post.entity.Post
 import com.back.domain.post.post.entity.PostStatus
@@ -38,25 +39,27 @@ class PostPersistenceAdapter(
 
     override fun findSliceProjectionByCategoryIdAndStatus(
         categoryId: Int,
+        categoryName: String,
         status: PostStatus,
         pageable: Pageable
-    ): Slice<Post> =
-        postRepository.findByCategoryIdAndStatus(categoryId, status, pageable)
+    ): Slice<PostListProjection> =
+        postRepository.findSliceProjectionByCategoryIdAndStatus(categoryId, categoryName, status, pageable)
 
     override fun findSliceProjectionByCategoryId(
         categoryId: Int,
+        categoryName: String,
         pageable: Pageable
-    ): Slice<Post> =
-        postRepository.findByCategoryId(categoryId, pageable)
+    ): Slice<PostListProjection> =
+        postRepository.findSliceProjectionByCategoryId(categoryId, categoryName, pageable)
 
     override fun findSliceProjectionByStatus(
         status: PostStatus,
         pageable: Pageable
-    ): Slice<Post> =
-        postRepository.findByStatus(status,  pageable)
+    ): Slice<PostListProjection> =
+        postRepository.findSliceProjectionByStatus(status,  pageable)
 
-    override fun findSliceProjectionAll(pageable: Pageable): Slice<Post> =
-        postRepository.findAll(pageable)
+    override fun findSliceProjectionAll(pageable: Pageable): Slice<PostListProjection> =
+        postRepository.findSliceProjectionAll(pageable)
 
     override fun countByCategoryIdAndStatus(
         categoryId: Int,
