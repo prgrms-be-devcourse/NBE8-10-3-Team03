@@ -138,18 +138,18 @@ class LoadtestSeeder(
 
     @Transactional
     fun work4() {
-        val targetPostCount = 10_000L
+        val targetPostCount = 100_000L
         if (postRepository.countByTitleStartingWith(LT_POST_PREFIX) >= targetPostCount) return
 
         val sellers = getLoadtestMembers()
         val categories = categoryRepository.findAll()
         if (sellers.size < LT_MEMBER_TARGET_COUNT || categories.isEmpty()) return
 
-        val saleCount = 7_000
-        val reservedCount = 2_000
+        val saleCount = 70_000
+        val reservedCount = 20_000
 
-        val zeroImageCount = 6_000
-        val oneImageCount = 3_000
+        val zeroImageCount = 60_000
+        val oneImageCount = 30_000
         val sampleImageUrls = arrayOf(
             "/uploads/loadtest/sample-1.jpg",
             "/uploads/loadtest/sample-2.jpg",
@@ -160,7 +160,7 @@ class LoadtestSeeder(
 
         val hotspotIds = mutableListOf<Int>()
 
-        for (i in 1..10_000) {
+        for (i in 1..100_000) {
             val seller = sellers[(i - 1) % LT_MEMBER_TARGET_COUNT]
             val category = categories[(i - 1) % categories.size]
 
@@ -204,7 +204,7 @@ class LoadtestSeeder(
         entityManager.flush()
         entityManager.clear()
 
-        println("[LOADTEST] post seed completed: total=10000, status=7000/2000/1000, images=6000/3000/1000")
+        println("[LOADTEST] post seed completed: total=100000, status=7000/2000/1000, images=6000/3000/1000")
         if (hotspotIds.size == 3) {
             println("[LOADTEST] hotspot post ids (for focused detail mode): $hotspotIds")
             println("[LOADTEST] export as env: POST_HOT_IDS=${hotspotIds[0]},${hotspotIds[1]},${hotspotIds[2]}")
