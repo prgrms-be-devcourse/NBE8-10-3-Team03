@@ -1,5 +1,6 @@
 package com.back.domain.post.post.service.port
 
+import com.back.domain.post.post.dto.PostListProjection
 import com.back.domain.post.post.dto.PostListResponse
 import com.back.domain.post.post.entity.Post
 import com.back.domain.post.post.entity.PostStatus
@@ -15,10 +16,10 @@ interface PostPort {
     fun findAllByDeletedFalse(pageable: Pageable): Page<Post>
     fun findBySellerId(sellerId: Int, pageable: Pageable): Page<Post>
     fun findBySellerIdAndStatus(sellerId: Int, status: PostStatus, pageable: Pageable): Page<Post>
-    fun findSliceProjectionByCategoryIdAndStatus(categoryId: Int,  status: PostStatus, pageable: Pageable): Slice<Post>
-    fun findSliceProjectionByCategoryId(categoryId: Int, pageable: Pageable): Slice<Post>
-    fun findSliceProjectionByStatus(status: PostStatus,  pageable: Pageable): Slice<Post>
-    fun findSliceProjectionAll(pageable: Pageable): Slice<Post>
+    fun findSliceProjectionByCategoryIdAndStatus(categoryId: Int, categoryName: String, status: PostStatus, pageable: Pageable): Slice<PostListProjection>
+    fun findSliceProjectionByCategoryId(categoryId: Int, categoryName: String, pageable: Pageable): Slice<PostListProjection>
+    fun findSliceProjectionByStatus(status: PostStatus,  pageable: Pageable): Slice<PostListProjection>
+    fun findSliceProjectionAll(pageable: Pageable): Slice<PostListProjection>
     fun countByCategoryIdAndStatus(categoryId: Int, status: PostStatus): Long
     fun countByCategoryId(categoryId: Int): Long
     fun countByStatus(status: PostStatus): Long
