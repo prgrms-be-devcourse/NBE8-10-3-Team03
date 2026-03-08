@@ -1,7 +1,6 @@
 package com.back.domain.post.post.dto
 
 import com.back.domain.post.post.entity.Post
-import com.back.domain.post.post.entity.PostStatus
 import io.swagger.v3.oas.annotations.media.Schema
 import java.time.LocalDateTime
 
@@ -9,10 +8,10 @@ data class PostListResponse(
     val id: Int,
     val title: String,
     val price: Int,
-    val categoryName: String?,
+    val categoryName: String,
     val thumbnailUrl: String?,
     val createDate: LocalDateTime,
-    val status: PostStatus,
+    val status: String,
     val statusDisplayName: String
 //    val viewCount: Long,
 //    val sellerId: Int,
@@ -29,7 +28,7 @@ data class PostListResponse(
         // 코틀린의 안전한 호출(?.)과 firstOrNull()을 사용하면 널 체크가 매우 우아해집니다.
         thumbnailUrl = post.thumbnailUrl,
         createDate = post.createDate,
-        status = post.status,
+        status = post.status.name,
         statusDisplayName = post.status.displayName
 //        viewCount = post.viewCount,
 //        sellerId = post.seller?.id as? Int ?: 0,

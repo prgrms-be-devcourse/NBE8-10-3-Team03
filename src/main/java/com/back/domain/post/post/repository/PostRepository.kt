@@ -1,7 +1,5 @@
 package com.back.domain.post.post.repository
 
-import com.back.domain.auction.auction.entity.AuctionStatus
-import com.back.domain.post.post.dto.PostListProjection
 import com.back.domain.post.post.dto.PostListResponse
 import com.back.domain.post.post.entity.Post
 import com.back.domain.post.post.entity.PostStatus
@@ -53,91 +51,15 @@ interface PostRepository : JpaRepository<Post, Int> {
 
     // ==========
 
-    @Query(
-        """
-    SELECT new com.back.domain.post.post.dto.PostListProjection(
-        p.id,
-        p.title,
-        p.price,
-        :categoryName,
-        p.thumbnailUrl,
-        p.createDate,
-        p.status
-    )
-    FROM Post p
-    JOIN p.category c
-    WHERE p.category.id = :categoryId
-      AND p.status = :status
-    """
-    )
-    fun findSliceProjectionByCategoryIdAndStatus(
-        @Param("categoryId") categoryId: Int,
-        @Param("categoryName") categoryName: String,
-        @Param("status") status: PostStatus,
+    fun findByCategoryIdAndStatus(
+        categoryId: Int,
+        status: PostStatus,
         pageable: Pageable
-    ): Slice<PostListProjection>
+    ): Slice<Post>
 
-    @Query(
-        """
-    SELECT new com.back.domain.post.post.dto.PostListProjection(
-        p.id,
-        p.title,
-        p.price,
-        :categoryName,
-        p.thumbnailUrl,
-        p.createDate,
-        p.status
-    )
-    FROM Post p
-    JOIN p.category c
-    WHERE p.category.id = :categoryId
-    """
-    )
-    fun findSliceProjectionByCategoryId(
-        @Param("categoryId") categoryId: Int,
-        @Param("categoryName") categoryName: String,
-        pageable: Pageable
-    ): Slice<PostListProjection>
+    fun findByCategoryId(categoryId: Int, pageable: Pageable): Slice<Post>
 
-    @Query(
-        """
-    SELECT new com.back.domain.post.post.dto.PostListProjection(
-        p.id,
-        p.title,
-        p.price,
-        c.name,
-        p.thumbnailUrl,
-        p.createDate,
-        p.status
-    )
-    FROM Post p
-    JOIN p.category c
-    WHERE p.status = :status
-    """
-    )
-    fun findSliceProjectionByStatus(
-        @Param("status") status: PostStatus,
-        pageable: Pageable
-    ): Slice<PostListProjection>
-
-    @Query(
-        """
-    SELECT new com.back.domain.post.post.dto.PostListProjection(
-        p.id,
-        p.title,
-        p.price,
-        c.name,
-        p.thumbnailUrl,
-        p.createDate,
-        p.status
-    )
-    FROM Post p
-    JOIN p.category c
-    """
-    )
-    fun findSliceProjectionAll(
-        pageable: Pageable
-    ): Slice<PostListProjection>
+    fun findByStatus(status: PostStatus, pageable: Pageable): Slice<Post>
 
 
 

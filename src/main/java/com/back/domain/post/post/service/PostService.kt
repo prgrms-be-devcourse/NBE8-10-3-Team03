@@ -172,8 +172,8 @@ class PostService(
         size: Int,
         sortBy: String?,
         categoryName: String?,
-        statusStr: String?
-    ): PostPageResponse {
+        statusStr: String?)
+            : PostPageResponse {
         val pageable = PageUtils.createPageable(page, size, createSort(sortBy))
 
         val status = if (!statusStr.isNullOrEmpty() && statusStr.lowercase() != "all") {
@@ -194,7 +194,6 @@ class PostService(
             categoryId != null && status != null ->
                 postPort.findSliceProjectionByCategoryIdAndStatus(
                     categoryId,
-                    categoryName,
                     status,
                     pageable
                 )
@@ -202,7 +201,6 @@ class PostService(
             categoryId != null ->
                 postPort.findSliceProjectionByCategoryId(
                     categoryId,
-                    categoryName,
                     pageable
                 )
 
@@ -214,7 +212,7 @@ class PostService(
 
         val countCacheKey = buildCountCacheKey(categoryId, status)
         val totalElements = resolveTotalElements(page, size, postSlice, countCacheKey, categoryId, status)
-        val content = postSlice.content.map { row -> row.toDto() }
+        val content = postSlice.content.map(PostListResponse::from)
 
         return PostPageResponse.of(content, page, size, totalElements)
     }
@@ -286,4 +284,3 @@ class PostService(
         )
     }
 }
-
