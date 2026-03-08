@@ -1,12 +1,14 @@
 package com.back.domain.post.post.service.adapter
 
 
+import com.back.domain.post.post.dto.PostListResponse
 import com.back.domain.post.post.entity.Post
 import com.back.domain.post.post.entity.PostStatus
 import com.back.domain.post.post.repository.PostRepository
 import com.back.domain.post.post.service.port.PostPort
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
+import org.springframework.data.domain.Slice
 import org.springframework.stereotype.Component
 
 @Component
@@ -33,4 +35,41 @@ class PostPersistenceAdapter(
 
     override fun findBySellerIdAndStatus(sellerId: Int, status: PostStatus, pageable: Pageable): Page<Post> =
         postRepository.findBySellerIdAndStatus(sellerId, status, pageable)
+
+    override fun findSliceProjectionByCategoryIdAndStatus(
+        categoryId: Int,
+        status: PostStatus,
+        pageable: Pageable
+    ): Slice<Post> =
+        postRepository.findByCategoryIdAndStatus(categoryId, status, pageable)
+
+    override fun findSliceProjectionByCategoryId(
+        categoryId: Int,
+        pageable: Pageable
+    ): Slice<Post> =
+        postRepository.findByCategoryId(categoryId, pageable)
+
+    override fun findSliceProjectionByStatus(
+        status: PostStatus,
+        pageable: Pageable
+    ): Slice<Post> =
+        postRepository.findByStatus(status,  pageable)
+
+    override fun findSliceProjectionAll(pageable: Pageable): Slice<Post> =
+        postRepository.findAll(pageable)
+
+    override fun countByCategoryIdAndStatus(
+        categoryId: Int,
+        status: PostStatus
+    ): Long =
+        postRepository.countByCategoryIdAndStatus(categoryId, status)
+
+    override fun countByCategoryId(categoryId: Int): Long =
+        postRepository.countByCategoryId(categoryId)
+
+    override fun countByStatus(status: PostStatus): Long =
+        postRepository.countByStatus(status)
+
+    override fun countAll(): Long =
+        postRepository.count();
 }

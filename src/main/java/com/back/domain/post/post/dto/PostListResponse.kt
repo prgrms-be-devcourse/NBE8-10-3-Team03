@@ -12,12 +12,12 @@ data class PostListResponse(
     val thumbnailUrl: String?,
     val createDate: LocalDateTime,
     val status: String,
-    val statusDisplayName: String,
-    val viewCount: Long,
-    val sellerId: Int,
-    val sellerNickname: String,
-    @field:Schema(description = "판매자 등급 뱃지 (안전/우수/일반/주의)", example = "안전한 판매자")
-    val sellerBadge: String
+    val statusDisplayName: String
+//    val viewCount: Long,
+//    val sellerId: Int,
+//    val sellerNickname: String,
+//    @field:Schema(description = "판매자 등급 뱃지 (안전/우수/일반/주의)", example = "안전한 판매자")
+//    val sellerBadge: String
 ) {
     // Entity를 받아서 DTO로 변환하는 부 생성자(Constructor)
     constructor(post: Post) : this(
@@ -29,11 +29,11 @@ data class PostListResponse(
         thumbnailUrl = post.postImages.firstOrNull()?.image?.url,
         createDate = post.createDate,
         status = post.status.name,
-        statusDisplayName = post.status.displayName,
-        viewCount = post.viewCount,
-        sellerId = post.seller?.id as? Int ?: 0,
-        sellerNickname = post.seller.nickname,
-        sellerBadge = calculateBadge(post.seller.reputation?.score)
+        statusDisplayName = post.status.displayName
+//        viewCount = post.viewCount,
+//        sellerId = post.seller?.id as? Int ?: 0,
+//        sellerNickname = post.seller.nickname,
+//        sellerBadge = calculateBadge(post.seller.reputation?.score)
     )
 
     companion object {
@@ -46,5 +46,8 @@ data class PostListResponse(
                 else -> "주의 판매자"
             }
         }
+
+        fun from(post: Post): PostListResponse =
+            PostListResponse(post)
     }
 }
